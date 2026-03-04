@@ -1,0 +1,27 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI Companion logo">
+  <defs>
+    <linearGradient id="logo-bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2AAAD6"/>
+      <stop offset="0.52" stop-color="#1B7EB1"/>
+      <stop offset="1" stop-color="#0C5276"/>
+    </linearGradient>
+    <linearGradient id="bubble-right" x1="54" y1="42" x2="106" y2="90" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DBF6FF"/>
+      <stop offset="1" stop-color="#BEE9FA"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#logo-bg)"/>
+  <rect x="8.75" y="8.75" width="110.5" height="110.5" rx="29.25" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.5"/>
+
+  <rect x="22" y="28" width="52" height="38" rx="14" fill="#F7FCFF"/>
+  <path d="M40 66L30 76V66H40Z" fill="#F7FCFF"/>
+
+  <rect x="54" y="42" width="52" height="38" rx="14" fill="url(#bubble-right)"/>
+  <path d="M90 80L100 90V80H90Z" fill="#C6EEFC"/>
+
+  <circle cx="64" cy="56" r="10" fill="#0F638F"/>
+  <path d="M64 48L66.65 53.35L72 56L66.65 58.65L64 64L61.35 58.65L56 56L61.35 53.35L64 48Z" fill="white"/>
+
+  <path d="M44 92C49.8 97.7 57 101 64 101C71 101 78.2 97.7 84 92" stroke="#EAF7FE" stroke-width="5" stroke-linecap="round"/>
+</svg>
