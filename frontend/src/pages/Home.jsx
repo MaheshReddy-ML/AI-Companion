@@ -47,9 +47,34 @@ const liveStats = [
   { label: "Share targets", value: "3" },
   { label: "UI latency", value: "Fast" },
 ];
+const STARTER_CHARACTER_KEY = "ai-companion:starter-character";
+const companionShowcase = [
+  {
+    id: "grok-companion",
+    name: "Grok's Companion",
+    badge: "Candid + Sharp",
+    description: "A direct strategic partner for big ideas, difficult decisions, and fast clarity.",
+  },
+  {
+    id: "focus-coach",
+    name: "Focus Coach",
+    badge: "Calm + Structured",
+    description: "Transforms noisy thoughts into a practical plan with clear next actions.",
+  },
+  {
+    id: "builder-buddy",
+    name: "Builder Buddy",
+    badge: "Product + Execution",
+    description: "Helps you turn product thoughts into build-ready tasks and implementation steps.",
+  },
+];
 
 export default function Home() {
   const navigate = useNavigate();
+  const handleLaunchCharacter = (characterId) => {
+    localStorage.setItem(STARTER_CHARACTER_KEY, characterId);
+    navigate("/dashboard");
+  };
 
   return (
     <div className="landing-grid relative min-h-screen overflow-hidden text-[var(--text-primary)]">
@@ -141,6 +166,37 @@ export default function Home() {
                 Done. It stays saved in dashboard until you manually delete it.
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="mx-auto mt-14 w-full max-w-7xl">
+          <div className="mb-5 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Direct character mode</p>
+              <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Click and chat instantly</h2>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)]">You can launch these directly into dashboard.</p>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {companionShowcase.map((character, index) => (
+              <article
+                key={character.id}
+                className="companion-spotlight-card float-up"
+                style={{ animationDelay: `${index * 70 + 80}ms` }}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--accent)]">{character.badge}</p>
+                <h3 className="mt-2 text-xl font-bold">{character.name}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{character.description}</p>
+                <button
+                  type="button"
+                  onClick={() => handleLaunchCharacter(character.id)}
+                  className="character-launch-btn mt-4 rounded-xl px-4 py-2 text-sm font-bold"
+                >
+                  Start with {character.name}
+                </button>
+              </article>
+            ))}
           </div>
         </section>
 

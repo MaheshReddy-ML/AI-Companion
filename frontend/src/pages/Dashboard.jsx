@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ThemeContext } from "../context/ThemeContext";
@@ -9,6 +9,7 @@ const CHAT_STORAGE_VERSION = 1;
 const CHAT_STORAGE_PREFIX = "ai-companion:dashboard-chats";
 const GEMINI_DEFAULT_MODEL = "gemini-2.0-flash";
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_DEEPSEEK_API_KEY || "";
+const STARTER_CHARACTER_KEY = "ai-companion:starter-character";
 
 const quickPrompts = [
   "Plan a focused 2-hour coding sprint for tonight.",
@@ -17,6 +18,41 @@ const quickPrompts = [
   "Help me reframe stress into actionable steps.",
 ];
 const UPGRADE_VERSION = "Upgrade v2.2";
+const companionProfiles = [
+  {
+    id: "grok-companion",
+    name: "Grok's Companion",
+    badge: "Candid + Sharp",
+    summary: "Direct strategy partner for bold decisions, deep thinking, and fast iteration.",
+    kickoffPrompt: "Give me the brutally honest next move on my current project.",
+    personaPrompt:
+      "You are Grok's Companion inside AI Companion. Be direct, witty when useful, and practical. Prioritize clarity and truthful reasoning over politeness fluff. Keep answers actionable and easy to execute.",
+    greeting:
+      "I am Grok's Companion. Bring me your idea, problem, or plan, and I will give you a direct, high-signal path forward.",
+  },
+  {
+    id: "focus-coach",
+    name: "Focus Coach",
+    badge: "Calm + Structured",
+    summary: "Turns mental clutter into a clear plan with short steps and realistic pacing.",
+    kickoffPrompt: "Build me a no-overwhelm plan for today with breaks included.",
+    personaPrompt:
+      "You are Focus Coach inside AI Companion. Keep tone calm, organized, and encouraging. Break requests into concrete steps with priorities, time blocks, and realistic effort.",
+    greeting:
+      "I am your Focus Coach. Tell me what is pulling your attention, and I will build a calm plan you can start immediately.",
+  },
+  {
+    id: "builder-buddy",
+    name: "Builder Buddy",
+    badge: "Product + Execution",
+    summary: "Helps you ship features with concise technical direction and implementation steps.",
+    kickoffPrompt: "Help me turn this feature idea into a build-ready task list.",
+    personaPrompt:
+      "You are Builder Buddy inside AI Companion. Focus on implementation details, edge cases, and concise technical execution plans. Prefer checklists, code-level suggestions, and concrete next steps.",
+    greeting:
+      "Builder Buddy online. Share your feature goal and stack, and I will break it into build-ready tasks.",
+  },
+];
 
 function createSeedChats() {
   return [
@@ -148,8 +184,64 @@ function sanitizeChat(rawChat, index) {
         : createChatTitle(messages[0]?.content || "New conversation"),
     updatedAt,
     pinned: Boolean(rawChat.pinned),
+    characterId: typeof rawChat.characterId === "string" ? rawChat.characterId : undefined,
+    characterName: typeof rawChat.characterName === "string" ? rawChat.characterName : undefined,
+    personaPrompt: typeof rawChat.personaPrompt === "string" ? rawChat.personaPrompt : undefined,
     messages,
   };
+}
+
+function getCompanionProfileById(characterId) {
+  if (!characterId) {
+    return null;
+  }
+
+  return companionProfiles.find((profile) => profile.id === characterId) ?? null;
+}
+
+function createCompanionChat(profile, nextId) {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: nextId("chat"),
+    title: `${profile.name} session`,
+    updatedAt: timestamp,
+    pinned: false,
+    characterId: profile.id,
+    characterName: profile.name,
+    personaPrompt: profile.personaPrompt,
+    messages: [
+      {
+        id: nextId("msg"),
+        role: "assistant",
+        content: profile.greeting,
+        timestamp,
+      },
+    ],
+  };
+}
+
+function getDraftKey(chatId) {
+  return chatId || "__global__";
+}
+
+function sanitizeDrafts(rawDrafts) {
+  if (!rawDrafts || typeof rawDrafts !== "object") {
+    return {};
+  }
+
+  return Object.entries(rawDrafts).reduce((accumulator, [key, value]) => {
+    if (typeof key !== "string" || typeof value !== "string") {
+      return accumulator;
+    }
+
+    if (!value.length) {
+      return accumulator;
+    }
+
+    accumulator[key] = value;
+    return accumulator;
+  }, {});
 }
 
 function getHighestCounter(chats) {
@@ -182,21 +274,24 @@ function loadStoredState(storageKey) {
       return {
         chats: seedChats,
         activeChatId: seedChats[0]?.id ?? null,
+        chatDrafts: {},
       };
     }
 
     const parsed = JSON.parse(raw);
+    const normalizedDrafts = sanitizeDrafts(parsed?.chatDrafts || parsed?.drafts);
     const normalizedChats = Array.isArray(parsed?.chats)
       ? parsed.chats.map((chat, index) => sanitizeChat(chat, index)).filter(Boolean)
       : [];
 
     if (!normalizedChats.length) {
       if (parsed?.initialized) {
-        return { chats: [], activeChatId: null };
+        return { chats: [], activeChatId: null, chatDrafts: normalizedDrafts };
       }
       return {
         chats: seedChats,
         activeChatId: seedChats[0]?.id ?? null,
+        chatDrafts: normalizedDrafts,
       };
     }
 
@@ -208,12 +303,14 @@ function loadStoredState(storageKey) {
     return {
       chats: normalizedChats,
       activeChatId: resolvedActiveId,
+      chatDrafts: normalizedDrafts,
     };
   } catch (error) {
     console.error("Failed to restore chats from local storage", error);
     return {
       chats: seedChats,
       activeChatId: seedChats[0]?.id ?? null,
+      chatDrafts: {},
     };
   }
 }
@@ -223,15 +320,17 @@ function buildShareText(chat, displayName) {
     return "";
   }
 
+  const assistantLabel = chat.characterName || "AI Companion";
+
   const transcript = chat.messages
     .map((message) => {
-      const speaker = message.role === "assistant" ? "AI Companion" : displayName;
+      const speaker = message.role === "assistant" ? assistantLabel : displayName;
       const attachment = message.attachmentName ? ` (Attachment: ${message.attachmentName})` : "";
       return `${speaker}: ${message.content}${attachment}`;
     })
     .join("\n\n");
 
-  return `AI Companion conversation: ${chat.title}\n\n${transcript}`;
+  return `${assistantLabel} conversation: ${chat.title}\n\n${transcript}`;
 }
 
 function WhatsAppIcon() {
@@ -300,7 +399,8 @@ export default function Dashboard() {
   const restoredState = useMemo(() => loadStoredState(storageKey), [storageKey]);
   const [chats, setChats] = useState(() => restoredState.chats);
   const [activeChatId, setActiveChatId] = useState(() => restoredState.activeChatId);
-  const [draft, setDraft] = useState("");
+  const [chatDrafts, setChatDrafts] = useState(() => restoredState.chatDrafts ?? {});
+  const [draft, setDraft] = useState(() => restoredState.chatDrafts?.[getDraftKey(restoredState.activeChatId)] || "");
   const [selectedFile, setSelectedFile] = useState(null);
   const [isThinking, setIsThinking] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
@@ -310,12 +410,15 @@ export default function Dashboard() {
   const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isComposerFocused, setIsComposerFocused] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   const profileRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
   const messagesRef = useRef(null);
   const idCounterRef = useRef(getHighestCounter(restoredState.chats));
+  const starterCharacterBootedRef = useRef(false);
+  const shouldAutoScrollRef = useRef(true);
 
   const displayName = user?.name || user?.username || user?.email?.split("@")[0] || "Friend";
 
@@ -327,6 +430,10 @@ export default function Dashboard() {
   const regularChats = useMemo(() => orderedChats.filter((chat) => !chat.pinned), [orderedChats]);
 
   const activeChat = useMemo(() => chats.find((chat) => chat.id === activeChatId) ?? null, [chats, activeChatId]);
+  const activeCompanionProfile = useMemo(
+    () => getCompanionProfileById(activeChat?.characterId),
+    [activeChat?.characterId],
+  );
   const activeMessages = activeChat?.messages ?? [];
   const canSend = Boolean(draft.trim() || selectedFile);
   const totalMessages = useMemo(
@@ -343,12 +450,13 @@ export default function Dashboard() {
           initialized: true,
           chats,
           activeChatId,
+          chatDrafts,
         }),
       );
     } catch (error) {
       console.error("Failed to save chats to local storage", error);
     }
-  }, [activeChatId, chats, storageKey]);
+  }, [activeChatId, chatDrafts, chats, storageKey]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -362,13 +470,42 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTo({
-        top: messagesRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+    const nextDraft = chatDrafts[getDraftKey(activeChatId)] || "";
+    setDraft((currentDraft) => (currentDraft === nextDraft ? currentDraft : nextDraft));
+  }, [activeChatId, chatDrafts]);
+
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (!container) {
+      return undefined;
     }
-  }, [activeChatId, activeMessages.length, isThinking]);
+
+    const evaluatePosition = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setIsNearBottom(distanceFromBottom < 72);
+    };
+
+    evaluatePosition();
+    container.addEventListener("scroll", evaluatePosition, { passive: true });
+    return () => container.removeEventListener("scroll", evaluatePosition);
+  }, [activeChatId]);
+
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (!container) {
+      return;
+    }
+
+    if (!isNearBottom && !shouldAutoScrollRef.current) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: "smooth",
+    });
+    shouldAutoScrollRef.current = false;
+  }, [activeChatId, activeMessages.length, isThinking, isNearBottom]);
 
   useEffect(() => {
     if (!shareNotice) {
@@ -379,23 +516,12 @@ export default function Dashboard() {
     return () => window.clearTimeout(timerId);
   }, [shareNotice]);
 
-  const toggleTheme = () => {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-  };
-
-  const nextId = (prefix) => {
+  const nextId = useCallback((prefix) => {
     idCounterRef.current += 1;
     return `${prefix}-${idCounterRef.current}`;
-  };
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    navigate("/login");
-  };
-
-  const handleNewChat = () => {
+  const handleNewChat = useCallback(() => {
     const newChat = {
       id: nextId("chat"),
       title: "New conversation",
@@ -406,9 +532,99 @@ export default function Dashboard() {
 
     setChats((prev) => [newChat, ...prev]);
     setActiveChatId(newChat.id);
-    setDraft("");
+    shouldAutoScrollRef.current = true;
     setSelectedFile(null);
     setIsMobileSidebarOpen(false);
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+  }, [nextId]);
+
+  useEffect(() => {
+    const handleGlobalKeydown = (event) => {
+      const key = event.key.toLowerCase();
+      const hasMeta = event.metaKey || event.ctrlKey;
+
+      if (hasMeta && key === "k") {
+        event.preventDefault();
+        textareaRef.current?.focus();
+        return;
+      }
+
+      if (hasMeta && key === "n") {
+        event.preventDefault();
+        handleNewChat();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setIsProfileOpen(false);
+        setIsMobileSidebarOpen(false);
+        setIsSettingsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeydown);
+    return () => window.removeEventListener("keydown", handleGlobalKeydown);
+  }, [handleNewChat]);
+
+  useEffect(() => {
+    if (starterCharacterBootedRef.current) {
+      return;
+    }
+
+    starterCharacterBootedRef.current = true;
+    const queuedCharacterId = localStorage.getItem(STARTER_CHARACTER_KEY);
+    if (!queuedCharacterId) {
+      return;
+    }
+
+    localStorage.removeItem(STARTER_CHARACTER_KEY);
+    const profile = getCompanionProfileById(queuedCharacterId);
+    if (!profile) {
+      return;
+    }
+
+    const starterChat = createCompanionChat(profile, nextId);
+    setChats((prev) => [starterChat, ...prev]);
+    setActiveChatId(starterChat.id);
+    setChatDrafts((prev) => ({
+      ...prev,
+      [getDraftKey(starterChat.id)]: profile.kickoffPrompt,
+    }));
+    shouldAutoScrollRef.current = true;
+    setSelectedFile(null);
+    setShareNotice(`${profile.name} is ready.`);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    navigate("/login");
+  };
+
+  const handleStartCompanion = (profile) => {
+    if (!profile) {
+      return;
+    }
+
+    const companionChat = createCompanionChat(profile, nextId);
+    setChats((prev) => [companionChat, ...prev]);
+    setActiveChatId(companionChat.id);
+    setChatDrafts((prev) => ({
+      ...prev,
+      [getDraftKey(companionChat.id)]: profile.kickoffPrompt,
+    }));
+    shouldAutoScrollRef.current = true;
+    setSelectedFile(null);
+    setIsMobileSidebarOpen(false);
+    setShareNotice(`${profile.name} is ready.`);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -418,6 +634,7 @@ export default function Dashboard() {
   const handleOpenChat = (chatId) => {
     setActiveChatId(chatId);
     setIsMobileSidebarOpen(false);
+    shouldAutoScrollRef.current = true;
   };
 
   const handleDeleteChat = (chatId, event) => {
@@ -429,9 +646,16 @@ export default function Dashboard() {
       if (chatId === activeChatId) {
         const nextActive = remaining.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]?.id ?? null;
         setActiveChatId(nextActive);
+        shouldAutoScrollRef.current = true;
       }
 
       return remaining;
+    });
+
+    setChatDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts };
+      delete nextDrafts[getDraftKey(chatId)];
+      return nextDrafts;
     });
   };
 
@@ -450,7 +674,20 @@ export default function Dashboard() {
   };
 
   const handleDraftInput = (event) => {
-    setDraft(event.target.value);
+    const nextDraft = event.target.value;
+    const draftKey = getDraftKey(activeChatId);
+
+    setDraft(nextDraft);
+    setChatDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts };
+      if (nextDraft.length) {
+        nextDrafts[draftKey] = nextDraft;
+      } else {
+        delete nextDrafts[draftKey];
+      }
+      return nextDrafts;
+    });
+
     event.target.style.height = "auto";
     event.target.style.height = `${Math.min(event.target.scrollHeight, 190)}px`;
   };
@@ -491,7 +728,10 @@ export default function Dashboard() {
     };
 
     let conversationId = activeChatId;
+    const currentDraftKey = getDraftKey(conversationId);
     const existingConversation = conversationId ? chats.find((chat) => chat.id === conversationId) ?? null : null;
+    const activePersonaPrompt =
+      existingConversation?.personaPrompt || getCompanionProfileById(existingConversation?.characterId)?.personaPrompt || "";
 
     const history = (existingConversation?.messages ?? [])
       .filter((entry) => typeof entry?.content === "string" && entry.content.trim())
@@ -500,6 +740,10 @@ export default function Dashboard() {
         role: entry.role === "assistant" ? "assistant" : "user",
         content: entry.content,
       }));
+
+    const aiInput = activePersonaPrompt
+      ? `${activePersonaPrompt}\n\nUser request: ${outgoingContent}`
+      : outgoingContent;
 
     if (!existingConversation) {
       const newChat = {
@@ -535,15 +779,24 @@ export default function Dashboard() {
     }
 
     setDraft("");
+    setChatDrafts((prevDrafts) => {
+      const nextDrafts = { ...prevDrafts };
+      delete nextDrafts[currentDraftKey];
+      if (conversationId) {
+        delete nextDrafts[getDraftKey(conversationId)];
+      }
+      return nextDrafts;
+    });
     setSelectedFile(null);
     setIsThinking(true);
+    shouldAutoScrollRef.current = true;
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
     try {
-      const response = await sendChatMessage(outgoingContent, {
+      const response = await sendChatMessage(aiInput, {
         apiKey: trimmedApiKey,
         model: GEMINI_DEFAULT_MODEL,
         history,
@@ -681,6 +934,18 @@ export default function Dashboard() {
 
   const handleMoreShare = async () => {
     await shareChat(activeChat, "more");
+  };
+
+  const handleJumpToLatest = () => {
+    if (!messagesRef.current) {
+      return;
+    }
+
+    messagesRef.current.scrollTo({
+      top: messagesRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+    setIsNearBottom(true);
   };
 
   const renderChatItem = (chat) => {
@@ -854,6 +1119,36 @@ export default function Dashboard() {
           <PremiumBanner onUpgradeClick={() => setIsPremiumModalOpen(true)} />
         )}
 
+        {isDesktopSidebarOpen && (
+          <div className="character-launch-stack mb-4 space-y-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--glass-raised)] p-3">
+            <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
+              Character Studio
+            </p>
+            {companionProfiles.map((profile) => (
+              <button
+                key={profile.id}
+                type="button"
+                onClick={() => handleStartCompanion(profile)}
+                className={`character-launch-card w-full rounded-xl border px-3 py-2 text-left transition ${
+                  activeCompanionProfile?.id === profile.id
+                    ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                    : "border-[var(--border-soft)] bg-[var(--bg-elevated)] hover:border-[var(--accent)]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{profile.name}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-[var(--text-secondary)]">{profile.summary}</p>
+                  </div>
+                  <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--accent)]">
+                    {profile.badge}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="scrollbar-thin flex-1 space-y-3 overflow-y-auto pr-1">
           {orderedChats.length === 0 ? (
             <p className="rounded-xl border border-dashed border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-4 text-xs text-[var(--text-secondary)]">
@@ -987,7 +1282,7 @@ export default function Dashboard() {
             </button>
 
             <span className="rounded-full border border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.11em] text-[var(--text-secondary)]">
-              Companion mode
+              {activeCompanionProfile ? activeCompanionProfile.name : "Companion mode"}
             </span>
             <span className="rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
               {UPGRADE_VERSION}
@@ -1080,9 +1375,17 @@ export default function Dashboard() {
 
         {shareNotice && (
           <div className="px-4 pt-3 sm:px-6">
-            <p className="fade-slide-in inline-flex rounded-full border border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-1 text-xs text-[var(--text-secondary)]">
-              {shareNotice}
-            </p>
+            <div className="notice-chip fade-slide-in inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-1 text-xs text-[var(--text-secondary)]">
+              <span>{shareNotice}</span>
+              <button
+                type="button"
+                onClick={() => setShareNotice("")}
+                className="rounded-full px-1.5 py-0.5 transition hover:bg-[var(--accent-soft)]"
+                aria-label="Dismiss notice"
+              >
+                x
+              </button>
+            </div>
           </div>
         )}
 
@@ -1128,6 +1431,40 @@ export default function Dashboard() {
                   </button>
                 ))}
               </div>
+
+              <div className="dashboard-character-lab rounded-3xl border border-[var(--border-soft)] bg-[var(--glass-panel)] p-4 sm:p-6">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Direct character mode</p>
+                    <h2 className="mt-1 text-xl font-bold sm:text-2xl">Choose who you want to talk to</h2>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)]">One click opens a ready conversation.</p>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-3">
+                  {companionProfiles.map((profile) => (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() => handleStartCompanion(profile)}
+                      className="companion-card text-left"
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-[0.11em] text-[var(--accent)]">{profile.badge}</p>
+                      <h3 className="mt-1 text-lg font-bold">{profile.name}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">{profile.summary}</p>
+                      <p className="mt-3 rounded-xl border border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                        Try: "{profile.kickoffPrompt}"
+                      </p>
+                      <span className="mt-4 inline-flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[var(--accent)]">
+                        Start chat
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+                          <path d="M13.3 4.3a1 1 0 0 1 1.4 0l6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 1 1-1.4-1.4l4.3-4.3H4a1 1 0 1 1 0-2h13.6l-4.3-4.3a1 1 0 0 1 0-1.4Z" />
+                        </svg>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="mx-auto w-full max-w-4xl space-y-5">
@@ -1137,6 +1474,11 @@ export default function Dashboard() {
                   <p className="text-xs text-[var(--text-secondary)]">
                     {activeMessages.length} messages • updated {activeChat ? formatSidebarTime(activeChat.updatedAt) : "just now"}
                   </p>
+                  {activeCompanionProfile && (
+                    <p className="mt-1 inline-flex rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-[var(--accent)]">
+                      {activeCompanionProfile.name}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -1188,6 +1530,18 @@ export default function Dashboard() {
                     <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-secondary)]" />
                   </div>
                 </article>
+              )}
+
+              {!isNearBottom && activeMessages.length > 3 && (
+                <div className="sticky bottom-4 z-20 flex justify-end pr-2">
+                  <button
+                    type="button"
+                    onClick={handleJumpToLatest}
+                    className="jump-latest-btn rounded-full border border-[var(--border-soft)] bg-[var(--glass-raised)] px-3 py-1 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
+                  >
+                    Jump to latest
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1243,7 +1597,7 @@ export default function Dashboard() {
                   onKeyDown={handleComposerKeyDown}
                   onFocus={() => setIsComposerFocused(true)}
                   onBlur={() => setIsComposerFocused(false)}
-                  placeholder="Message AI Companion..."
+                  placeholder={activeCompanionProfile ? `Message ${activeCompanionProfile.name}...` : "Message AI Companion..."}
                   className={`max-h-[190px] flex-1 resize-none border-none bg-transparent px-2 outline-none transition-[min-height,padding,font-size] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isComposerFocused ? "min-h-[60px] py-3 text-[0.96rem]" : "min-h-[46px] py-2 text-sm"
                   }`}
@@ -1255,9 +1609,15 @@ export default function Dashboard() {
                   onClick={() => submitMessage()}
                   className="primary-cta rounded-xl px-4 py-2 text-sm font-bold shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Send
+                  {isThinking ? "Thinking..." : "Send"}
                 </button>
               </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              <span className="shortcut-chip">Ctrl/Cmd + K to focus</span>
+              <span className="shortcut-chip">Ctrl/Cmd + N new chat</span>
+              <span className="shortcut-chip">Esc closes panels</span>
             </div>
 
             <p className="mt-2 text-center text-[11px] text-[var(--text-secondary)]">

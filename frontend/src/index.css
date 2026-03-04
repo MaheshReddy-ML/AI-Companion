@@ -108,9 +108,13 @@ select {
 }
 
 .surface-glass {
-  background: var(--bg-elevated);
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--bg-elevated) 92%, white 8%), color-mix(in srgb, var(--bg-elevated) 88%, transparent)),
+    var(--bg-elevated);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 14px 36px rgba(8, 24, 37, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.36);
 }
 
 .navbar-shell {
@@ -338,18 +342,21 @@ select {
 }
 
 .primary-cta {
-  background: var(--accent);
+  background: linear-gradient(130deg, var(--accent) 0%, #0d6d9b 60%, #1396b6 100%);
   color: #ffffff;
-  border: 1px solid var(--accent-strong);
+  border: 1px solid color-mix(in srgb, var(--accent-strong) 78%, #0b3f62);
   transition: transform 260ms var(--ease-smooth), box-shadow 300ms var(--ease-soft);
   border-radius: 1rem;
   font-weight: 600;
   padding: 0.75rem 1rem;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .primary-cta:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 30px color-mix(in srgb, var(--accent) 35%, transparent),
+    0 6px 14px rgba(5, 20, 31, 0.22);
 }
 
 .secondary-cta {
@@ -376,7 +383,9 @@ select {
 
 .feature-tile {
   border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(10px);
   border-radius: 1.2rem;
   padding: 1.1rem;
@@ -389,9 +398,95 @@ select {
 
 .feature-tile:hover {
   border-color: rgba(27, 126, 177, 0.6);
-  background: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(150deg, rgba(43, 162, 210, 0.18), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.12);
   transform: translateY(-3px);
   box-shadow: 0 12px 32px rgba(27, 126, 177, 0.15);
+}
+
+.companion-spotlight-card {
+  border-radius: 1.3rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-soft));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 44%),
+    linear-gradient(155deg, color-mix(in srgb, var(--glass-raised) 90%, white 10%), var(--glass-panel));
+  padding: 1.25rem;
+  box-shadow:
+    0 16px 36px rgba(10, 27, 40, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+.character-launch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border-soft));
+  color: var(--accent-strong);
+  transition:
+    transform var(--motion-medium) var(--ease-smooth),
+    border-color var(--motion-medium) var(--ease-soft),
+    background-color var(--motion-medium) var(--ease-soft),
+    box-shadow var(--motion-medium) var(--ease-soft);
+}
+
+.character-launch-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 70%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.character-launch-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.character-launch-card::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.18), transparent 45%);
+  opacity: 0.55;
+}
+
+.dashboard-character-lab {
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05)),
+    var(--glass-panel);
+  box-shadow: 0 14px 34px rgba(11, 30, 44, 0.12);
+}
+
+.companion-card {
+  border-radius: 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 46%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  padding: 1rem;
+  box-shadow: 0 10px 26px rgba(11, 29, 43, 0.1);
+  transition:
+    transform var(--motion-medium) var(--ease-smooth),
+    box-shadow var(--motion-medium) var(--ease-soft),
+    border-color var(--motion-medium) var(--ease-soft);
+}
+
+.companion-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border-soft));
+  box-shadow:
+    0 16px 34px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 6px 14px rgba(4, 19, 30, 0.16);
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .chat-shell {
@@ -455,6 +550,29 @@ select {
   color: var(--accent);
   border-color: rgba(27, 126, 177, 0.4);
   transform: translateY(-1px);
+}
+
+.notice-chip {
+  box-shadow:
+    0 10px 24px rgba(6, 24, 36, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.shortcut-chip {
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent-soft) 74%, transparent);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+.jump-latest-btn {
+  box-shadow:
+    0 10px 26px rgba(6, 24, 36, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
 }
 
 .chat-option-link {
