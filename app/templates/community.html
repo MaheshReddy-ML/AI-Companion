@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block body_class %}app-body{% endblock %}
+
+{% block content %}
+<div class="app-layout app-section-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a class="logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span class="logo-name">Emora</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Main</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
+      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
+      <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
+      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item active" href="/community"><span class="nav-item-icon">M</span> Community</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Personal</div>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
+        <div class="user-pill-info">
+          <h6 data-session-user-name>Mahesh Reddy</h6>
+          <span>Free plan</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="serif">Community</h1>
+        <p>Anonymous reflections from the Emora community</p>
+      </div>
+      <div class="top-bar-right">
+        <button class="btn btn-primary btn-sm" id="community-focus-compose" type="button">Share reflection</button>
+      </div>
+    </div>
+
+    <div class="sub-tabs">
+      <div class="sub-tab active">Reflections</div>
+      <div class="sub-tab">Anonymous by default</div>
+      <div class="sub-tab">Supportive space</div>
+    </div>
+
+    <div class="community-wrap">
+      <div class="community-grid">
+        <section class="post-feed">
+          <div class="community-banner">
+            All posts are anonymous. Emora's community is a space for sharing, not diagnosing. Nothing here replaces professional support.
+          </div>
+
+          <div id="community-feed-status" class="status" hidden></div>
+
+          <div id="community-empty-state" class="community-empty card" hidden>
+            <h3>No reflections yet</h3>
+            <p>Be the first to share something honest. Your post will show only your anonymous ID, never your profile details.</p>
+            <button class="btn btn-outline btn-sm" id="community-empty-compose" type="button">Write the first reflection</button>
+          </div>
+
+          <div id="community-post-list" class="community-post-list" aria-live="polite"></div>
+        </section>
+
+        <aside class="community-side">
+          <section class="card community-compose-card" id="community-compose-card">
+            <div class="card-header">
+              <div>
+                <h3>Share anonymously</h3>
+                <p class="card-sub">Your identity stays hidden from other users and is handled only on the server.</p>
+              </div>
+            </div>
+            <div class="card-body">
+              <p id="community-anonymous-hint" class="community-anonymous-hint mono">Posting as Anonymous. Your private identifier is never shown to users.</p>
+
+              <form id="community-post-form" class="community-compose-form">
+                <label class="sr-only" for="community-post-input">Write your reflection</label>
+                <textarea
+                  id="community-post-input"
+                  class="community-textarea"
+                  name="content"
+                  rows="6"
+                  maxlength="2000"
+                  placeholder="Share what is on your mind. Keep it kind, real, and helpful to someone else reading."
+                  required
+                ></textarea>
+
+                <div class="community-compose-footer">
+                  <span id="community-char-count" class="community-char-count">0 / 2000</span>
+                  <button class="btn btn-primary btn-sm" id="community-submit-button" type="submit">Post anonymously</button>
+                </div>
+              </form>
+
+              <div id="community-compose-status" class="status" hidden></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><h3>Community guidelines</h3></div>
+            <div class="card-body">
+              <div class="guideline-list">
+                <div class="guideline-item">All posts are anonymous by default</div>
+                <div class="guideline-item">No diagnosis, no medical advice</div>
+                <div class="guideline-item">Support, do not counsel</div>
+                <div class="guideline-item">If someone is in crisis, direct them to professional help</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header"><h3>This week's topic</h3></div>
+            <div class="card-body">
+              <p class="text-sm muted-copy">How has a pattern you discovered in Emora's insights changed how you approach a day or relationship?</p>
+              <button class="btn btn-outline w-full btn-sm community-write-btn" id="community-topic-compose" type="button">Write a reflection</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/workspace-shell.js"></script>
+  <script type="module" src="/static/js/community.js"></script>
+{% endblock %}

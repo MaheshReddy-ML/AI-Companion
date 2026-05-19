@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block body_class %}dashboard-body{% endblock %}
+
+{% block content %}
+<div class="app-layout chat-route-layout">
+  <aside class="sidebar" id="dashboard-sidebar">
+    <div class="sidebar-logo">
+      <a class="logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span class="logo-name">Emora</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Main</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
+      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
+      <a class="nav-item active" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
+      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+    </div>
+
+    <button class="btn btn-primary btn-sm w-full dashboard-cta" id="new-chat-button" type="button">New session</button>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Pinned</div>
+      <div id="pinned-conversations" class="conversation-list"></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Recent</div>
+      <div id="recent-conversations" class="conversation-list"></div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Workspace</div>
+      <div class="sidebar-note">
+        <span class="nav-badge" id="sidebar-plan-badge">Free Plan</span>
+        <p id="sidebar-workspace-badge">Stable workspace</p>
+      </div>
+      <button class="nav-item nav-item-button" id="settings-button" type="button">
+        <span class="nav-item-icon">S</span>
+        Settings
+      </button>
+      <button class="nav-item nav-item-button" id="policy-button" type="button">
+        <span class="nav-item-icon">T</span>
+        Terms
+      </button>
+      <button class="nav-item nav-item-button" id="premium-button" type="button">
+        <span class="nav-item-icon">+</span>
+        Premium
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" id="sidebar-user-avatar">AI</div>
+        <div class="user-pill-info">
+          <h6 id="sidebar-user-name">AI Companion</h6>
+          <span id="sidebar-user-email">Signed in workspace</span>
+        </div>
+      </div>
+      <button type="button" data-logout hidden aria-hidden="true"></button>
+    </div>
+  </aside>
+
+  <main class="main-content chat-route-main">
+    <div class="chat-route">
+      <div class="chat-main">
+        <div class="chat-header chat-route-header">
+          <div class="chat-companion-info">
+            <div class="companion-avatar">
+              AI
+              <div class="online-dot"></div>
+            </div>
+            <div>
+              <div class="companion-name" id="active-chat-title">New conversation</div>
+              <div class="companion-status" id="active-chat-meta">Pick a prompt, launch a mode, or start typing below.</div>
+            </div>
+          </div>
+          <div class="chat-header-actions">
+            <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button">Pin</button>
+            <button class="btn btn-outline btn-sm" id="share-chat-button" type="button">Share</button>
+            <button class="btn btn-ghost btn-sm" id="delete-chat-button" type="button">Delete</button>
+          </div>
+        </div>
+
+        <section class="card companion-launcher" id="companion-shelf">
+          <div class="card-header">
+            <div>
+              <h3>Focused companion modes</h3>
+              <p class="card-sub">Choose a preset to start with a stronger tone and clearer direction.</p>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="companion-grid" class="companion-grid"></div>
+          </div>
+        </section>
+
+        <div class="chat-stage">
+          <div id="chat-toast" class="toast status" hidden></div>
+          <div id="chat-messages" class="messages-list"></div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="attachment-row" id="attachment-row" hidden>
+            <span id="attachment-name"></span>
+            <button id="clear-attachment" class="btn btn-ghost btn-sm" type="button">Remove</button>
+          </div>
+
+          <div class="chat-input-wrap">
+            <textarea id="message-input" class="chat-textarea" placeholder="Type what's on your mind..." rows="1"></textarea>
+            <label class="file-btn" for="file-input" aria-label="Attach file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+              </svg>
+            </label>
+            <input id="file-input" type="file" hidden />
+            <button id="send-button" class="send-btn" type="button" aria-label="Send message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+
+          <div class="chat-input-hints">
+            <span class="hint-chip">Press Enter to send</span>
+            <span class="hint-chip">Shift + Enter for newline</span>
+            <span class="hint-chip">File name only</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="chat-sidebar">
+        <div class="cs-header">
+          <h3>Session insights</h3>
+          <p>Real-time emotional tracking</p>
+        </div>
+        <div class="cs-body">
+          <div class="emotion-gauge-wrap">
+            <div class="emotion-gauge-label"><span>Detected state</span><span class="metric-rose">Anxious</span></div>
+            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-anxious" style="width:68%"></div></div>
+            <div class="emotion-gauge-label"><span>Calm</span><span class="metric-teal">32%</span></div>
+            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-calm" style="width:32%"></div></div>
+            <div class="emotion-gauge-label"><span>Stability score</span><span class="metric-gold">d = 0.08</span></div>
+            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-gold" style="width:92%"></div></div>
+          </div>
+
+          <p class="mono sidebar-mini-label">REAL-TIME INSIGHTS</p>
+          <div class="insights-list">
+            <div class="insight-item">
+              <h5>Pre-event anxiety pattern</h5>
+              <p>This matches your profile from prior sessions before high-stakes events. It typically resolves after the event itself.</p>
+            </div>
+            <div class="insight-item">
+              <h5>Catastrophizing detected</h5>
+              <p>Emora is applying de-escalation framing rather than mirroring the anxiety.</p>
+            </div>
+            <div class="insight-item">
+              <h5>Stability maintained</h5>
+              <p>Responses are staying grounded within the active threshold.</p>
+            </div>
+          </div>
+        </div>
+        <div class="cs-safety">
+          <h5>Ethical boundary active</h5>
+          <p>If anxiety is affecting daily functioning, talking with a counselor or trusted person is always a good next option alongside Emora.</p>
+        </div>
+      </aside>
+    </div>
+
+    <div hidden>
+      <div id="dashboard-title"></div>
+      <div id="dashboard-subtitle"></div>
+      <div id="stat-chats">0</div>
+      <div id="stat-pinned">0</div>
+      <div id="stat-messages">0</div>
+    </div>
+  </main>
+</div>
+
+<section class="dashboard-modal-shell" id="settings-modal" hidden>
+  <div class="dashboard-modal-card card" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="dashboard-modal-header">
+      <div>
+        <p class="section-label">Settings</p>
+        <h2 id="settings-modal-title" class="serif">Workspace preferences</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-close-modal="settings" type="button">Close</button>
+    </div>
+    <div class="dashboard-modal-body">
+      <article class="settings-row">
+        <div>
+          <h3>Theme</h3>
+          <p>Switch between light and dark mode without changing the layout.</p>
+        </div>
+        <button class="btn btn-outline btn-sm" id="settings-theme-toggle" type="button" data-theme-toggle>Theme</button>
+      </article>
+      <article class="settings-row">
+        <div>
+          <h3>Local drafts</h3>
+          <p>Clear draft messages saved on this device for the signed-in account.</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="clear-drafts-button" type="button">Clear drafts</button>
+      </article>
+      <article class="settings-row">
+        <div>
+          <h3>Session</h3>
+          <p id="settings-session-copy">Signed in and ready.</p>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="settings-logout-button" type="button">Sign out</button>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-modal-shell" id="policy-modal" hidden>
+  <div class="dashboard-modal-card card" role="dialog" aria-modal="true" aria-labelledby="policy-modal-title">
+    <div class="dashboard-modal-header">
+      <div>
+        <p class="section-label">Policy</p>
+        <h2 id="policy-modal-title" class="serif">Privacy and terms</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-close-modal="policy" type="button">Close</button>
+    </div>
+    <div class="dashboard-modal-body policy-copy">
+      <section class="policy-block">
+        <h3>Privacy</h3>
+        <p>Your account profile, conversations, OTP records, and session checks are stored to support the app experience.</p>
+        <p>Uploaded files in this dashboard are currently treated as attachment names only and are not persisted as file content.</p>
+        <p>Third-party services such as Google Sign-In and the chat provider are used only when you explicitly trigger them.</p>
+      </section>
+      <section class="policy-block">
+        <h3>Terms</h3>
+        <p>Use the workspace for lawful, safe, and non-abusive requests. Do not submit harmful, fraudulent, or unauthorized content.</p>
+        <p>AI responses can be inaccurate. Verify important outputs before relying on them for legal, financial, medical, or security-sensitive decisions.</p>
+        <p>The service may evolve over time, including UI changes, feature availability, and premium capabilities.</p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard-modal-shell" id="premium-modal" hidden>
+  <div class="dashboard-modal-card card" role="dialog" aria-modal="true" aria-labelledby="premium-modal-title">
+    <div class="dashboard-modal-header">
+      <div>
+        <p class="section-label">Premium</p>
+        <h2 id="premium-modal-title" class="serif">Upgrade path</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" data-close-modal="premium" type="button">Close</button>
+    </div>
+    <div class="dashboard-modal-body">
+      <div class="premium-grid">
+        <article class="premium-tier">
+          <span class="nav-badge">Current</span>
+          <h3>Free</h3>
+          <p>Core chat, pinned conversations, Google sign-in, OTP reset, and companion starters.</p>
+        </article>
+        <article class="premium-tier premium-tier-featured">
+          <span class="nav-badge">Suggested</span>
+          <h3>Premium</h3>
+          <p>Custom companions, export tools, richer history controls, workspace insights, and priority polish.</p>
+          <ul class="premium-feature-list">
+            <li>Conversation export and archive tools</li>
+            <li>Custom personas and saved assistant presets</li>
+            <li>Advanced workspace analytics</li>
+            <li>Priority UX and feature rollout</li>
+          </ul>
+          <button class="btn btn-primary w-full" id="premium-request-button" type="button">Request Premium Access</button>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/dashboard.js"></script>
+{% endblock %}

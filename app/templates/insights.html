@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block body_class %}app-body{% endblock %}
+
+{% block content %}
+<div class="app-layout app-section-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a class="logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span class="logo-name">Emora</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Main</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
+      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
+      <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
+      <a class="nav-item active" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Personal</div>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon">J</span> Journal</a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
+        <div class="user-pill-info">
+          <h6 data-session-user-name>Mahesh Reddy</h6>
+          <span>Free plan</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="insights-header">
+      <h1 class="serif">Emotional Insights</h1>
+      <p>Understand your patterns - week by week, conversation by conversation</p>
+      <div class="date-range-pills">
+        <div class="drp">7D</div>
+        <div class="drp active">30D</div>
+        <div class="drp">3M</div>
+        <div class="drp">All time</div>
+      </div>
+    </div>
+
+    <div class="insights-body">
+      <div class="insights-grid-top">
+        <div class="card">
+          <div class="card-header">
+            <h3>Emotional tone over time</h3>
+            <span class="text-sm muted">Daily average</span>
+          </div>
+          <div class="card-body">
+            <div class="timeline-chart" id="timeline-chart"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Mood distribution</h3>
+            <span class="text-sm muted">This month</span>
+          </div>
+          <div class="card-body">
+            <div class="mood-wheel">
+              <div class="mood-cell selected"><span>O</span><div class="mood-cell-count metric-teal">18</div><p>Calm</p></div>
+              <div class="mood-cell"><span>R</span><div class="mood-cell-count metric-blue">11</div><p>Reflective</p></div>
+              <div class="mood-cell"><span>A</span><div class="mood-cell-count metric-rose">9</div><p>Anxious</p></div>
+              <div class="mood-cell"><span>P</span><div class="mood-cell-count metric-success">14</div><p>Positive</p></div>
+              <div class="mood-cell"><span>N</span><div class="mood-cell-count">7</div><p>Neutral</p></div>
+              <div class="mood-cell"><span>G</span><div class="mood-cell-count metric-gold">5</div><p>Grateful</p></div>
+              <div class="mood-cell"><span>L</span><div class="mood-cell-count metric-rose">3</div><p>Low</p></div>
+              <div class="mood-cell"><span>M</span><div class="mood-cell-count">4</div><p>Mixed</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card insights-card-spacing">
+        <div class="card-header">
+          <h3>Session activity - past 84 days</h3>
+          <span class="text-sm muted">Each cell = one day</span>
+        </div>
+        <div class="card-body">
+          <div class="heatmap-grid" id="heatmap"></div>
+          <div class="heatmap-legend">
+            <span class="text-sm muted">Less</span>
+            <div class="legend-swatch-row">
+              <div class="legend-swatch legend-swatch-1"></div>
+              <div class="legend-swatch legend-swatch-2"></div>
+              <div class="legend-swatch legend-swatch-3"></div>
+              <div class="legend-swatch legend-swatch-4"></div>
+              <div class="legend-swatch legend-swatch-5"></div>
+            </div>
+            <span class="text-sm muted">More</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Average emotional state by day of week</h3>
+        </div>
+        <div class="card-body">
+          <div class="weekly-grid" id="weekly-grid"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/workspace-shell.js"></script>
+{% endblock %}

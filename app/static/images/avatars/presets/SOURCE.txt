@@ -1,0 +1,8 @@
+Avatar preset source
+====================
+
+Source: Anime Girl and Boy Portraits by stevenburrow
+URL: https://opengameart.org/content/anime-girl-and-boy-portraits
+License: CC0 / public domain
+
+The PNG files in this folder were cropped and resized from the source pack for use as Emora profile presets.

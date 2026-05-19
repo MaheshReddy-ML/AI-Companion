@@ -1,45 +1,57 @@
-# Dependencies
-node_modules/
-**/node_modules/
-
-# Environment files
+# Secrets and local configuration
 .env
 .env.*
 !.env.example
-**/.env
-**/.env.*
-!**/.env.example
 
-# Build outputs
-dist/
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build and packaging output
 build/
-coverage/
-**/dist/
-**/build/
-**/coverage/
+dist/
+*.egg-info/
 
-# Logs
-logs/
+# FastAPI / server runtime files
 *.log
+logs/
+tmp/
+temp/
+
+# Generated voice assets and model downloads
+cache/
+models/voices/
+*.wav
+*.mp3
+*.ogg
+
+# Local databases and uploaded artifacts
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node artifacts, in case frontend tooling is added later
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-
-# Runtime files
-*.pid
-*.pid.lock
-*.seed
-
-# OS / Editor files
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/*
-!.vscode/extensions.json
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?

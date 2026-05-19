@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block body_class %}app-body{% endblock %}
+
+{% block content %}
+<div class="app-layout app-section-layout">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a class="logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span class="logo-name">Emora</span>
+      </a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Main</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
+      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
+      <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
+      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Personal</div>
+      <a class="nav-item active" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon">J</span> Journal</a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-pill">
+        <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
+        <div class="user-pill-info">
+          <h6 data-session-user-name>Mahesh Reddy</h6>
+          <span data-session-user-email>user@example.com</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm w-full profile-signout-btn" type="button" data-logout>Sign out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="top-bar">
+      <div class="top-bar-left">
+        <h1 class="serif">Profile & Settings</h1>
+        <p>Manage your account, preferences, and privacy</p>
+      </div>
+    </div>
+
+    <div class="profile-wrap">
+      <div class="profile-header">
+        <div class="profile-avatar-lg" data-session-avatar data-session-user-initial>M</div>
+        <div class="profile-info">
+          <h2 class="serif" data-session-user-name>Mahesh Reddy</h2>
+          <p><span data-session-user-email>user@example.com</span> - Member since May 2025</p>
+          <div class="profile-badges">
+            <span class="badge badge-gold">12-day streak</span>
+            <span class="badge badge-blue">4 sessions this week</span>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm profile-edit-btn" type="button">Edit profile</button>
+      </div>
+
+      <section class="avatar-studio">
+        <div class="avatar-preview-card">
+          <div class="avatar-preview-copy">
+            <p class="mono sidebar-mini-label">PROFILE PICTURE</p>
+            <h3>Choose one of Emora's cute built-in avatars or upload your own photo.</h3>
+            <p id="avatar-current-hint" class="muted-copy">
+              A default avatar is assigned automatically. You can swap to any preset or upload your own image.
+            </p>
+            <div class="profile-badges avatar-preview-badges">
+              <span class="badge badge-gold" id="avatar-current-label">Preset avatar active</span>
+              <span class="badge badge-blue" id="avatar-current-source">Built-in preset</span>
+            </div>
+            <div id="avatar-status" class="status avatar-status" hidden></div>
+            <div class="avatar-upload-actions">
+              <label class="btn btn-primary btn-sm" for="avatar-upload-input">Upload your own</label>
+              <input id="avatar-upload-input" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" hidden />
+              <span class="avatar-upload-note">PNG, JPG, or WEBP up to 3 MB.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="avatar-gallery-panel">
+          <div class="avatar-gallery-head">
+            <div>
+              <h3>Built-in avatar presets</h3>
+              <p>Pick from the starter avatar pack. Your selection becomes the default across the app.</p>
+            </div>
+            <div class="avatar-filter-row">
+              <button class="avatar-filter active" type="button" data-avatar-filter="all">All</button>
+              <button class="avatar-filter" type="button" data-avatar-filter="female">Female</button>
+              <button class="avatar-filter" type="button" data-avatar-filter="male">Male</button>
+            </div>
+          </div>
+          <div id="avatar-gallery" class="avatar-gallery"></div>
+        </div>
+      </section>
+
+      <div class="settings-grid">
+        <div class="settings-section">
+          <div class="settings-section-header"><h3>Companion preferences</h3></div>
+          <div class="settings-list">
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Emotional memory</h4><p>Emora remembers past conversations</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Visual emotion input</h4><p>Use camera for facial expression analysis</p></div><div class="toggle"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Session insights panel</h4><p>Show real-time emotional analysis during chat</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Dependency reminders</h4><p>Emora occasionally reminds you to connect with people</p></div><div class="toggle on"></div></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-header"><h3>Notifications</h3></div>
+          <div class="settings-list">
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Weekly insights digest</h4><p>Email summary every Monday</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Streak reminders</h4><p>Notify if 2 days without a session</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Community replies</h4><p>When someone engages with your post</p></div><div class="toggle"></div></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-header"><h3>Privacy & data</h3></div>
+          <div class="settings-list">
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Data minimisation mode</h4><p>Store only essential session context</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Anonymous community posts</h4><p>Never show my name in community</p></div><div class="toggle on"></div></div>
+            <div class="settings-row profile-setting-stack">
+              <div class="settings-row-label"><h4>Download my data</h4><p>Export all your sessions and emotional history</p></div>
+              <button class="btn btn-outline btn-sm" type="button">Request export</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section danger-zone">
+          <div class="settings-section-header"><h3>Danger zone</h3></div>
+          <div class="settings-list">
+            <div class="settings-row profile-setting-stack">
+              <div class="settings-row-label"><h4>Clear emotional history</h4><p>Removes all session data. Cannot be undone.</p></div>
+              <button class="btn btn-danger btn-sm" type="button">Clear history</button>
+            </div>
+            <div class="settings-row profile-setting-stack">
+              <div class="settings-row-label"><h4>Delete account</h4><p>Permanently removes your account and all data.</p></div>
+              <button class="btn btn-danger btn-sm" type="button">Delete account</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/workspace-shell.js"></script>
+  <script type="module" src="/static/js/profile.js"></script>
+{% endblock %}

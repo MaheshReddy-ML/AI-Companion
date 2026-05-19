@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block body_class %}auth-body{% endblock %}
+
+{% block content %}
+  <section class="auth-wrap">
+    <aside class="auth-left">
+      <div class="auth-left-bg"></div>
+      <div class="auth-left-content">
+        <a class="logo" href="/">
+          <span class="logo-mark">AI</span>
+          <span>Emora</span>
+        </a>
+      </div>
+      <div>
+        <p class="auth-quote serif">One quick verification before we let you reset access.</p>
+      </div>
+      <div class="auth-features">
+        <div class="auth-feat">
+          <div class="auth-feat-icon">01</div>
+          <div><h4>Check your inbox</h4><p>Use the most recent 6-digit code we emailed you.</p></div>
+        </div>
+        <div class="auth-feat">
+          <div class="auth-feat-icon">02</div>
+          <div><h4>Resend when needed</h4><p>You can request another code after the cooldown finishes.</p></div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="auth-right">
+      <div class="auth-card">
+        <a class="auth-toplink" href="/forgot-password">Back to recovery</a>
+        <h2 class="serif">Verify OTP</h2>
+        <p class="sub" id="otp-email-label"></p>
+
+        <form id="otp-form" class="auth-form" novalidate>
+          <label class="form-group">
+            <span class="form-label">One-time password</span>
+            <input
+              id="otp-input"
+              name="otp"
+              type="text"
+              class="form-input otp-input"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Enter 6-digit code"
+            />
+          </label>
+
+          <p id="otp-status" class="status" hidden></p>
+
+          <button id="otp-submit" class="btn btn-primary w-full" type="submit">Verify code</button>
+          <button id="otp-resend" class="btn btn-outline w-full" type="button">Resend code</button>
+        </form>
+      </div>
+    </section>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/verify-otp.js"></script>
+{% endblock %}

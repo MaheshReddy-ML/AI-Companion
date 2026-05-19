@@ -1,0 +1,93 @@
+Current 3D VRM character sources
+================================
+
+Source: VRoid Studio CC0 models via OpenGameArt
+Source page: https://opengameart.org/content/vroid-studio-cc0-models
+Official VRoid license FAQ: https://vroid.pixiv.help/hc/en-us/articles/4402614652569-Do-VRoid-Studio-s-sample-models-come-with-conditions-of-use
+License: CC0
+
+Downloaded local assets:
+- male-haru.vrm: HairSample_Male.vrm from hairsample_male.zip
+  Download page entry: https://opengameart.org/content/vroid-studio-cc0-models
+- female-yuna.vrm: HairSample_Female.vrm from hairsample_female.zip
+  Download page entry: https://opengameart.org/content/vroid-studio-cc0-models
+
+Additional GitHub anime-style VRoid replacements
+================================================
+
+Source: madjin/vrm-samples on GitHub
+Repository: https://github.com/madjin/vrm-samples
+License notes: The repository documents VRoid sample model usage and links to
+the official VRoid Studio conditions of use. These are VRoid Studio sample
+models and should be used under those conditions.
+
+Downloaded local assets:
+- rose.vrm: Vivi.vrm
+  Download URL: https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/beta/Vivi.vrm
+  Display name in app: Vivi
+- robert.vrm: Sakurada_Fumiriya.vrm
+  Download URL: https://raw.githubusercontent.com/madjin/vrm-samples/master/vroid/beta/Sakurada_Fumiriya.vrm
+  Display name in app: Sakurada
+
+These files replace the previous low-poly OpenGameArt test characters so the
+secondary male and female companions are cute anime-styled VRoid characters.
+The internal companion ids remain rose and robert to preserve voice mappings.
+The active UI uses all four VRM files with a cache-busting query string.
+
+The Your Emora character stage renders these VRM humanoid models with Three.js
+and @pixiv/three-vrm. Their skeleton bones are animated in WebGL for idle and
+speaking motion, and their VRM mouth/blink/look-at/facial expressions are
+driven by local Piper audio playback state. The VRoid files expose A/I/U/E/O
+mouth blendshapes where available, which the stage maps into simple viseme
+groups for lip movement.
+
+
+Companion room background
+=========================
+
+Source: Unsplash
+Photo: Cozy room with plants and a window view
+Author: angus chow (@next_angus)
+Source page: https://unsplash.com/photos/cozy-room-with-plants-and-a-window-view-g3THHr_GsMg
+Downloaded from: https://unsplash.com/photos/g3THHr_GsMg/download?force=true&w=1920
+License: Unsplash License
+Local asset:
+- emora-room-bg.jpg
+
+Character-specific natural backgrounds
+======================================
+
+Yuna background:
+- Local asset: bg-yuna-cherry.jpg
+- Source: Wikimedia Commons
+- Source page: https://commons.wikimedia.org/wiki/File:Cherry_flowers_in_the_park_(Unsplash).jpg
+- Original source: Unsplash photo by Khurt Williams
+- License: Unsplash License as documented on the Commons file page
+
+Vivi background:
+- Local asset: emora-room-bg.jpg
+- Same cozy plant room source listed above
+
+Sakurada background:
+- Local asset: bg-sakurada-garden.jpg
+- Source: Wikimedia Commons
+- Source page: https://commons.wikimedia.org/wiki/File:SF_Japanese_Garden.JPG
+- License: Public domain / Commons license information on source page
+
+haru background:
+- Local asset: bg-haru-forest.jpg
+- Source: Wikimedia Commons
+- Source page: https://commons.wikimedia.org/wiki/File:Forest_Path_Sunset.jpg
+- Original source: Pixabay
+- License: Creative Commons CC0 as documented on the Commons file page
+
+
+Legacy 2D character source
+==========================
+
+Source: Visual Novel Style Characters by madameberry
+URL: https://opengameart.org/content/visual-novel-style-characters
+Download: https://opengameart.org/sites/default/files/VisualNovel_Set1_MadameBerry.zip
+License: CC0 / public domain
+
+visual-novel-set1-preview.png is retained as the original pack preview.

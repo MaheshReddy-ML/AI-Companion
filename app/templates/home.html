@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block body_class %}landing-body{% endblock %}
+
+{% block content %}
+  <div class="marketing-page">
+    <nav class="nav">
+      <a class="logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span>Emora</span>
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#research">Research</a>
+        <a href="#community">Community</a>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-outline btn-sm" href="/dashboard" data-auth-nav hidden>Dashboard</a>
+        <span class="nav-user" data-user-pill hidden></span>
+        <button class="btn btn-ghost btn-sm" type="button" data-logout hidden>Sign out</button>
+        <a class="btn btn-ghost btn-sm" href="/login" data-guest-nav>Sign in</a>
+        <a class="btn btn-primary btn-sm" href="/register" data-guest-nav>Get started</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="hero-bg">
+        <div class="hero-glow"></div>
+        <div class="hero-lines"></div>
+      </div>
+      <div class="hero-badge">
+        <span>Live</span>
+        Research-inspired emotional support workspace
+      </div>
+      <h1 class="serif">An AI companion that <em>remembers</em> how you feel</h1>
+      <p class="hero-sub">
+        Emora goes beyond one-off replies. It helps you continue meaningful conversations, revisit your patterns,
+        and move through check-ins with more continuity and care.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="/register">Start your journey</a>
+        <a class="btn btn-outline btn-lg" href="/dashboard">Explore dashboard</a>
+      </div>
+    </section>
+
+    <div class="stats-row marketing-stats">
+      <div class="stat-box">
+        <span class="stat-num">94%</span>
+        <div class="stat-label">Users reported reduced isolation</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">&lt;0.12</span>
+        <div class="stat-label">Emotional drift threshold</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">7-layer</span>
+        <div class="stat-label">Memory-informed architecture</div>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">Zero</span>
+        <div class="stat-label">Raw emotional data stored</div>
+      </div>
+    </div>
+
+    <section class="section" id="features">
+      <div class="section-label">Core capabilities</div>
+      <h2 class="section-title serif">Designed from the ground up for emotional reliability</h2>
+      <p class="section-sub">
+        Not a chatbot skin. A calmer interface and a steadier interaction model built around memory, stability,
+        and practical continuity.
+      </p>
+      <div class="features-grid">
+        <div class="feat-card">
+          <div class="feat-num">01</div>
+          <h3>Stability-first responses</h3>
+          <p>Conversations are shaped to stay grounded instead of lurching between tones from one reply to the next.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-num">02</div>
+          <h3>Contextual memory</h3>
+          <p>Emora keeps the thread of what matters to you so sessions feel connected instead of disposable.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-num">03</div>
+          <h3>Focused workspace</h3>
+          <p>Chat, saved sessions, and companion modes now live in one cleaner dashboard instead of scattered views.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-num">04</div>
+          <h3>Ethical guardrails</h3>
+          <p>The product reinforces user autonomy and makes space for real-world support rather than replacing it.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-num">05</div>
+          <h3>Secure access</h3>
+          <p>Email, password, Google sign-in, OTP recovery, and session verification stay wired into the new frontend.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-num">06</div>
+          <h3>Emotional insights</h3>
+          <p>A dashboard view surfaces trends over time so you can notice patterns, not just react to the moment.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-surface" id="how-it-works">
+      <div class="section-label">How it works</div>
+      <h2 class="section-title serif">A conversation that evolves</h2>
+      <div class="how-grid">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num serif">1</div>
+            <div>
+              <h4>You start naturally</h4>
+              <p>Type the way you actually think. The app keeps the flow simple and lets the conversation carry the structure.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num serif">2</div>
+            <div>
+              <h4>Signals are interpreted with nuance</h4>
+              <p>Instead of flattening everything into one label, the companion treats emotion as context with uncertainty.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num serif">3</div>
+            <div>
+              <h4>Memory and tone stay aligned</h4>
+              <p>Past sessions, your preferences, and the selected companion mode all shape what comes next.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num serif">4</div>
+            <div>
+              <h4>You keep momentum</h4>
+              <p>Saved chats, pinned sessions, and local drafts make it easy to continue instead of starting over.</p>
+            </div>
+          </div>
+        </div>
+        <div class="how-visual">
+          <div class="chat-bubble user">I failed my exam. I feel completely useless right now.</div>
+          <div class="chat-bubble ai">
+            <span class="emotion-tag">distress detected · empathy mode</span>
+            I'm really sorry. I know how much effort you put into preparing for this one. What happened in the exam itself?
+          </div>
+          <div class="chat-bubble user">Maybe I should just quit everything.</div>
+          <div class="chat-bubble ai">
+            <span class="emotion-tag">risk signal · stability constraint</span>
+            That sounds like the frustration talking. Is this about quitting the course specifically, or does it feel bigger than that right now?
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="research">
+      <div class="section-label">Research basis</div>
+      <h2 class="section-title serif">Built from academic rigor, not just product instinct</h2>
+      <div class="research-grid">
+        <div class="card">
+          <div class="card-body">
+            <p class="mono meta-kicker">FORMAL CONSTRAINT</p>
+            <p class="research-formula serif">|Sentiment(a_t) - Sentiment(a_t-1)| &lt; d</p>
+            <p class="text-sm muted-copy">
+              Emotional stability is treated as an explicit constraint, so the companion feels anchored instead of erratic.
+            </p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body">
+            <p class="mono meta-kicker meta-kicker-alt">SYSTEM STATE</p>
+            <p class="research-formula serif">S_t = {E_t, M_t, C}</p>
+            <p class="text-sm muted-copy">
+              Every reply is conditioned on emotional state, contextual memory, and a stable character profile.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="community">
+      <div class="section-label">From users</div>
+      <h2 class="section-title serif">What people say</h2>
+      <div class="testimonials-grid">
+        <div class="testi">
+          <div class="testi-stars"><span>*</span><span>*</span><span>*</span><span>*</span><span>*</span></div>
+          <p class="testi-text">
+            "It remembered that I was anxious about my dissertation weeks later. That continuity is what made it feel different."
+          </p>
+          <div class="testi-author">
+            <div class="testi-avatar">S</div>
+            <div class="testi-info"><h5>Shreya M.</h5><span>Research student</span></div>
+          </div>
+        </div>
+        <div class="testi">
+          <div class="testi-stars"><span>*</span><span>*</span><span>*</span><span>*</span><span>*</span></div>
+          <p class="testi-text">
+            "The dashboard made one pattern obvious: my anxiety spikes on Sunday evenings. I had never noticed it consciously before."
+          </p>
+          <div class="testi-author">
+            <div class="testi-avatar">R</div>
+            <div class="testi-info"><h5>Rahul K.</h5><span>Remote software engineer</span></div>
+          </div>
+        </div>
+        <div class="testi">
+          <div class="testi-stars"><span>*</span><span>*</span><span>*</span><span>*</span><span>*</span></div>
+          <p class="testi-text">
+            "I appreciated that it pushed back gently when I leaned too hard on it. That honesty mattered."
+          </p>
+          <div class="testi-author">
+            <div class="testi-avatar">A</div>
+            <div class="testi-info"><h5>Ananya T.</h5><span>College student</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="cta-glow"></div>
+      <h2 class="serif">Ready to be genuinely heard?</h2>
+      <p>No credit card required. Secure sign-in, recovery, and conversation history from day one.</p>
+      <a class="btn btn-primary btn-lg" href="/register">Create your account</a>
+    </section>
+
+    <footer class="footer">
+      <a class="logo footer-logo" href="/">
+        <span class="logo-mark">AI</span>
+        <span>Emora</span>
+      </a>
+      <div class="footer-links">
+        <a href="/login">Sign in</a>
+        <a href="/register">Create account</a>
+        <a href="/dashboard">Dashboard</a>
+      </div>
+      <span class="footer-copy">&copy; 2026 Emora</span>
+    </footer>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/home.js"></script>
+{% endblock %}
