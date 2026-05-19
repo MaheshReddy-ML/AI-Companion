@@ -22,11 +22,22 @@
 
 ---
 
-## Preview
+## Companion Experience Preview
 
 <div align="center">
-  <img src="app/static/images/companions/visual-novel-set1-preview.png" alt="AI Companion visual preview" width="820" />
+  <img src="app/static/images/companions/visual-novel-set1-preview.png" alt="AI Companion scene preview" width="820" />
+  <br />
+  <sub>Scene preview. The actual companion characters are loaded from VRM model files inside the app.</sub>
 </div>
+
+## Companion Characters
+
+| Character | Model file | Scene assets |
+| --- | --- | --- |
+| Yuna | `app/static/images/companions/female-yuna.vrm` | `bg-yuna-cherry.jpg`, `emora-room-bg.jpg` |
+| Haru | `app/static/images/companions/male-haru.vrm` | `bg-haru-forest.jpg` |
+| Robert | `app/static/images/companions/robert.vrm` | `emora-room-bg.jpg` |
+| Rose | `app/static/images/companions/rose.vrm` | `bg-sakurada-garden.jpg` |
 
 ## What Makes It Shine
 
@@ -36,7 +47,7 @@
 | Emotional dashboard | Pin, delete, share, and revisit conversations from a focused workspace. |
 | Anonymous community | MongoDB-backed community posts with likes and user privacy in mind. |
 | Secure auth flow | Register, login, JWT sessions, Google OAuth, and OTP password reset. |
-| Companion avatars | Preset companion profiles and visual-novel style companion screens. |
+| VRM companion characters | Yuna, Haru, Robert, and Rose are loaded as `.vrm` character models in the app. |
 | Voice pipeline | Piper TTS integration with cached WAV generation and companion voice mapping. |
 
 ## Tech Stack
@@ -64,7 +75,7 @@ AI-Companion-/
     routers/                Auth, chat, pages, posts, voices
     services/               OpenAI, Google auth, community logic
     templates/              Jinja pages
-    static/                 CSS, JS, logos, avatars, companion assets
+    static/                 CSS, JS, logos, avatars, VRM models, scene assets
   scripts/
     voice_downloader.py     Optional Piper voice model downloader
   .env.example              Safe environment template
