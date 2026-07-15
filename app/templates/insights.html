@@ -24,7 +24,7 @@
     <div class="nav-group">
       <div class="nav-group-label">Personal</div>
       <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
-      <a class="nav-item" href="/profile"><span class="nav-item-icon">J</span> Journal</a>
+      <a class="nav-item" href="/journal"><span class="nav-item-icon">J</span> Journal</a>
     </div>
 
     <div class="sidebar-footer">
@@ -42,11 +42,11 @@
     <div class="insights-header">
       <h1 class="serif">Emotional Insights</h1>
       <p>Understand your patterns - week by week, conversation by conversation</p>
-      <div class="date-range-pills">
-        <div class="drp">7D</div>
-        <div class="drp active">30D</div>
-        <div class="drp">3M</div>
-        <div class="drp">All time</div>
+      <div class="date-range-pills" id="insight-range-picker">
+        <button class="drp" type="button" data-insight-days="7">7D</button>
+        <button class="drp active" type="button" data-insight-days="30">30D</button>
+        <button class="drp" type="button" data-insight-days="90">3M</button>
+        <button class="drp" type="button" data-insight-days="365">All time</button>
       </div>
     </div>
 
@@ -55,7 +55,7 @@
         <div class="card">
           <div class="card-header">
             <h3>Emotional tone over time</h3>
-            <span class="text-sm muted">Daily average</span>
+            <span class="text-sm muted" id="insights-timeline-meta">Daily average</span>
           </div>
           <div class="card-body">
             <div class="timeline-chart" id="timeline-chart"></div>
@@ -65,18 +65,16 @@
         <div class="card">
           <div class="card-header">
             <h3>Mood distribution</h3>
-            <span class="text-sm muted">This month</span>
+            <span class="text-sm muted" id="insights-mood-meta">This month</span>
           </div>
           <div class="card-body">
             <div class="mood-wheel">
-              <div class="mood-cell selected"><span>O</span><div class="mood-cell-count metric-teal">18</div><p>Calm</p></div>
-              <div class="mood-cell"><span>R</span><div class="mood-cell-count metric-blue">11</div><p>Reflective</p></div>
-              <div class="mood-cell"><span>A</span><div class="mood-cell-count metric-rose">9</div><p>Anxious</p></div>
-              <div class="mood-cell"><span>P</span><div class="mood-cell-count metric-success">14</div><p>Positive</p></div>
-              <div class="mood-cell"><span>N</span><div class="mood-cell-count">7</div><p>Neutral</p></div>
-              <div class="mood-cell"><span>G</span><div class="mood-cell-count metric-gold">5</div><p>Grateful</p></div>
-              <div class="mood-cell"><span>L</span><div class="mood-cell-count metric-rose">3</div><p>Low</p></div>
-              <div class="mood-cell"><span>M</span><div class="mood-cell-count">4</div><p>Mixed</p></div>
+              <div class="mood-cell" data-mood="calm"><span>O</span><div class="mood-cell-count metric-teal">0</div><p>Calm</p></div>
+              <div class="mood-cell" data-mood="reflective"><span>R</span><div class="mood-cell-count metric-blue">0</div><p>Reflective</p></div>
+              <div class="mood-cell" data-mood="anxious"><span>A</span><div class="mood-cell-count metric-rose">0</div><p>Anxious</p></div>
+              <div class="mood-cell" data-mood="positive"><span>P</span><div class="mood-cell-count metric-success">0</div><p>Positive</p></div>
+              <div class="mood-cell" data-mood="neutral"><span>N</span><div class="mood-cell-count">0</div><p>Neutral</p></div>
+              <div class="mood-cell" data-mood="low"><span>L</span><div class="mood-cell-count metric-rose">0</div><p>Low</p></div>
             </div>
           </div>
         </div>
@@ -85,7 +83,7 @@
       <div class="card insights-card-spacing">
         <div class="card-header">
           <h3>Session activity - past 84 days</h3>
-          <span class="text-sm muted">Each cell = one day</span>
+          <span class="text-sm muted" id="insights-activity-meta">Each cell = one day</span>
         </div>
         <div class="card-body">
           <div class="heatmap-grid" id="heatmap"></div>
@@ -102,6 +100,7 @@
           </div>
         </div>
       </div>
+      <p class="muted text-sm" id="insights-notice" aria-live="polite"></p>
 
       <div class="card">
         <div class="card-header">

@@ -1,13 +1,23 @@
 from __future__ import annotations
 
+import re
+import json
+from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import FileResponse, PlainTextResponse
 
-from app.database import conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
-from app.models.schemas import ChatSendRequest, ConversationCreateRequest, ConversationUpdateRequest
+from app.audit import audit_event
+from app.companion import analyze_emotion, companion_emotion_for_avatar, memory_prompt_context
+from app.companion_brain import build_companion_brain
+from app.database import attachments_collection, conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
+from app.models.schemas import AttachmentUploadRequest, ChatSendRequest, ConversationCreateRequest, ConversationUpdateRequest
+from app.rate_limit import rate_limit
 from app.security import get_current_user
-from app.services.openai_chat import get_openai_reply
+from app.services.openai_chat import get_openai_companion_reply
+from app.services.companion_memory import retrieve_memories, save_memory_candidates
+from app.services.attachments import create_attachment, delete_attachments_for_conversations, get_attachment_or_404
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -20,12 +30,13 @@ def create_chat_title(text: str) -> str:
     return f"{cleaned[:52]}..." if len(cleaned) > 52 else cleaned
 
 
-def build_message(role: str, content: str, attachment_name: str | None = None) -> dict:
+def build_message(role: str, content: str, attachment_name: str | None = None, attachment_id=None) -> dict:
     return {
         "id": f"msg-{uuid4().hex}",
         "role": role,
         "content": content,
         "attachment_name": attachment_name,
+        "attachment_id": attachment_id,
         "timestamp": utc_now(),
     }
 
@@ -62,8 +73,39 @@ def get_user_conversation_or_404(conversation_id: str, user_id) -> dict:
 
 
 @router.get("")
-def get_conversations(current_user: dict = Depends(get_current_user)) -> list[dict]:
-    cursor = conversations_collection().find({"user_id": current_user["_id"]}).sort("updated_at", -1)
+def get_conversations(
+    response: Response,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=50, ge=1, le=100),
+    search: str | None = Query(default=None, max_length=100),
+    pinned: bool | None = Query(default=None),
+    current_user: dict = Depends(get_current_user),
+) -> list[dict]:
+    query: dict = {"user_id": current_user["_id"]}
+    if pinned is not None:
+        query["pinned"] = pinned
+    if search and search.strip():
+        pattern = re.compile(re.escape(search.strip()), re.IGNORECASE)
+        query["$or"] = [
+            {"title": pattern},
+            {"character_name": pattern},
+            {"messages.content": pattern},
+        ]
+
+    safe_page = max(1, page)
+    safe_limit = min(100, max(1, limit))
+    total = conversations_collection().count_documents(query)
+    cursor = (
+        conversations_collection()
+        .find(query)
+        .sort("updated_at", -1)
+        .skip((safe_page - 1) * safe_limit)
+        .limit(safe_limit)
+    )
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Page"] = str(safe_page)
+    response.headers["X-Limit"] = str(safe_limit)
+    response.headers["X-Has-More"] = "true" if safe_page * safe_limit < total else "false"
     return [serialize_conversation(document) for document in cursor]
 
 
@@ -72,6 +114,7 @@ def create_conversation(payload: ConversationCreateRequest, current_user: dict =
     document = build_conversation_document(current_user["_id"], payload)
     inserted = conversations_collection().insert_one(document)
     document["_id"] = inserted.inserted_id
+    audit_event("chat.conversation.create", user_id=current_user["_id"], conversation_id=document["_id"])
     return serialize_conversation(document)
 
 
@@ -98,26 +141,92 @@ def update_conversation(
     updates["updated_at"] = utc_now()
     conversations_collection().update_one({"_id": conversation["_id"]}, {"$set": updates})
     conversation.update(updates)
+    audit_event("chat.conversation.update", user_id=current_user["_id"], conversation_id=conversation["_id"])
     return serialize_conversation(conversation)
 
 
 @router.delete("/conversations/{conversation_id}")
 def delete_conversation(conversation_id: str, current_user: dict = Depends(get_current_user)) -> dict:
     conversation = get_user_conversation_or_404(conversation_id, current_user["_id"])
+    delete_attachments_for_conversations([conversation["_id"]])
     conversations_collection().delete_one({"_id": conversation["_id"]})
+    audit_event("chat.conversation.delete", user_id=current_user["_id"], conversation_id=conversation["_id"])
     return {"message": "Conversation deleted"}
 
 
-@router.post("")
+@router.get("/conversations/{conversation_id}/export")
+def export_conversation(
+    conversation_id: str,
+    format: str = Query(default="json", pattern="^(json|text)$"),
+    current_user: dict = Depends(get_current_user),
+) -> Response:
+    """Export a user's conversation without exposing it to another account."""
+    conversation = get_user_conversation_or_404(conversation_id, current_user["_id"])
+    serialized = serialize_conversation(conversation)
+    filename_base = re.sub(r"[^a-z0-9]+", "-", serialized["title"].lower()).strip("-") or "conversation"
+
+    if format == "json":
+        content = json.dumps(serialized, ensure_ascii=False, indent=2)
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename_base}.json"'},
+        )
+
+    lines = [f"# {serialized['title']}", ""]
+    for message in serialized["messages"]:
+        speaker = "You" if message["role"] == "user" else serialized.get("characterName") or "AI Companion"
+        timestamp = message.get("timestamp") or ""
+        lines.extend([f"{speaker} {f'({timestamp})' if timestamp else ''}", message["content"], ""])
+    return PlainTextResponse(
+        "\n".join(lines),
+        headers={"Content-Disposition": f'attachment; filename="{filename_base}.txt"'},
+    )
+
+
+@router.post("/attachments", status_code=201, dependencies=[Depends(rate_limit(12, 300, "chat-attachment"))])
+def upload_attachment(payload: AttachmentUploadRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    attachment = create_attachment(
+        user_id=current_user["_id"],
+        name=payload.name,
+        media_type=payload.media_type,
+        data_url=payload.data_url,
+    )
+    audit_event("chat.attachment.upload", user_id=current_user["_id"], attachment_id=attachment["id"])
+    return {"attachment": attachment}
+
+
+@router.get("/attachments/{attachment_id}")
+def download_attachment(attachment_id: str, current_user: dict = Depends(get_current_user)) -> FileResponse:
+    attachment = get_attachment_or_404(attachment_id, current_user["_id"])
+    path = attachment["path"]
+    if not Path(path).is_file():
+        raise HTTPException(status_code=404, detail="Attachment file is no longer available.")
+    return FileResponse(path, media_type=attachment["media_type"], filename=attachment["name"], headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("", dependencies=[Depends(rate_limit(30, 300, "chat-send"))])
 async def send_message(payload: ChatSendRequest, current_user: dict = Depends(get_current_user)) -> dict:
     message_text = (payload.message or "").strip()
     attachment_name = (payload.attachment_name or "").strip() or None
+    attachment_id = parse_object_id(payload.attachment_id or "") if payload.attachment_id else None
 
     if not message_text and not attachment_name:
         raise HTTPException(status_code=400, detail="Message is required")
 
+    if payload.attachment_id and attachment_id is None:
+        raise HTTPException(status_code=400, detail="Invalid attachment id")
+    if attachment_id:
+        attachment = attachments_collection().find_one({"_id": attachment_id, "user_id": current_user["_id"]})
+        if not attachment:
+            raise HTTPException(status_code=404, detail="Attachment not found")
+        attachment_name = attachment["name"]
+
     outgoing_content = message_text or f"Shared file: {attachment_name}"
-    user_message = build_message("user", outgoing_content, attachment_name)
+    user_message = build_message("user", outgoing_content, attachment_name, attachment_id)
+    user_analysis = analyze_emotion(outgoing_content)
+    user_message["analysis"] = user_analysis
+    relevant_memories = retrieve_memories(current_user["_id"], outgoing_content)
 
     conversations = conversations_collection()
     conversation: dict | None = None
@@ -140,6 +249,8 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
 
     if payload.character_name is not None:
         conversation["character_name"] = payload.character_name
+    if payload.character_id is not None:
+        conversation["character_id"] = payload.character_id
     if payload.persona_prompt is not None:
         conversation["persona_prompt"] = payload.persona_prompt
 
@@ -160,18 +271,37 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     resolved_model = payload.model or ""
 
     try:
-        assistant_text, resolved_model = await get_openai_reply(
+        assistant_text, raw_brain, resolved_model = await get_openai_companion_reply(
             message=outgoing_content,
             history=history_source,
             model=payload.model,
             api_key=payload.api_key,
             persona_prompt=conversation.get("persona_prompt"),
+            character_id=conversation.get("character_id") or payload.character_id,
+            companion_context=memory_prompt_context(relevant_memories, user_analysis),
         )
     except ValueError as exc:
         warning = str(exc)
+        audit_event("chat.reply.failed", user_id=current_user["_id"], reason=warning)
         assistant_text = f"I could not complete that request. {warning}"
+        raw_brain = {}
 
+    brain = build_companion_brain(
+        reply=assistant_text,
+        raw_brain=raw_brain,
+        message=outgoing_content,
+        history=history_source,
+        character_name=conversation.get("character_name") or payload.character_name,
+    )
+    # The response controls the avatar; make the user's detected state explicit
+    # so it can choose a comforting/curious posture rather than only guessing
+    # from the generated reply text.
+    brain["emotion"]["primary"] = companion_emotion_for_avatar(user_analysis)
+    brain["emotion"]["label"] = brain["emotion"]["primary"]
+    brain["userEmotion"] = user_analysis
+    brain["memory"]["relevant"] = relevant_memories
     assistant_message = build_message("assistant", assistant_text)
+    assistant_message["brain"] = brain
     conversation["messages"].append(assistant_message)
     conversation["updated_at"] = assistant_message["timestamp"]
 
@@ -181,13 +311,25 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         inserted = conversations.insert_one(conversation)
         conversation["_id"] = inserted.inserted_id
 
+    saved_memories = save_memory_candidates(current_user["_id"], outgoing_content, user_message["id"])
+
+    if attachment_id:
+        attachments_collection().update_one(
+            {"_id": attachment_id, "user_id": current_user["_id"]},
+            {"$set": {"conversation_id": conversation["_id"]}},
+        )
+
+    audit_event("chat.message.saved", user_id=current_user["_id"], conversation_id=conversation["_id"], warning=warning)
     return {
         "conversation": serialize_conversation(conversation),
         "userMessage": serialize_message(user_message),
         "aiMessage": {
             **serialize_message(assistant_message),
             "message": assistant_message["content"],
+            "brain": brain,
         },
+        "brain": brain,
         "model": resolved_model,
         "warning": warning,
+        "memoriesSaved": len(saved_memories),
     }

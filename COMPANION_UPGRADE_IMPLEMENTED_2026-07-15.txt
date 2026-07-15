@@ -1,0 +1,80 @@
+AI COMPANION UPGRADE — IMPLEMENTED 2026-07-15
+================================================
+
+The existing FastAPI app, UI, Qwen3-TTS pipeline, and VRM stage were preserved.
+This pass connects the companion features that were previously only aspirational
+or visual into a persistent, conversation-driven product layer.
+
+WHAT NOW WORKS
+--------------
+
+1. Selective persistent memory
+   - Explicit user-shared facts are extracted from chat: name/nickname,
+     birthday, likes/dislikes, work/study, pets, goals, routines, and reminders.
+   - Normal chat is deliberately not saved as a memory.
+   - Time-sensitive exam/interview/appointment/deadline details expire after
+     28 days; durable details are updated instead of duplicated.
+   - Relevant memories are retrieved for the current message and passed to the
+     companion prompt as private context, so references can be natural rather
+     than bolted on.
+   - Users can list or delete their saved memories:
+       GET    /api/companion/memories
+       DELETE /api/companion/memories/{memory_id}
+
+2. Emotion engine and companion response signal
+   - Every user message receives an explainable, non-clinical emotional estimate
+     across happy, sad, excited, angry, lonely, nervous, calm, frustrated,
+     embarrassed, confused, hopeful, motivated, and curious.
+   - The result is persisted with the message, included in the model context,
+     and mapped into the existing avatar brain contract. This lets the VRM stage
+     choose comforting, curious, focused, happy, and relaxed behavior from the
+     user's current state rather than generated reply text alone.
+
+3. Conversation-driven dashboard and insights
+   - Added GET /api/companion/dashboard.
+   - It derives stress, energy, loneliness, happiness, confidence, anxiety,
+     social interaction, conversation frequency/duration, memories, favorite
+     topics, daily streak, relationship level, trust score, and friendship
+     level from saved chat activity.
+   - The Overview page now fetches real dashboard statistics and recent threads
+     after login; its previous sample values are no longer fixed content.
+   - Insights reuses saved message analysis while keeping its existing safe,
+     reflective (not diagnostic) wording and UI buckets.
+
+4. Privacy and data controls
+   - Memory storage is intentionally conservative: it requires clear phrasing
+     rather than saving every message.
+   - Prompt context states that memories are private user-shared context and
+     must never be presented as certain or as human-like recall.
+   - The memory API is scoped to the authenticated user, and deletion is
+     ownership-checked.
+
+5. Existing avatar and camera implementation retained
+   - The existing VRM stage already supplies full-body auto-framing, dynamic
+     camera fitting, blinking, gaze shifts, breathing/stance movement,
+     listening nods, thinking poses, lip-sync, emotion expressions, and speech
+     gestures. The new brain payload now gives that stage better live signals.
+
+IMPLEMENTATION MAP
+------------------
+
+- app/companion.py                 deterministic emotion, memory extraction,
+                                    relationship, and dashboard engines
+- app/services/companion_memory.py selective persistence and retrieval
+- app/routers/companion.py         authenticated memory/dashboard API
+- app/routers/api_chat.py          analysis, retrieval, prompt context, saving
+- app/services/openai_chat.py      private companion context in system prompt
+- app/routers/insights.py          stored analysis-aware insights
+- app/static/js/workspace-shell.js live overview rendering
+- app/templates/dashboard.html     dynamic overview placeholders
+
+VERIFICATION
+------------
+
+- python3 -m compileall app
+- python3 -m pytest -q
+- Result: 26 passed, 1 skipped
+
+The one skipped test is the existing optional Mongo integration test when a
+MongoDB instance is not available. The suite emitted one upstream FastAPI /
+Starlette TestClient deprecation warning; it does not affect the result.

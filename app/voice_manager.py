@@ -8,9 +8,14 @@ import subprocess
 import tempfile
 import unicodedata
 import wave
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import threading
+from typing import Iterator
+
+from app.config import settings
+from app.tts_text import prepare_text_for_tts
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = BASE_DIR / "models" / "voices"
@@ -99,21 +104,90 @@ def _is_emoji_or_symbol(character: str) -> bool:
 
 
 class VoiceManager:
-    COMPANION_VOICE_MAP = {
-        "yuna": "lessac-female",
-        "rose": "lessac-female",
-        "robert": "ryan-male",
-        "haru": "ryan-male",
-        # Backward-compatible aliases for saved local browser state.
-        "arin": "ryan-male",
-        "liora": "lessac-female",
+    # The only character-to-voice registry.  Add a companion here, then send
+    # its `character_id`; the API resolves the Kokoro fallback voice and the
+    # Qwen CustomVoice speaker together, rather than trusting a browser voice.
+    # Qwen3 CustomVoice offers Serena and Vivian as female presets, and Ryan
+    # and Aiden as male presets.  The female presets also support English.
+    CHARACTER_VOICE_PROFILES: Dict[str, Dict[str, str]] = {
+        "yuna": {"voice_id": "af_heart", "gender": "female", "qwen_speaker": "Serena"},
+        "rose": {"voice_id": "af_bella", "gender": "female", "qwen_speaker": "Vivian"},
+        "robert": {"voice_id": "am_adam", "gender": "male", "qwen_speaker": "Aiden"},
+        "haru": {"voice_id": "am_michael", "gender": "male", "qwen_speaker": "Ryan"},
+    }
+    CHARACTER_ALIASES = {"arin": "haru", "liora": "yuna"}
+    KOKORO_VOICE_PROFILES: Dict[str, Dict[str, Any]] = {
+        "af_heart": {
+            "id": "af_heart",
+            "name": "Female A",
+            "engine": "kokoro",
+            "gender": "female",
+            "voice": "af_heart",
+            "style": "warm-supportive",
+            "speed": 0.96,
+            "energy": 0.48,
+            "warmth": 0.92,
+            "pause_frequency": 0.34,
+            "description": "Warm, intelligent, supportive companion voice",
+        },
+        "af_bella": {
+            "id": "af_bella",
+            "name": "Female B",
+            "engine": "kokoro",
+            "gender": "female",
+            "voice": "af_bella",
+            "style": "playful-curious",
+            "speed": 1.08,
+            "energy": 0.78,
+            "warmth": 0.82,
+            "pause_frequency": 0.2,
+            "description": "Playful, energetic, curious companion voice",
+        },
+        "am_adam": {
+            "id": "am_adam",
+            "name": "Male A",
+            "engine": "kokoro",
+            "gender": "male",
+            "voice": "am_adam",
+            "style": "calm-confident",
+            "speed": 0.92,
+            "energy": 0.42,
+            "warmth": 0.56,
+            "pause_frequency": 0.3,
+            "description": "Calm, professional, confident companion voice",
+        },
+        "am_michael": {
+            "id": "am_michael",
+            "name": "Male B",
+            "engine": "kokoro",
+            "gender": "male",
+            "voice": "am_michael",
+            "style": "relaxed-friendly",
+            "speed": 1.0,
+            "energy": 0.56,
+            "warmth": 0.78,
+            "pause_frequency": 0.26,
+            "description": "Relaxed, friendly, lightly humorous companion voice",
+        },
+    }
+    EMOTION_STYLES = {
+        "calm": "calm, grounded, unhurried, and reassuring",
+        "comforting": "soft, warm, comforting, and gentle",
+        "empathetic": "deeply empathetic, attentive, and validating",
+        "excited": "bright, energetic, and sincerely excited",
+        "happy": "warmly happy, smiling, and natural",
+        "sad": "soft, reflective, and quietly sad without sounding flat",
+        "romantic": "tender, intimate, and affectionate while remaining natural",
+        "professional": "clear, confident, polished, and approachable",
     }
 
     def __init__(self, models_dir: Optional[Path] = None, cache_dir: Optional[Path] = None):
         self.models_dir = Path(models_dir or MODELS_DIR)
         self.cache_dir = Path(cache_dir or CACHE_DIR)
         self._voices: Dict[str, VoiceMeta] = {}
-        self._load_lock = threading.Lock()
+        self._kokoro_pipelines: Dict[str, Any] = {}
+        self._qwen_models: Dict[str, Any] = {}
+        self._load_lock = threading.RLock()
         self._scan_models()
 
     def _load_metadata(self) -> List[Dict]:
@@ -133,6 +207,16 @@ class VoiceManager:
     def _scan_models(self):
         with self._load_lock:
             self._voices = {}
+            for profile in self.KOKORO_VOICE_PROFILES.values():
+                self._voices[profile["id"]] = VoiceMeta(
+                    id=profile["id"],
+                    name=profile["name"],
+                    engine="kokoro",
+                    path=self.models_dir,
+                    female=profile["gender"] == "female",
+                    voice=profile["voice"],
+                    description=profile["description"],
+                )
             metadata = self._load_metadata()
             if metadata:
                 for entry in metadata:
@@ -186,7 +270,14 @@ class VoiceManager:
 
     def list_voices(self) -> List[Dict]:
         self._scan_models()
-        return [voice.as_dict() for voice in self._voices.values()]
+        voices = []
+        for voice in self._voices.values():
+            serialized = voice.as_dict()
+            if voice.engine == "kokoro" and self._should_use_qwen(voice):
+                serialized["engine"] = "qwen3-mlx"
+                serialized["fallbackEngine"] = "kokoro"
+            voices.append(serialized)
+        return voices
 
     def find_voice(self, voice_id: str) -> Optional[VoiceMeta]:
         self._scan_models()
@@ -210,24 +301,49 @@ class VoiceManager:
     def _normalize_id(self, value: Optional[str]) -> str:
         return str(value or "").strip().lower()
 
+    def _character_voice_profile(self, companion_id: Optional[str]) -> Optional[Dict[str, str]]:
+        character_id = self._normalize_id(companion_id)
+        character_id = self.CHARACTER_ALIASES.get(character_id, character_id)
+        profile = self.CHARACTER_VOICE_PROFILES.get(character_id)
+        return dict(profile) if profile else None
+
+    def get_voice_assignment(self, companion_id: Optional[str] = None, voice_id: Optional[str] = None) -> Dict[str, str]:
+        """Resolve a stable voice assignment, preferring a registered character profile.
+
+        A registered `companion_id` deliberately wins over a client-supplied
+        `voice_id`. This prevents a stale browser bundle from making Yuna use a
+        male voice while still allowing direct voice selection for new/unmapped
+        characters during development.
+        """
+        character_profile = self._character_voice_profile(companion_id)
+        if character_profile:
+            return character_profile
+
+        fallback_voice_id = self._normalize_id(voice_id) or "af_heart"
+        fallback = dict(self.KOKORO_VOICE_PROFILES.get(fallback_voice_id, self.KOKORO_VOICE_PROFILES["af_heart"]))
+        fallback["voice_id"] = fallback["id"]
+        # A direct/unmapped request has no durable character identity. Keep it
+        # functional, but do not let it silently replace a configured profile.
+        fallback["qwen_speaker"] = "Serena" if fallback.get("gender") == "female" else "Aiden"
+        return fallback
+
     def get_voice_for_companion(self, companion_id: Optional[str] = None, companion_gender: Optional[str] = None) -> Optional[VoiceMeta]:
         self._scan_models()
-        if companion_id:
-            mapped = self.COMPANION_VOICE_MAP.get(self._normalize_id(companion_id))
-            if mapped:
-                voice = self.find_voice(mapped)
-                if voice:
-                    return voice
+        assignment = self._character_voice_profile(companion_id)
+        if assignment:
+            voice = self.find_voice(assignment["voice_id"])
+            if voice:
+                return voice
 
         if companion_gender:
             desired = companion_gender.lower() == "female"
-            matches = [v for v in self._voices.values() if v.female == desired and v.engine == "piper"]
+            matches = [v for v in self._voices.values() if v.female == desired and v.engine == "kokoro"]
             if matches:
                 return matches[0]
 
-        piper_voices = [v for v in self._voices.values() if v.engine == "piper"]
-        if piper_voices:
-            return piper_voices[0]
+        kokoro_voices = [v for v in self._voices.values() if v.engine == "kokoro"]
+        if kokoro_voices:
+            return kokoro_voices[0]
 
         return next(iter(self._voices.values()), None)
 
@@ -237,27 +353,318 @@ class VoiceManager:
         voice_id: Optional[str] = None,
         companion_id: Optional[str] = None,
         companion_gender: Optional[str] = None,
+        speech: Optional[Dict[str, Any]] = None,
+        brain: Optional[Dict[str, Any]] = None,
     ) -> Path:
-        speech_text = sanitize_text_for_tts(text)
+        assignment = self.get_voice_assignment(companion_id, voice_id)
+        speech_profile = self._build_speech_profile(voice_id, companion_id, speech, brain)
+        speech_text = self._prepare_speech_text(text, speech_profile)
         if not speech_text:
             raise RuntimeError("No speakable text remains after TTS sanitization.")
 
-        if voice_id:
-            vm = self.find_voice(voice_id)
-        else:
-            vm = self.get_voice_for_companion(companion_id, companion_gender)
+        vm = self.find_voice(assignment["voice_id"])
 
         if not vm:
-            raise RuntimeError("No local Piper voice models are available. Download voices before using /speak.")
-        if vm.engine != "piper":
-            raise RuntimeError(f"Voice '{vm.id}' is not a Piper voice.")
+            vm = VoiceMeta(
+                id=assignment["voice_id"],
+                name=assignment["voice_id"],
+                engine="kokoro",
+                path=self.models_dir,
+                female=assignment.get("gender") == "female",
+                description="System speech fallback",
+            )
+        if vm.engine not in {"kokoro", "piper", "system", "qwen3-mlx"}:
+            raise RuntimeError(f"Voice '{vm.id}' is not a supported speech voice.")
 
-        cache_key = hashlib.sha1(f"{vm.id}:{speech_text}".encode("utf-8")).hexdigest()
+        cache_key = hashlib.sha1(
+            f"tts-v4:{settings.tts_engine}:{vm.id}:{speech_profile['style']}:{speech_profile['speed']:.3f}:{speech_text}".encode("utf-8")
+        ).hexdigest()
         out_path = self.cache_dir / f"{cache_key}.wav"
         if out_path.exists() and out_path.stat().st_size > 44:
             return out_path
 
-        return self._generate_with_piper(speech_text, vm, out_path)
+        if self._should_use_qwen(vm):
+            try:
+                return self._generate_with_qwen(speech_text, vm, out_path, speech_profile)
+            except RuntimeError as exc:
+                # A missing MLX package/model never leaves the product silent:
+                # the already-installed Kokoro implementation remains local.
+                print(f"VoiceManager: Qwen3 MLX unavailable for '{vm.id}', using Kokoro fallback. {exc}")
+
+        if vm.engine in {"kokoro", "qwen3-mlx"}:
+            try:
+                return self._generate_with_kokoro(speech_text, vm, out_path, speech_profile)
+            except RuntimeError as exc:
+                if not self._can_use_macos_say():
+                    raise
+                print(f"VoiceManager: Kokoro unavailable for '{vm.id}', using system WAV fallback. {exc}")
+
+        if vm.engine == "piper":
+            try:
+                return self._generate_with_piper(speech_text, vm, out_path)
+            except RuntimeError as exc:
+                if not self._can_use_macos_say():
+                    raise
+                print(f"VoiceManager: Piper unavailable for '{vm.id}', using macOS speech fallback. {exc}")
+
+        return self._generate_with_macos_say(speech_text, vm, out_path)
+
+    def iter_pcm(
+        self,
+        text: str,
+        voice_id: Optional[str] = None,
+        companion_id: Optional[str] = None,
+        companion_gender: Optional[str] = None,
+        speech: Optional[Dict[str, Any]] = None,
+        brain: Optional[Dict[str, Any]] = None,
+        cancel_event: Optional[threading.Event] = None,
+    ) -> Iterator[bytes]:
+        """Yield signed 16-bit little-endian PCM as soon as each model chunk is ready."""
+        cancel_event = cancel_event or threading.Event()
+        assignment = self.get_voice_assignment(companion_id, voice_id)
+        speech_profile = self._build_speech_profile(voice_id, companion_id, speech, brain)
+        speech_text = self._prepare_speech_text(text, speech_profile)
+        if not speech_text:
+            raise RuntimeError("No speakable text remains after TTS sanitization.")
+        vm = self.find_voice(assignment["voice_id"])
+        vm = vm or VoiceMeta("system-fallback", "system-fallback", "kokoro", self.models_dir)
+
+        try:
+            if self._should_use_qwen(vm):
+                for sentence in self._sentence_chunks(speech_text):
+                    for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancel_event):
+                        if cancel_event.is_set():
+                            return
+                        yield self._audio_to_pcm(audio)
+                return
+        except RuntimeError as exc:
+            print(f"VoiceManager: Qwen3 streaming unavailable, using Kokoro fallback. {exc}")
+
+        try:
+            pipeline = self._kokoro_pipeline(vm.voice)
+            generator = pipeline(speech_text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+            for _, _, audio in generator:
+                if cancel_event.is_set():
+                    return
+                yield self._audio_to_pcm(audio)
+            return
+        except Exception as exc:
+            if not self._can_use_macos_say():
+                raise RuntimeError(f"No streaming TTS runtime is available: {exc}") from exc
+
+        # macOS fallback has no incremental API, but remains available for a
+        # complete locally generated reply when optional neural dependencies fail.
+        path = self.generate_audio(text, voice_id, companion_id, companion_gender, speech, brain)
+        with wave.open(str(path), "rb") as wav_file:
+            while not cancel_event.is_set():
+                chunk = wav_file.readframes(4096)
+                if not chunk:
+                    return
+                yield chunk
+
+    def _prepare_speech_text(self, text: str, speech_profile: Dict[str, Any]) -> str:
+        rendered = sanitize_text_for_tts(self._render_speech_markup(text, speech_profile))
+        dictionary_path = Path(settings.tts_pronunciation_dictionary) if settings.tts_pronunciation_dictionary else None
+        return prepare_text_for_tts(rendered, dictionary_path).text
+
+    def _should_use_qwen(self, vm: VoiceMeta) -> bool:
+        return settings.tts_engine.strip().lower() in {"auto", "qwen", "qwen3", "qwen3-mlx", "mlx"} and vm.engine not in {"piper", "system"}
+
+    def _sentence_chunks(self, text: str, maximum_characters: int = 360) -> List[str]:
+        """Bound synthesis units without splitting words or losing punctuation."""
+        sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+        chunks: List[str] = []
+        for sentence in sentences or [text]:
+            while len(sentence) > maximum_characters:
+                boundary = sentence.rfind(" ", 0, maximum_characters)
+                boundary = boundary if boundary > maximum_characters // 2 else maximum_characters
+                chunks.append(sentence[:boundary].strip())
+                sentence = sentence[boundary:].strip()
+            if sentence:
+                chunks.append(sentence)
+        return chunks
+
+    def _build_speech_profile(
+        self,
+        voice_id: Optional[str],
+        companion_id: Optional[str],
+        speech: Optional[Dict[str, Any]],
+        brain: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        assignment = self.get_voice_assignment(companion_id, voice_id)
+        mapped_voice_id = assignment["voice_id"]
+        base = dict(self.KOKORO_VOICE_PROFILES.get(mapped_voice_id, self.KOKORO_VOICE_PROFILES["af_heart"]))
+        speech = speech if isinstance(speech, dict) else (brain or {}).get("speech") if isinstance(brain, dict) else {}
+        emotion = (brain or {}).get("emotion", {}) if isinstance(brain, dict) else {}
+        speed = float(speech.get("speed", base["speed"])) if isinstance(speech, dict) else base["speed"]
+        energy = float(speech.get("vocalEnergy", base["energy"])) if isinstance(speech, dict) else base["energy"]
+        arousal = float(emotion.get("arousal", energy)) if isinstance(emotion, dict) else energy
+        requested_style = str(speech.get("style", "") if isinstance(speech, dict) else "").strip().lower()
+        emotion_label = str(emotion.get("label", emotion.get("primary", "")) if isinstance(emotion, dict) else "").strip().lower()
+        style_aliases = {"warm": "comforting", "supportive": "comforting", "joy": "happy", "joyful": "happy", "grief": "sad", "neutral": "professional"}
+        style = style_aliases.get(requested_style or emotion_label, requested_style or emotion_label)
+        base["style"] = style if style in self.EMOTION_STYLES else "calm"
+        base["style_instruction"] = self.EMOTION_STYLES[base["style"]]
+        base["qwen_speaker"] = assignment["qwen_speaker"]
+        base["speed"] = max(0.76, min(1.24, speed + (arousal - 0.5) * 0.08))
+        base["pause_frequency"] = max(0.08, min(0.72, float(speech.get("pauseFrequency", base["pause_frequency"])) if isinstance(speech, dict) else base["pause_frequency"]))
+        base["pause_scale"] = max(0.65, min(1.5, float(speech.get("pauseScale", 1.0)) if isinstance(speech, dict) else 1.0))
+        base["emphasis"] = speech.get("emphasis", []) if isinstance(speech, dict) and isinstance(speech.get("emphasis"), list) else []
+        return base
+
+    def _render_speech_markup(self, text: str, speech_profile: Dict[str, Any]) -> str:
+        rendered = str(text or "")
+        rendered = re.sub(r"<reflection\s*/>", "Mm. ", rendered, flags=re.IGNORECASE)
+        rendered = re.sub(r"<pause\s+ms=\"?(\d+)\"?\s*/>", lambda m: " ... " if int(m.group(1)) >= 220 else " , ", rendered, flags=re.IGNORECASE)
+        rendered = re.sub(r"</?emphasis>", "", rendered, flags=re.IGNORECASE)
+        if speech_profile.get("pause_frequency", 0) > 0.42:
+            rendered = re.sub(r"([.!?])\s+", r"\1 ... ", rendered)
+        return rendered
+
+    def _kokoro_lang_code(self, voice_id: str) -> str:
+        return "b" if voice_id.startswith("bf_") or voice_id.startswith("bm_") else "a"
+
+    def _kokoro_pipeline(self, voice_id: str):
+        lang_code = self._kokoro_lang_code(voice_id)
+        if lang_code in self._kokoro_pipelines:
+            return self._kokoro_pipelines[lang_code]
+        try:
+            from kokoro import KPipeline
+        except Exception as exc:
+            raise RuntimeError("Kokoro is not installed. Install kokoro>=0.9.4 and soundfile.") from exc
+        pipeline = KPipeline(lang_code=lang_code)
+        self._kokoro_pipelines[lang_code] = pipeline
+        return pipeline
+
+    def _generate_with_kokoro(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import numpy as np
+            import soundfile as sf
+        except Exception as exc:
+            raise RuntimeError("Kokoro audio writing requires numpy and soundfile.") from exc
+
+        pipeline = self._kokoro_pipeline(vm.voice)
+        audio_parts = []
+        try:
+            generator = pipeline(text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+            for _, _, audio in generator:
+                audio_parts.append(audio)
+        except Exception as exc:
+            raise RuntimeError(f"Kokoro generation failed: {exc}") from exc
+
+        if not audio_parts:
+            raise RuntimeError("Kokoro generated no audio.")
+        audio = np.concatenate(audio_parts)
+        sf.write(str(out_path), audio, 24000)
+        if not out_path.exists() or out_path.stat().st_size <= 44:
+            raise RuntimeError("Kokoro generated an empty audio file.")
+        return out_path
+
+    def _qwen_model(self):
+        model_id = settings.tts_qwen_model
+        with self._load_lock:
+            if model_id in self._qwen_models:
+                return self._qwen_models[model_id]
+            try:
+                from mlx_audio.tts.utils import load_model
+            except Exception as exc:
+                raise RuntimeError("MLX-Audio is not installed. Install mlx-audio on Apple Silicon.") from exc
+            try:
+                model = load_model(model_id)
+            except Exception as exc:
+                raise RuntimeError(f"Could not load local Qwen3 model '{model_id}': {exc}") from exc
+            self._qwen_models[model_id] = model
+            return model
+
+    def _validated_qwen_speaker(self, model: Any, requested_speaker: str) -> str:
+        """Return the model's canonical configured speaker or fail loudly.
+
+        Falling back to the model default here would hide a broken character
+        assignment and make every companion sound alike.
+        """
+        try:
+            supported = model.get_supported_speakers()
+        except AttributeError:
+            return requested_speaker
+        except Exception as exc:
+            raise RuntimeError(f"Could not inspect Qwen3 CustomVoice speakers: {exc}") from exc
+
+        supported_names = [str(name) for name in (supported or [])]
+        for speaker in supported_names:
+            if speaker.casefold() == requested_speaker.casefold():
+                return speaker
+        raise RuntimeError(
+            f"Configured Qwen3 speaker '{requested_speaker}' is unavailable. "
+            f"Model supports: {', '.join(supported_names) or 'no reported speakers'}"
+        )
+
+    def _iter_qwen_audio(
+        self,
+        text: str,
+        vm: VoiceMeta,
+        speech_profile: Dict[str, Any],
+        cancel_event: threading.Event,
+    ) -> Iterator[Any]:
+        try:
+            import numpy as np
+        except Exception as exc:
+            raise RuntimeError("Qwen3 audio conversion requires numpy.") from exc
+        model = self._qwen_model()
+        speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
+        kwargs = {
+            "text": text,
+            "speaker": speaker,
+            "language": "English",
+            "instruct": speech_profile["style_instruction"],
+            "stream": True,
+            "streaming_interval": settings.tts_streaming_interval,
+        }
+        try:
+            results = model.generate_custom_voice(**kwargs)
+        except (AttributeError, TypeError) as exc:
+            raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
+        emitted = False
+        try:
+            for result in results:
+                if cancel_event.is_set():
+                    return
+                audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
+                if audio.size:
+                    emitted = True
+                    yield audio
+        except Exception as exc:
+            raise RuntimeError(f"Qwen3 generation failed: {exc}") from exc
+        if not emitted and not cancel_event.is_set():
+            raise RuntimeError("Qwen3 generated no audio.")
+
+    def _generate_with_qwen(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            import numpy as np
+            import soundfile as sf
+        except Exception as exc:
+            raise RuntimeError("Qwen3 audio writing requires numpy and soundfile.") from exc
+        cancelled = threading.Event()
+        parts = [
+            audio
+            for sentence in self._sentence_chunks(text)
+            for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancelled)
+        ]
+        if not parts:
+            raise RuntimeError("Qwen3 generated no audio.")
+        sf.write(str(out_path), np.concatenate(parts), settings.tts_sample_rate)
+        if not out_path.exists() or out_path.stat().st_size <= 44:
+            raise RuntimeError("Qwen3 generated an empty audio file.")
+        return out_path
+
+    def _audio_to_pcm(self, audio: Any) -> bytes:
+        try:
+            import numpy as np
+            samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+        except Exception as exc:
+            raise RuntimeError("Audio chunk conversion requires numpy.") from exc
+        return (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2", copy=False).tobytes()
 
     def _find_piper_model(self, vm: VoiceMeta) -> Optional[Path]:
         if vm.path.is_file() and vm.path.suffix == ".onnx":
@@ -288,6 +695,64 @@ class VoiceManager:
         finally:
             if tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
+
+    def _can_use_macos_say(self) -> bool:
+        return bool(shutil.which("say") and shutil.which("afconvert"))
+
+    def _select_macos_voice(self, vm: VoiceMeta) -> str:
+        preferred = ("Samantha", "Karen", "Moira", "Tessa") if vm.female else ("Daniel", "Alex", "Fred")
+        try:
+            result = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=5)
+            available = result.stdout
+        except Exception:
+            available = ""
+
+        for voice in preferred:
+            if re.search(rf"^{re.escape(voice)}\s+", available, re.MULTILINE):
+                return voice
+
+        return preferred[0]
+
+    def _generate_with_macos_say(self, text: str, vm: VoiceMeta, out_path: Path) -> Path:
+        if not self._can_use_macos_say():
+            raise RuntimeError(
+                "No working speech runtime is available. Install the Piper CLI, piper-tts, "
+                "or run on macOS with say and afconvert."
+            )
+
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        voice = self._select_macos_voice(vm)
+        tmp_aiff = tempfile.NamedTemporaryFile(delete=False, suffix=".aiff", dir=str(out_path.parent))
+        tmp_wav = tempfile.NamedTemporaryFile(delete=False, suffix=".wav", dir=str(out_path.parent))
+        tmp_aiff_path = Path(tmp_aiff.name)
+        tmp_wav_path = Path(tmp_wav.name)
+        tmp_aiff.close()
+        tmp_wav.close()
+
+        try:
+            say_result = subprocess.run(
+                ["say", "-v", voice, "-r", "178", "-o", str(tmp_aiff_path), text],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            if say_result.returncode != 0 or not tmp_aiff_path.exists():
+                raise RuntimeError(say_result.stderr.strip() or "macOS say failed to generate audio.")
+
+            convert_result = subprocess.run(
+                ["afconvert", "-f", "WAVE", "-d", "LEI16", str(tmp_aiff_path), str(tmp_wav_path)],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            if convert_result.returncode != 0 or not tmp_wav_path.exists() or tmp_wav_path.stat().st_size <= 44:
+                raise RuntimeError(convert_result.stderr.strip() or "afconvert failed to create WAV audio.")
+
+            os.replace(tmp_wav_path, out_path)
+            return out_path
+        finally:
+            tmp_aiff_path.unlink(missing_ok=True)
+            tmp_wav_path.unlink(missing_ok=True)
 
     def _run_piper(self, text: str, model_path: Path, out_path: Path) -> Path:
         piper_binary = shutil.which("piper")
@@ -325,3 +790,17 @@ manager = VoiceManager()
 
 def get_manager() -> VoiceManager:
     return manager
+
+
+def cleanup_audio_cache(max_age_days: int) -> int:
+    """Remove expired generated audio safely during application startup."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max(1, max_age_days))
+    removed = 0
+    for candidate in CACHE_DIR.glob("*.wav"):
+        try:
+            if datetime.fromtimestamp(candidate.stat().st_mtime, timezone.utc) < cutoff:
+                candidate.unlink(missing_ok=True)
+                removed += 1
+        except OSError:
+            continue
+    return removed

@@ -17,10 +17,14 @@ const elements = {
   topicComposeButton: document.getElementById("community-topic-compose"),
   emptyComposeButton: document.getElementById("community-empty-compose"),
   composeCard: document.getElementById("community-compose-card"),
+  loadMoreButton: document.getElementById("community-load-more"),
 };
 
 const state = {
   posts: [],
+  page: 1,
+  limit: 20,
+  hasMore: false,
   isSubmitting: false,
   likeInFlight: new Set(),
 };
@@ -136,6 +140,9 @@ function renderPosts() {
       const avatarLabel = getAvatarLabel();
       const likeCount = Number(post.likes || 0);
       const isLikePending = state.likeInFlight.has(postId);
+      const isRelated = Boolean(post.liked_by_current_user || post.likedByCurrentUser);
+      const isOwner = Boolean(post.owned_by_current_user || post.ownedByCurrentUser);
+      const moderationStatus = post.moderation_status || post.moderationStatus || "visible";
 
       return `
         <article class="post-card" data-post-id="${escapeHtml(postId)}">
@@ -153,11 +160,16 @@ function renderPosts() {
                 class="post-action post-action-button"
                 type="button"
                 data-like-post-id="${escapeHtml(postId)}"
-                ${isLikePending ? "disabled" : ""}
+                ${isLikePending || isRelated ? "disabled" : ""}
               >
-                Relate ${likeCount}
+                ${isRelated ? "Related" : "Relate"} ${likeCount}
               </button>
+              ${isOwner ? `
+                <button class="post-action post-action-button" type="button" data-edit-post-id="${escapeHtml(postId)}">Edit</button>
+                <button class="post-action post-action-button" type="button" data-delete-post-id="${escapeHtml(postId)}">Delete</button>
+              ` : ""}
               <span class="post-action">Anonymous only</span>
+              ${isOwner && moderationStatus !== "visible" ? `<span class="post-action">In review</span>` : ""}
             </div>
             <span class="community-pill">${escapeHtml(anonymousLabel)}</span>
           </div>
@@ -165,18 +177,26 @@ function renderPosts() {
       `;
     })
     .join("");
+
+  if (elements.loadMoreButton) {
+    elements.loadMoreButton.hidden = !state.hasMore;
+  }
 }
 
-async function loadPosts() {
+async function loadPosts({ append = false } = {}) {
   showStatus(elements.feedStatus, "Loading community reflections...", "info");
 
   try {
-    const posts = await apiRequest("/posts", { auth: true });
-    state.posts = Array.isArray(posts) ? posts : [];
+    const response = await apiRequest(`/posts?page=${state.page}&limit=${state.limit}`, { auth: true });
+    const posts = Array.isArray(response) ? response : response.posts || [];
+    state.posts = append ? [...state.posts, ...posts] : posts;
+    state.hasMore = Array.isArray(response) ? false : Boolean(response.has_more || response.hasMore);
     renderPosts();
     showStatus(elements.feedStatus, "");
   } catch (error) {
-    state.posts = [];
+    if (!append) {
+      state.posts = [];
+    }
     renderPosts();
     showStatus(elements.feedStatus, error.message || "Could not load community posts.");
   }
@@ -223,8 +243,60 @@ async function submitPost(event) {
   }
 }
 
+async function handleEdit(postId) {
+  const post = state.posts.find((item) => getPostId(item) === postId);
+  if (!post) {
+    return;
+  }
+
+  const nextContent = window.prompt("Edit your anonymous reflection", post.content);
+  if (nextContent === null) {
+    return;
+  }
+
+  const content = nextContent.trim();
+  if (!content) {
+    showStatus(elements.feedStatus, "Post content cannot be empty.");
+    return;
+  }
+
+  try {
+    const response = await apiRequest(`/posts/${postId}`, {
+      method: "PATCH",
+      auth: true,
+      body: { content },
+    });
+    if (response?.post) {
+      state.posts = state.posts.map((item) => (getPostId(item) === postId ? response.post : item));
+      renderPosts();
+    }
+    showStatus(elements.feedStatus, response?.message || "Post updated.", "success");
+  } catch (error) {
+    showStatus(elements.feedStatus, error.message || "Could not update that post.");
+  }
+}
+
+async function handleDelete(postId) {
+  if (!window.confirm("Delete this anonymous reflection?")) {
+    return;
+  }
+
+  try {
+    const response = await apiRequest(`/posts/${postId}`, {
+      method: "DELETE",
+      auth: true,
+    });
+    state.posts = state.posts.filter((post) => getPostId(post) !== postId);
+    renderPosts();
+    showStatus(elements.feedStatus, response?.message || "Post deleted.", "success");
+  } catch (error) {
+    showStatus(elements.feedStatus, error.message || "Could not delete that post.");
+  }
+}
+
 async function handleLike(postId) {
-  if (!postId || state.likeInFlight.has(postId)) {
+  const post = state.posts.find((item) => getPostId(item) === postId);
+  if (!postId || state.likeInFlight.has(postId) || post?.liked_by_current_user || post?.likedByCurrentUser) {
     return;
   }
 
@@ -262,13 +334,28 @@ function bindEvents() {
     button?.addEventListener("click", focusComposer);
   });
 
+  elements.loadMoreButton?.addEventListener("click", async () => {
+    state.page += 1;
+    await loadPosts({ append: true });
+  });
+
   elements.postList?.addEventListener("click", (event) => {
     const likeButton = event.target.closest("[data-like-post-id]");
-    if (!likeButton) {
+    if (likeButton) {
+      handleLike(likeButton.dataset.likePostId || "");
       return;
     }
 
-    handleLike(likeButton.dataset.likePostId || "");
+    const editButton = event.target.closest("[data-edit-post-id]");
+    if (editButton) {
+      handleEdit(editButton.dataset.editPostId || "");
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-post-id]");
+    if (deleteButton) {
+      handleDelete(deleteButton.dataset.deletePostId || "");
+    }
   });
 }
 
@@ -287,6 +374,7 @@ async function initCommunityPage() {
   updateCharacterCount();
   updateSubmitButton();
   bindEvents();
+  state.page = 1;
   await loadPosts();
 }
 

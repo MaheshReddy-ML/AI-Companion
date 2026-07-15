@@ -1,258 +1,330 @@
 <div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=180&color=0:111827,45:7C3AED,100:06B6D4&text=AI%20Companion&fontColor=FFFFFF&fontSize=52&fontAlignY=38&desc=Emotion-aware%20chat%20with%20VRM%20companions,%20voice,%20and%20community&descAlignY=62&descSize=16" alt="AI Companion animated header" width="100%" />
-
-  <img src="app/static/images/logo.png" alt="AI Companion logo" width="112" />
+  <img src="app/static/images/readme/emora-cover.svg" alt="Emora — a living, emotionally aware AI companion" width="100%" />
 
   <br />
-  <br />
 
-  <a href="https://git.io/typing-svg">
-    <img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=28&duration=2300&pause=650&color=8B5CF6&center=true&vCenter=true&width=920&lines=Your+personal+AI+companion;FastAPI+chat+with+memory+and+auth;VRM+characters+with+local+voice;Anonymous+community+for+emotional+support" alt="Animated typing intro" />
-  </a>
+  <a href="#quick-start"><img src="https://img.shields.io/badge/Launch_in-5_minutes-70E3CB?style=for-the-badge&labelColor=101A34" alt="Launch in 5 minutes" /></a>
+  <a href="#verification"><img src="https://img.shields.io/badge/Tests-Pytest-9CAEFF?style=for-the-badge&labelColor=101A34" alt="Pytest tests" /></a>
+  <a href="docs/PRODUCTION_DEPLOYMENT.md"><img src="https://img.shields.io/badge/Deployment-Ready-F2CC78?style=for-the-badge&labelColor=101A34" alt="Deployment guide" /></a>
 
-  <p>
-    <strong>AI Companion</strong> is a full-stack FastAPI experience for personal AI chat,
-    emotional reflection, anonymous community sharing, VRM companion characters, and
-    local Piper-powered voice generation.
-  </p>
+  <br /><br />
 
-  <p>
-    <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" />
-    <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi&logoColor=white" />
-    <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&logoColor=white" />
-    <img alt="OpenAI" src="https://img.shields.io/badge/OpenAI-Compatible-111827?style=for-the-badge&logo=openai&logoColor=white" />
-    <img alt="Jinja2" src="https://img.shields.io/badge/Jinja2-Templates-B41717?style=for-the-badge&logo=jinja&logoColor=white" />
-  </p>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+  <a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white" alt="MongoDB" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12 or newer" /></a>
+  <img src="https://img.shields.io/badge/Voice-Qwen3--TTS%20%2B%20Kokoro-9CAEFF?style=flat-square" alt="Qwen3 TTS with Kokoro fallback" />
+  <img src="https://img.shields.io/badge/Avatar-VRM-70E3CB?style=flat-square" alt="VRM avatar stage" />
+  <img src="https://img.shields.io/badge/Architecture-Server--Rendered-18243D?style=flat-square" alt="Server rendered architecture" />
+
+  <h1>Emora</h1>
+
+  <p><strong>A private AI companion that remembers what matters, responds with emotional context, and feels present through voice and avatar motion.</strong></p>
 
   <p>
-    <a href="#quick-start">Quick Start</a>
-    |
-    <a href="#companion-characters">Characters</a>
-    |
-    <a href="#features">Features</a>
-    |
-    <a href="#api-map">API Map</a>
-    |
-    <a href="#voice-pipeline">Voice</a>
+    <a href="#why-emora">Why Emora</a> ·
+    <a href="#experience">Experience</a> ·
+    <a href="#architecture">Architecture</a> ·
+    <a href="#quick-start">Quick start</a> ·
+    <a href="#api-map">API map</a> ·
+    <a href="#trust--privacy">Trust & privacy</a>
   </p>
 </div>
 
----
+> [!IMPORTANT]
+> Emora offers supportive conversation and reflective signals—not therapy, diagnosis, crisis care, or a replacement for real-world support.
 
-## Showcase
+## Why Emora
+
+Most chatbots reset when a tab closes. Emora is designed around continuity: it keeps user-owned conversations, selectively remembers explicit details, reads the emotional shape of a message, and turns that context into a warmer response, a more natural voice, and an animated companion presence.
+
+| The companion loop | What it means in the product |
+| --- | --- |
+| **Listen** | Each message receives an explainable, non-clinical emotional estimate. |
+| **Remember** | Clear preferences, goals, routines, life details, and time-sensitive reminders can be saved—rather than every sentence. |
+| **Respond** | Relevant private context is supplied to the AI reply, helping it follow up naturally without pretending certainty. |
+| **Feel present** | The Companion Brain guides Qwen3-TTS/Kokoro voice style, VRM expression, gaze, gestures, lip sync, and thinking/listening states. |
+| **Reflect** | Dashboard and insights values are generated from saved conversation activity, not hardcoded demo numbers. |
+
+## Experience
 
 <div align="center">
-  <img src="app/static/images/companions/visual-novel-set1-preview.png" alt="AI Companion scene preview" width="880" />
-  <br />
-  <sub>This image is a scene preview. The real companion characters are loaded from VRM model files in the app.</sub>
+  <img src="app/static/images/readme/emora-companion-cast.svg" alt="A selection of Emora companion characters" width="82%" />
+  <p><sub>Choose a companion, then meet them in a room built for voice, gaze, gesture, and conversation.</sub></p>
 </div>
 
-## Companion Characters
-
-GitHub cannot render `.vrm` models directly inside a README, so the character source files are listed clearly here.
-
-| Character | VRM model | Scene assets | Role in the experience |
-| --- | --- | --- | --- |
-| Yuna | `app/static/images/companions/female-yuna.vrm` | `bg-yuna-cherry.jpg`, `emora-room-bg.jpg` | Warm companion for calm, reflective chats. |
-| Haru | `app/static/images/companions/male-haru.vrm` | `bg-haru-forest.jpg` | Grounded companion for steady support. |
-| Robert | `app/static/images/companions/robert.vrm` | `emora-room-bg.jpg` | Conversational companion for everyday guidance. |
-| Rose | `app/static/images/companions/rose.vrm` | `bg-sakurada-garden.jpg` | Gentle companion for emotionally soft moments. |
-
-## Features
-
-| Area | What it does |
+| Space | Built for |
 | --- | --- |
-| AI chat | OpenAI-compatible chat replies with saved conversation history. |
-| Dashboard | View, pin, delete, share, and continue conversations. |
-| Authentication | Register, login, JWT verification, Google OAuth, and OTP password reset. |
-| Community | Anonymous MongoDB-backed posts with likes. |
-| Companions | VRM character models, companion profiles, scene backgrounds, and avatar assets. |
-| Voice | Piper TTS integration with generated audio caching. |
-| Frontend | FastAPI-served Jinja templates with custom CSS and vanilla JavaScript. |
+| **Overview** | Live activity rhythm, memory count, recent threads, and gentle conversation-driven nudges. |
+| **Companion** | Persistent chat, file attachments, conversation pinning/search/export, and character-specific personas. |
+| **Your Emora** | A live VRM room with auto-framing camera, speech recognition, Qwen3-TTS streaming, lip sync, and responsive motion. |
+| **Insights** | Tone trends, activity heatmaps, mood distribution, and day-of-week reflection patterns. |
+| **Personal space** | Journal entries, goals, quests, private garden, focus rooms, and companion memories. |
+| **Community** | An anonymous, moderated reflections feed with ownership-aware edit/delete controls. |
 
-## Architecture
+### Companion signals, from message to presence
 
 ```mermaid
 flowchart LR
-  Browser["Browser UI"] --> Pages["FastAPI Pages"]
-  Browser --> API["FastAPI API Routes"]
-  Pages --> Templates["Jinja Templates"]
-  API --> Auth["Auth + JWT"]
-  API --> Chat["OpenAI-Compatible Chat"]
-  API --> Posts["Community Posts"]
-  API --> Voices["Piper Voice Pipeline"]
-  Auth --> Mongo["MongoDB"]
-  Chat --> Mongo
-  Posts --> Mongo
-  Voices --> Cache["Audio Cache"]
+    U([User message]) --> E[Emotion engine]
+    U --> M[Selective memory extractor]
+    M --> R[(MongoDB memories)]
+    R --> K[Relevant memory retriever]
+    E --> P[Private companion context]
+    K --> P
+    P --> A[OpenAI-compatible chat]
+    A --> B[Companion Brain]
+    B --> V[Qwen3-TTS / Kokoro]
+    B --> G[VRM behavior engine]
+    E --> D[Insights + dashboard]
+    V --> G
 ```
 
-## Tech Stack
+<details>
+<summary><strong>What makes the avatar feel alive?</strong></summary>
+
+The VRM stage is intentionally never a static model. It has full-body automatic camera framing, smooth model/camera settling, breathing, blinks, micro-gaze shifts, listening nods, thinking glances, posture adjustments, lip sync, hand gestures, and emotional expression mapping. The backend Companion Brain gives the stage state-aware behavior values instead of leaving it to infer everything from text.
+
+</details>
+
+## Architecture
 
 ```text
-Backend       FastAPI, Uvicorn, Pydantic
-Frontend      Jinja2, vanilla JavaScript, custom CSS
-Database      MongoDB with PyMongo
-AI chat       OpenAI Python SDK with compatible base URL support
-Auth          JWT, bcrypt, Google OAuth, email OTP
-Voice         Piper TTS, Hugging Face model downloads, WAV cache
-Assets        PNG avatars, JPG scenes, VRM companion models
+┌───────────────────────────────────────────────────────────────────────────────┐
+│                             Browser experience                                 │
+│  Jinja pages · vanilla JS · VRM/Three.js stage · Web Audio · Web Speech       │
+└───────────────────────────────┬───────────────────────────────────────────────┘
+                                │ HTTPS / JSON
+┌───────────────────────────────▼───────────────────────────────────────────────┐
+│                               FastAPI application                              │
+│  Auth · Chat · Companion memory · Emotion analysis · Insights · Voice · Admin │
+└───────────────┬───────────────────────────────┬───────────────────────────────┘
+                │                               │
+     ┌──────────▼──────────┐         ┌──────────▼────────────────────┐
+     │       MongoDB        │         │  OpenAI-compatible provider   │
+     │ users · chats ·     │         │  response + Companion Brain   │
+     │ memories · posts    │         └───────────────────────────────┘
+     └─────────────────────┘
+                │
+     ┌──────────▼────────────────────────────────────────────────────┐
+     │ Local voice path: Qwen3-TTS on MLX (Apple Silicon) → Kokoro   │
+     │ fallback → streamed PCM/WAV → browser analyser → avatar lip sync│
+     └───────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+### Project map
 
-Clone the repository:
-
-```bash
-git clone https://github.com/MaheshReddy-ML/AI-Companion-
-cd AI-Companion-
+```text
+app/
+├── companion.py                 # Emotion, memory, relationship, dashboard logic
+├── companion_brain.py           # Response behavior and speech metadata
+├── database.py                  # MongoDB access, indexes, serialization
+├── voice_manager.py             # Qwen3-TTS / Kokoro voice orchestration
+├── routers/
+│   ├── api_auth.py              # Account, JWT, OAuth, OTP, avatars
+│   ├── api_chat.py              # Persistent conversations and attachments
+│   ├── companion.py             # Memory controls + dynamic dashboard API
+│   ├── insights.py              # Reflection data
+│   ├── voices.py                # Voice listing and synthesis
+│   ├── posts.py                 # Anonymous community
+│   └── admin.py                 # Protected diagnostics
+├── services/                    # Chat, memory, attachment, OAuth, post services
+├── static/                      # CSS, JS, companion artwork, VRM assets
+└── templates/                   # Server-rendered application pages
 ```
 
-Create the environment and install dependencies:
+## Quick start
+
+### 1. Create and activate an environment
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
 ```
 
-Create your local environment file:
+<details>
+<summary>Windows PowerShell</summary>
+
+```powershell
+py -m venv .venv
+.\venv\Scripts\Activate.ps1
+```
+
+</details>
+
+### 2. Install dependencies
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+### 3. Add local configuration
 
 ```bash
 cp .env.example .env
 ```
 
-Start the app:
+Set these first:
+
+```env
+JWT_SECRET=replace-with-a-long-random-secret
+MONGO_URI=mongodb://127.0.0.1:27017/ai-companion-fastapi
+OPENAI_API_KEY=your-openai-compatible-provider-key
+```
+
+### 4. Start MongoDB
+
+Use an existing local/managed MongoDB instance, or start one with Docker:
+
+```bash
+docker run --name emora-mongo -p 27017:27017 -d mongo:7
+```
+
+### 5. Run Emora
 
 ```bash
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open the local app:
+Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** and create an account.
 
-```text
-http://127.0.0.1:8000
-```
-
-## Environment Variables
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `MONGO_URI` | Yes | MongoDB connection string. |
-| `JWT_SECRET` | Yes | Secret key used to sign access tokens. |
-| `OPENAI_API_KEY` | Yes | Key for OpenAI-compatible chat completions. |
-| `OPENAI_BASE_URL` | Optional | Compatible API endpoint, such as GitHub Models or Azure inference. |
-| `OPENAI_MODEL` | Yes | Chat model name. |
-| `GOOGLE_CLIENT_ID` | Optional | Google OAuth web client ID. |
-| `GOOGLE_CLIENT_SECRET` | Optional | Google OAuth callback secret. |
-| `EMAIL_USER` | Optional | SMTP sender email for OTP delivery. |
-| `EMAIL_PASS` | Optional | SMTP app password for OTP delivery. |
-
-## Google OAuth
-
-For local development, configure your Google OAuth web client with:
-
-```text
-Authorized JavaScript origin: http://127.0.0.1:8000
-Authorized redirect URI:       http://127.0.0.1:8000/auth/google/callback
-```
-
-If you run the app on `localhost`, add matching `localhost:8000` entries as well.
-
-## Voice Pipeline
-
-Install dependencies first, then optionally download recommended open-source Piper models:
+### Optional: warm the local voice model (Apple Silicon)
 
 ```bash
-python scripts/voice_downloader.py --download
+python3 scripts/tts_setup.py --warmup
+python3 scripts/benchmark_tts.py
 ```
 
-Voice models are stored in `models/voices/`, and generated audio is cached in `cache/audio/`. Both are ignored by git because they are local/generated assets.
+Qwen3-TTS through MLX-Audio is the primary local runtime on Apple Silicon. Kokoro remains an automatic fallback. See [VOICE_PIPELINE_README.md](VOICE_PIPELINE_README.md) for streaming behavior, voices, pronunciation controls, and benchmarks.
 
-```text
-GET  /api/voices/list
-POST /api/voices/speak
-```
+## Configuration
 
-Example voice request:
+Copy `.env.example`; it documents every available setting. These are the settings most projects need to review:
 
-```json
-{
-  "text": "Hey, I am here with you.",
-  "companion_id": "Yuna",
-  "voice_id": null,
-  "stream": false
-}
-```
-
-## API Map
-
-| Endpoint | Method | Purpose |
+| Area | Variables | Notes |
 | --- | --- | --- |
-| `/` | `GET` | Landing page. |
-| `/login` | `GET` | Login page. |
-| `/register` | `GET` | Registration page. |
-| `/dashboard` | `GET` | Conversation dashboard. |
-| `/community` | `GET` | Anonymous community page. |
-| `/health` | `GET` | Server health check. |
-| `/api/auth/*` | Mixed | Registration, login, OTP, Google auth, token verification. |
-| `/api/chat/*` | Mixed | Chat and conversation actions. |
-| `/posts` | `GET/POST` | List or create community posts. |
-| `/posts/{post_id}/like` | `POST` | Like a community post. |
-| `/api/voices/list` | `GET` | List available local voices. |
-| `/api/voices/speak` | `POST` | Generate companion speech audio. |
+| **Core** | `APP_NAME`, `APP_ENV`, `HOST`, `PORT` | Keep `APP_ENV=production` in deployed environments. |
+| **Security** | `JWT_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_DAYS`, `ADMIN_API_KEY` | Use a strong unique secret; only enable diagnostics deliberately. |
+| **Database** | `MONGO_URI`, `MONGO_SERVER_SELECTION_TIMEOUT_MS` | A Mongo database is required for accounts, chat, memory, and community data. |
+| **Chat** | `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` | Supports an OpenAI-compatible chat endpoint. |
+| **Voice** | `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING`, `TTS_PRONUNCIATION_DICTIONARY` | The default engine is `qwen3-mlx`; set `kokoro` to force the fallback. |
+| **Google OAuth** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Configure the same callback URL with Google. |
+| **Email / OTP** | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM_NAME` | Required when password-reset email is enabled. |
 
-## Project Structure
+<details>
+<summary><strong>Google OAuth local callback</strong></summary>
 
-```text
-AI-Companion-/
-  app/
-    main.py                 FastAPI app entrypoint
-    config.py               Environment-backed settings
-    database.py             MongoDB connection and indexes
-    security.py             Password hashing, JWTs, auth helpers
-    routers/                Pages, auth, chat, posts, voices
-    services/               OpenAI, Google auth, community logic
-    templates/              Jinja HTML pages
-    static/
-      css/                  App styling
-      js/                   Page behavior
-      images/
-        avatars/            PNG avatar presets
-        companions/         VRM models and scene backgrounds
-  scripts/
-    voice_downloader.py     Piper voice model downloader
-  .env.example              Safe environment template
-  requirements.txt          Python dependencies
-```
+For a local web client, add one of the following to the Google OAuth configuration:
 
-## Useful Commands
+| Setting | `127.0.0.1` value | `localhost` value |
+| --- | --- | --- |
+| Authorized JavaScript origin | `http://127.0.0.1:8000` | `http://localhost:8000` |
+| Authorized redirect URI | `http://127.0.0.1:8000/auth/google/callback` | `http://localhost:8000/auth/google/callback` |
+
+</details>
+
+## API map
+
+All account-scoped endpoints require `Authorization: Bearer <token>` unless noted otherwise.
+
+| Domain | Method | Endpoint | Purpose |
+| --- | --- | --- | --- |
+| Health | `GET` | `/health` | Lightweight liveness check. |
+| Health | `GET` | `/health/ready` | Database/integration readiness status. |
+| Auth | `POST` | `/api/auth/register` | Create a local account. |
+| Auth | `POST` | `/api/auth/login` | Start a JWT session. |
+| Auth | `POST` | `/api/auth/logout` | Invalidate the current token generation. |
+| Chat | `GET` | `/api/chat?page=&limit=&search=&pinned=` | Browse persistent conversations. |
+| Chat | `POST` | `/api/chat` | Save a user message and companion response. |
+| Chat | `GET` | `/api/chat/conversations/{id}/export?format=json\|text` | Export an owned conversation. |
+| Memory | `GET` | `/api/companion/memories` | Review saved, non-expired memories. |
+| Memory | `DELETE` | `/api/companion/memories/{memory_id}` | Remove one owned memory. |
+| Companion | `GET` | `/api/companion/dashboard` | Read conversation-derived companion metrics. |
+| Insights | `GET` | `/api/insights?days=30` | Read reflective timeline and mood data. |
+| Voice | `GET` / `POST` | `/api/voices/list` · `/api/voices/speak` | List voices or generate speech. |
+| Community | `GET` / `POST` | `/posts` | Browse or create anonymous reflections. |
+| Admin | `GET` | `/api/admin/diagnostics` | Protected diagnostics; send `X-Admin-Key`. |
+
+### A few useful requests
+
+<details>
+<summary>Search conversations</summary>
 
 ```bash
-# Run development server
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-
-# Verify Python files compile
-python3 -m compileall app
-
-# Download optional voice models
-python scripts/voice_downloader.py --download
+curl "http://127.0.0.1:8000/api/chat?search=deadline&limit=20" \
+  -H "Authorization: Bearer <your_token>"
 ```
 
-## Roadmap
+</details>
 
-- Real-time voice streaming with timing metadata
-- Richer emotional insight summaries
-- More companion presets and personality controls
-- Docker deployment profile
-- Route-level tests for auth, chat, posts, and voice
-- Rendered preview images for each VRM character
+<details>
+<summary>Generate a streamed companion voice reply</summary>
 
----
+```bash
+curl -X POST http://127.0.0.1:8000/api/voices/speak \
+  -H "Authorization: Bearer <your_token>" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"I hear you. Let us slow this down for a second.","character_id":"yuna","stream":true}'
+```
 
-<div align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&height=120&section=footer&color=0:06B6D4,45:7C3AED,100:111827" alt="Footer wave" width="100%" />
-  <strong>AI Companion</strong>
-  <br />
-  Built to make personal AI feel calmer, warmer, and more alive.
-</div>
+</details>
+
+<details>
+<summary>Check deployment readiness</summary>
+
+```bash
+curl http://127.0.0.1:8000/health/ready
+```
+
+</details>
+
+## Trust & privacy
+
+Emora is built around user control rather than the illusion of perfect recall.
+
+- Passwords use bcrypt hashing with a SHA-256 pre-hash; reset OTPs are hashed before storage.
+- JWTs include expiration and token versions. Password resets and logout revoke older sessions.
+- High-risk endpoints are rate limited, attachments validate file type/signature, and admin diagnostics require a separate key.
+- The companion stores only clear, useful facts; temporary reminders expire after 28 days.
+- Memory, conversations, attachments, account exports, and deletion actions are authenticated and scoped to the account owner.
+- Community identities remain server-side; clients receive no profile identity for anonymous posts.
+- Dashboard and insights are reflective estimates from voluntarily shared text—not medical, psychological, or social-scoring systems.
+
+## Verification
+
+```bash
+python3 -m compileall app tests
+python3 -m pytest -q
+```
+
+The test suite covers core companion logic, memory/emotion behavior, schemas, OTP hashing, attachment validation, post moderation flows, public-page/static-asset smoke tests, protected diagnostics, and optional Mongo integration coverage. CI runs the same compile and test gates using MongoDB 7.
+
+## Production
+
+For deployment, follow the complete [production guide](docs/PRODUCTION_DEPLOYMENT.md). At minimum:
+
+- run behind HTTPS;
+- use a managed or secured MongoDB deployment;
+- set a strong `JWT_SECRET` and keep `.env` out of source control;
+- retain `RATE_LIMIT_ENABLED=true`;
+- warm the TTS model during deployment when using local voice;
+- review `needs_review` community posts and audit events; and
+- use `/health` and `/health/ready` in platform checks.
+
+## Documentation & project notes
+
+| Resource | What it covers |
+| --- | --- |
+| [Voice pipeline](VOICE_PIPELINE_README.md) | Qwen3-TTS/MLX setup, Kokoro fallback, streaming, pronunciation, and benchmarks. |
+| [VRM diagnostics](docs/VRM_RENDERING_DIAGNOSTICS.md) | Avatar rendering and camera troubleshooting. |
+| [Production deployment](docs/PRODUCTION_DEPLOYMENT.md) | Environment, security, MongoDB, operations, and deployment checklist. |
+| [Companion upgrade report](COMPANION_UPGRADE_IMPLEMENTED_2026-07-15.txt) | Selective memory, emotion engine, dynamic dashboard, and relationship work. |
+| [TTS upgrade report](TTS_UPGRADE_IMPLEMENTED_2026-07-15.txt) | Local streaming voice upgrade record. |
+
+## Contributing
+
+The best contribution is one that protects the companion experience: keep changes modular, avoid sending secrets or user data to logs, preserve user ownership checks, and add/extend tests with every behavioral change.
+
+## License
+
+No license file is currently included. Add an explicit license before publishing or distributing the project.

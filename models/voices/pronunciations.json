@@ -1,0 +1,6 @@
+{
+  "Emora": {"spoken": "eh mora", "phonemes": "ɛˈmɔɹə"},
+  "FastAPI": {"spoken": "Fast A P I", "phonemes": "fæst eɪ piː aɪ"},
+  "Hugging Face": {"spoken": "Hugging Face", "phonemes": "hʌɡɪŋ feɪs"},
+  "OpenAI": {"spoken": "Open A I", "phonemes": "ˈoʊpən eɪ aɪ"}
+}

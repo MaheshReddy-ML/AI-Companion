@@ -17,6 +17,9 @@ const elements = {
   currentLabel: document.getElementById("avatar-current-label"),
   currentSource: document.getElementById("avatar-current-source"),
   currentHint: document.getElementById("avatar-current-hint"),
+  accountExportButton: document.getElementById("account-export-button"),
+  clearHistoryButton: document.getElementById("clear-history-button"),
+  deleteAccountButton: document.getElementById("delete-account-button"),
 };
 
 const state = {
@@ -235,6 +238,44 @@ function bindEvents() {
     const file = event.target.files?.[0];
     if (file) {
       handleUpload(file);
+    }
+  });
+
+  elements.accountExportButton?.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/api/account/export", { headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` } });
+      if (!response.ok) throw new Error("Could not prepare your data export.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "emora-account-data.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      showStatus(elements.status, "Your account data export is ready.", "success");
+    } catch (error) {
+      showStatus(elements.status, error.message || "Could not export your data.");
+    }
+  });
+
+  elements.clearHistoryButton?.addEventListener("click", async () => {
+    if (!window.confirm("Permanently delete all saved conversations and attachments? This cannot be undone.")) return;
+    try {
+      const response = await apiRequest("/api/account/history", { method: "DELETE", auth: true });
+      showStatus(elements.status, response.message, "success");
+    } catch (error) {
+      showStatus(elements.status, error.message || "Could not clear history.");
+    }
+  });
+
+  elements.deleteAccountButton?.addEventListener("click", async () => {
+    if (window.prompt("Type DELETE to permanently remove your account and all data.") !== "DELETE") return;
+    try {
+      await apiRequest("/api/account", { method: "DELETE", auth: true });
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.assign("/");
+    } catch (error) {
+      showStatus(elements.status, error.message || "Could not delete your account.");
     }
   });
 }

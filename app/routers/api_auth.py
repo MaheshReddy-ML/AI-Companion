@@ -13,6 +13,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
 
+from app.audit import audit_event
 from app.avatar_catalog import (
     choose_default_avatar_preset_id,
     get_avatar_preset,
@@ -31,6 +32,8 @@ from app.models.schemas import (
     SendOtpRequest,
     VerifyOtpRequest,
 )
+from app.otp import hash_otp, verify_otp_hash
+from app.rate_limit import rate_limit
 from app.security import create_access_token, get_current_user, hash_password, verify_password
 from app.services.google_auth import (
     append_query_to_url,
@@ -64,7 +67,7 @@ IMAGE_SIGNATURES = {
 def build_auth_payload(user: dict) -> dict:
     return {
         "user": serialize_user(user),
-        "token": create_access_token(str(user["_id"])),
+        "token": create_access_token(str(user["_id"]), int(user.get("token_version", 0))),
     }
 
 
@@ -158,6 +161,7 @@ def upsert_google_user(payload: dict) -> dict:
         "reset_otp": None,
         "reset_otp_expiry": None,
         "reset_otp_verified": False,
+        "token_version": 0,
         "created_at": now,
         "updated_at": now,
     }
@@ -166,7 +170,11 @@ def upsert_google_user(payload: dict) -> dict:
     return document
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(8, 300, "auth-register"))],
+)
 def register_user(payload: RegisterRequest) -> dict:
     name = payload.name.strip()
     email = normalize_email(payload.email)
@@ -180,6 +188,7 @@ def register_user(payload: RegisterRequest) -> dict:
 
     users = users_collection()
     if users.find_one({"email": email}):
+        audit_event("auth.register.duplicate", email=email)
         raise HTTPException(status_code=400, detail="User already exists")
 
     now = utc_now()
@@ -195,15 +204,17 @@ def register_user(payload: RegisterRequest) -> dict:
         "reset_otp": None,
         "reset_otp_expiry": None,
         "reset_otp_verified": False,
+        "token_version": 0,
         "created_at": now,
         "updated_at": now,
     }
     inserted = users.insert_one(document)
     document["_id"] = inserted.inserted_id
+    audit_event("auth.register.success", user_id=document["_id"], email=email)
     return build_auth_payload(document)
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit(12, 300, "auth-login"))])
 def login_user(payload: LoginRequest) -> dict:
     email = normalize_email(payload.email)
     password = payload.password
@@ -211,6 +222,7 @@ def login_user(payload: LoginRequest) -> dict:
     user = users.find_one({"email": email})
 
     if not user:
+        audit_event("auth.login.failed", email=email, reason="unknown_user")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not user.get("password_hash"):
@@ -220,14 +232,16 @@ def login_user(payload: LoginRequest) -> dict:
         )
 
     if not verify_password(password, user["password_hash"]):
+        audit_event("auth.login.failed", user_id=user["_id"], email=email, reason="bad_password")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     users.update_one({"_id": user["_id"]}, {"$set": {"updated_at": utc_now()}})
     user["updated_at"] = utc_now()
+    audit_event("auth.login.success", user_id=user["_id"], email=email)
     return build_auth_payload(user)
 
 
-@router.post("/google")
+@router.post("/google", dependencies=[Depends(rate_limit(20, 300, "auth-google"))])
 def google_login(payload: GoogleLoginRequest) -> dict:
     if not payload.token.strip():
         raise HTTPException(status_code=400, detail="Google token is missing")
@@ -235,9 +249,11 @@ def google_login(payload: GoogleLoginRequest) -> dict:
     try:
         google_payload = verify_google_id_token_value(payload.token.strip())
         user = upsert_google_user(google_payload)
+        audit_event("auth.google.success", user_id=user["_id"], email=user.get("email"))
         return build_auth_payload(user)
     except ValueError as exc:
         logger.warning("Google authentication failed: %s", exc)
+        audit_event("auth.google.failed", reason=str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -252,6 +268,17 @@ def google_start(next_path: str | None = Query(default=None, alias="next")) -> R
 @router.get("/verify")
 def verify_session(current_user: dict = Depends(get_current_user)) -> dict:
     return {"user": serialize_user(current_user), "verified": True}
+
+
+@router.post("/logout")
+def logout_all_sessions(current_user: dict = Depends(get_current_user)) -> dict:
+    next_version = int(current_user.get("token_version", 0)) + 1
+    users_collection().update_one(
+        {"_id": current_user["_id"]},
+        {"$set": {"token_version": next_version, "updated_at": utc_now()}},
+    )
+    audit_event("auth.logout_all.success", user_id=current_user["_id"])
+    return {"message": "Signed out from all sessions."}
 
 
 @router.get("/avatar-presets")
@@ -314,12 +341,13 @@ def upload_profile_avatar(
     return {"message": "Custom avatar saved.", "user": serialize_user(user)}
 
 
-@router.post("/send-otp")
+@router.post("/send-otp", dependencies=[Depends(rate_limit(5, 600, "auth-send-otp"))])
 def send_otp(payload: SendOtpRequest) -> dict:
     email = normalize_email(payload.email)
     users = users_collection()
     user = users.find_one({"email": email})
     if not user:
+        audit_event("auth.otp.request.failed", email=email, reason="unknown_user")
         raise HTTPException(status_code=404, detail="User not found")
 
     otp = f"{random.randint(100000, 999999)}"
@@ -329,7 +357,8 @@ def send_otp(payload: SendOtpRequest) -> dict:
         {"_id": user["_id"]},
         {
             "$set": {
-                "reset_otp": otp,
+                "reset_otp": None,
+                "reset_otp_hash": hash_otp(otp),
                 "reset_otp_expiry": expiry,
                 "reset_otp_verified": False,
                 "updated_at": utc_now(),
@@ -345,38 +374,45 @@ def send_otp(payload: SendOtpRequest) -> dict:
 
     if not delivered:
         logger.warning("OTP for %s generated but email was not delivered because SMTP is not configured.", email)
+        audit_event("auth.otp.generated", user_id=user["_id"], email=email, delivered=False)
         return {"message": "OTP generated. Configure email settings to deliver it."}
 
+    audit_event("auth.otp.generated", user_id=user["_id"], email=email, delivered=True)
     return {"message": "OTP sent successfully"}
 
 
-@router.post("/verify-otp")
+@router.post("/verify-otp", dependencies=[Depends(rate_limit(10, 600, "auth-verify-otp"))])
 def verify_otp(payload: VerifyOtpRequest) -> dict:
     email = normalize_email(payload.email)
     otp = payload.otp.strip()
     user = users_collection().find_one({"email": email})
     if not user:
+        audit_event("auth.otp.verify.failed", email=email, reason="unknown_user")
         raise HTTPException(status_code=404, detail="User not found")
 
     expiry = user.get("reset_otp_expiry")
-    if not user.get("reset_otp") or user.get("reset_otp") != otp or not expiry or expiry < utc_now():
+    if not verify_otp_hash(otp, user.get("reset_otp_hash") or user.get("reset_otp")) or not expiry or expiry < utc_now():
+        audit_event("auth.otp.verify.failed", user_id=user["_id"], email=email, reason="invalid_or_expired")
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     users_collection().update_one(
         {"_id": user["_id"]},
         {"$set": {"reset_otp_verified": True, "updated_at": utc_now()}},
     )
+    audit_event("auth.otp.verify.success", user_id=user["_id"], email=email)
     return {"message": "OTP Verified"}
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", dependencies=[Depends(rate_limit(5, 600, "auth-reset-password"))])
 def reset_password(payload: ResetPasswordRequest) -> dict:
     email = normalize_email(payload.email)
     user = users_collection().find_one({"email": email})
     if not user:
+        audit_event("auth.password_reset.failed", email=email, reason="unknown_user")
         raise HTTPException(status_code=404, detail="User not found")
 
     if not user.get("reset_otp_verified"):
+        audit_event("auth.password_reset.failed", user_id=user["_id"], email=email, reason="otp_not_verified")
         raise HTTPException(status_code=400, detail="OTP not verified")
 
     if len(payload.new_password) < 8:
@@ -389,12 +425,15 @@ def reset_password(payload: ResetPasswordRequest) -> dict:
                 "password_hash": hash_password(payload.new_password),
                 "auth_provider": "local",
                 "reset_otp": None,
+                "reset_otp_hash": None,
                 "reset_otp_expiry": None,
                 "reset_otp_verified": False,
+                "token_version": int(user.get("token_version", 0)) + 1,
                 "updated_at": utc_now(),
             }
         },
     )
+    audit_event("auth.password_reset.success", user_id=user["_id"], email=email)
     return {"message": "Password reset successful"}
 
 

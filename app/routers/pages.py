@@ -16,8 +16,9 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 def render_page(request: Request, template_name: str, title: str) -> HTMLResponse:
     return templates.TemplateResponse(
-        template_name,
-        {
+        request=request,
+        name=template_name,
+        context={
             "request": request,
             "page_title": title,
             "google_client_id": settings.google_client_id,
@@ -83,3 +84,28 @@ def community_page(request: Request) -> HTMLResponse:
 @router.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request) -> HTMLResponse:
     return render_page(request, "profile.html", "Profile")
+
+
+@router.get("/play", response_class=HTMLResponse)
+def play_page(request: Request) -> HTMLResponse:
+    return render_page(request, "play.html", "Emora Play")
+
+
+@router.get("/journal", response_class=HTMLResponse)
+def journal_page(request: Request) -> HTMLResponse:
+    return render_page(request, "journal.html", "Journal")
+
+
+@router.get("/goals", response_class=HTMLResponse)
+def goals_page(request: Request) -> HTMLResponse:
+    return render_page(request, "goals.html", "Goals")
+
+
+@router.get("/help", response_class=HTMLResponse)
+def help_page(request: Request) -> HTMLResponse:
+    return render_page(request, "help.html", "Help Center")
+
+
+@router.get("/research", response_class=HTMLResponse)
+def research_page(request: Request) -> HTMLResponse:
+    return render_page(request, "research.html", "Research")

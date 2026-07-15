@@ -244,7 +244,12 @@ export function initChrome() {
       return;
     }
     button.dataset.logoutBound = "true";
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
+      try {
+        await apiRequest("/api/auth/logout", { method: "POST", auth: true });
+      } catch {
+        // Local session cleanup should still happen if the server token is already invalid.
+      }
       clearSession();
       redirect("/login");
     });

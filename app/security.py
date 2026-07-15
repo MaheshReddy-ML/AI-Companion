@@ -39,9 +39,9 @@ def verify_password(password: str, hashed_password: str) -> bool:
         return False
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(user_id: str, token_version: int = 0) -> str:
     expires_at = utc_now() + timedelta(days=settings.access_token_expire_days)
-    payload = {"sub": user_id, "exp": expires_at}
+    payload = {"sub": user_id, "exp": expires_at, "tv": token_version}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
@@ -76,6 +76,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized, user not found",
+        )
+
+    token_version = int(payload.get("tv", 0))
+    user_token_version = int(user.get("token_version", 0))
+    if token_version != user_token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized, session expired",
         )
 
     return user

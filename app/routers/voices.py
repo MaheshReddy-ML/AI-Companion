@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from app.voice_manager import get_manager
+from app.rate_limit import rate_limit
+from app.security import get_current_user
+from app.config import settings
+from app.tts_queue import generate_audio, stream_pcm
 
 router = APIRouter()
 manager = get_manager()
@@ -10,8 +14,11 @@ manager = get_manager()
 class SpeakRequest(BaseModel):
     text: str
     companion_id: str | None = None
+    character_id: str | None = None
     voice_id: str | None = None
     stream: bool = False
+    brain: dict | None = None
+    speech: dict | None = None
 
 
 @router.get("/list")
@@ -19,34 +26,70 @@ def list_voices():
     return JSONResponse(content={"voices": manager.list_voices()})
 
 
-@router.post("/speak")
-def speak(req: SpeakRequest):
+@router.get("/status")
+def voice_status():
+    """Expose the local runtime contract without loading a multi-GB model."""
+    return {
+        "engine": settings.tts_engine,
+        "sampleRate": settings.tts_sample_rate,
+        "streaming": True,
+        "streamMediaType": f"audio/L16;rate={settings.tts_sample_rate};channels=1",
+        "queueMaxPending": settings.tts_queue_max_pending,
+    }
+
+
+@router.post("/speak", dependencies=[Depends(rate_limit(20, 300, "voice-speak"))])
+async def speak(req: SpeakRequest, request: Request, _: dict = Depends(get_current_user)):
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")
+    if len(text) > 5_000:
+        raise HTTPException(status_code=400, detail="text must be 5,000 characters or fewer")
 
-    try:
-        path = manager.generate_audio(
-            text,
-            voice_id=req.voice_id,
-            companion_id=req.companion_id,
-        )
-    except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-
+    companion_id = req.character_id or req.companion_id
+    assignment = manager.get_voice_assignment(companion_id=companion_id, voice_id=req.voice_id)
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "X-Voice-Companion": req.companion_id or "",
+        "Cache-Control": "private, no-store",
+        "X-Voice-Companion": companion_id or "",
+        "X-TTS-Voice-Id": assignment["voice_id"],
+        "X-Qwen-Speaker": assignment["qwen_speaker"],
+        "X-TTS-Engine": settings.tts_engine,
     }
 
     if req.stream:
-        def iterfile():
-            with open(path, "rb") as f:
-                while True:
-                    chunk = f.read(4096)
-                    if not chunk:
+        async def stream_response():
+            try:
+                async for chunk in stream_pcm(
+                    text=text,
+                    voice_id=assignment["voice_id"],
+                    companion_id=companion_id,
+                    speech=req.speech,
+                    brain=req.brain,
+                ):
+                    if await request.is_disconnected():
                         break
                     yield chunk
-        return StreamingResponse(iterfile(), media_type="audio/wav", headers=headers)
+            except RuntimeError as exc:
+                # Once an HTTP stream has started a status code cannot change,
+                # so this is intentionally logged by the ASGI server and the
+                # browser handles an empty/error stream as an unavailable voice.
+                raise exc
+        headers["X-TTS-Protocol"] = "pcm-s16le"
+        return StreamingResponse(
+            stream_response(),
+            media_type=f"audio/L16;rate={settings.tts_sample_rate};channels=1",
+            headers=headers,
+        )
+
+    try:
+        path = await generate_audio(
+            text=text,
+            voice_id=assignment["voice_id"],
+            companion_id=companion_id,
+            speech=req.speech,
+            brain=req.brain,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return FileResponse(path, media_type="audio/wav", filename=path.name, headers=headers)

@@ -24,7 +24,7 @@
     <div class="nav-group">
       <div class="nav-group-label">Personal</div>
       <a class="nav-item active" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
-      <a class="nav-item" href="/profile"><span class="nav-item-icon">J</span> Journal</a>
+      <a class="nav-item" href="/journal"><span class="nav-item-icon">J</span> Journal</a>
     </div>
 
     <div class="sidebar-footer">
@@ -125,7 +125,7 @@
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Anonymous community posts</h4><p>Never show my name in community</p></div><div class="toggle on"></div></div>
             <div class="settings-row profile-setting-stack">
               <div class="settings-row-label"><h4>Download my data</h4><p>Export all your sessions and emotional history</p></div>
-              <button class="btn btn-outline btn-sm" type="button">Request export</button>
+              <button class="btn btn-outline btn-sm" id="account-export-button" type="button">Download data</button>
             </div>
           </div>
         </div>
@@ -135,11 +135,11 @@
           <div class="settings-list">
             <div class="settings-row profile-setting-stack">
               <div class="settings-row-label"><h4>Clear emotional history</h4><p>Removes all session data. Cannot be undone.</p></div>
-              <button class="btn btn-danger btn-sm" type="button">Clear history</button>
+              <button class="btn btn-danger btn-sm" id="clear-history-button" type="button">Clear history</button>
             </div>
             <div class="settings-row profile-setting-stack">
               <div class="settings-row-label"><h4>Delete account</h4><p>Permanently removes your account and all data.</p></div>
-              <button class="btn btn-danger btn-sm" type="button">Delete account</button>
+              <button class="btn btn-danger btn-sm" id="delete-account-button" type="button">Delete account</button>
             </div>
           </div>
         </div>

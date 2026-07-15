@@ -1,18 +1,18 @@
-// Voice Backend Integration v20260511 - Neural TTS Piper Backend
-console.log("Loading Your Emora with backend voice pipeline v20260511");
+// Voice Backend Integration - local Qwen3 MLX PCM streaming with Kokoro fallback
 
 import {
   apiRequest,
   displayNameForUser,
   ensureSession,
   escapeHtml,
+  getToken,
   getInitials,
   getStoredUser,
   initChrome,
   renderUserAvatar,
   showStatus,
 } from "./common.js";
-import { createEmoraAvatarStage } from "./emora-avatar-stage.js?v=20260512-natural-motion";
+import { createEmoraAvatarStage } from "./emora-avatar-stage.js?v=20260715-full-body-framing";
 
 const ASSET_VERSION = "20260511-anime-vroid";
 
@@ -28,8 +28,7 @@ const CHARACTERS = {
   Yuna: {
     id: "Yuna",
     name: "Yuna",
-    voiceLabel: "lessac-female",
-    voiceModelId: "lessac-female",
+    voiceLabel: "Kokoro Heart",
     label: "Yuna",
     line: "Cute, sweet, gentle, and bright.",
     badge: "Sweet anime companion",
@@ -42,8 +41,7 @@ const CHARACTERS = {
   rose: {
     id: "rose",
     name: "Vivi",
-    voiceLabel: "lessac-female",
-    voiceModelId: "lessac-female",
+    voiceLabel: "Kokoro Bella",
     label: "Vivi",
     line: "Cute, sweet, soft, and bright.",
     badge: "Anime companion",
@@ -56,8 +54,7 @@ const CHARACTERS = {
   robert: {
     id: "robert",
     name: "Sakurada",
-    voiceLabel: "ryan-male",
-    voiceModelId: "ryan-male",
+    voiceLabel: "Kokoro Adam",
     label: "Sakurada",
     line: "Gentle, anime-styled, calm, and encouraging.",
     badge: "Anime companion",
@@ -70,8 +67,7 @@ const CHARACTERS = {
   haru: {
     id: "haru",
     name: "haru",
-    voiceLabel: "ryan-male",
-    voiceModelId: "ryan-male",
+    voiceLabel: "Kokoro Michael",
     label: "haru",
     line: "Cute, sweet, and softly encouraging.",
     badge: "Sweet anime companion",
@@ -143,8 +139,18 @@ const state = {
   voiceName: "",
   avatarStage: null,
   audioUrl: null,
+  audioContext: null,
+  audioAnalyser: null,
+  audioSource: null,
+  audioSamples: null,
+  audioLevelRaf: 0,
+  speechAbortController: null,
+  streamSources: new Set(),
+  streamPlaybackTimer: null,
+  streamGeneration: 0,
   lipSyncTimer: null,
   lipSyncRestTimer: null,
+  silentSpeechTimer: null,
   lipSyncIndex: 0,
 };
 
@@ -159,10 +165,6 @@ function getConversationStorageKey(characterId = state.characterId) {
 
 function getMediaUnavailableMessage() {
   return "This browser cannot request camera or microphone access.";
-}
-
-function getCompanionVoiceId() {
-  return currentCharacter().voiceModelId || null;
 }
 
 function setMouthShape(shape = "rest") {
@@ -190,19 +192,78 @@ function mouthShapeForText(value = "") {
 function stopLipSync() {
   window.clearInterval(state.lipSyncTimer);
   window.clearTimeout(state.lipSyncRestTimer);
+  window.clearTimeout(state.silentSpeechTimer);
+  window.cancelAnimationFrame(state.audioLevelRaf);
   state.lipSyncTimer = null;
   state.lipSyncRestTimer = null;
+  state.silentSpeechTimer = null;
+  state.audioLevelRaf = 0;
   state.lipSyncIndex = 0;
+  state.avatarStage?.setAudioLevel?.(0);
   setMouthShape("rest");
 }
 
-function startLipSync(text) {
+function ensureAudioAnalyser() {
+  if (state.audioAnalyser || (!window.AudioContext && !window.webkitAudioContext)) {
+    return state.audioAnalyser;
+  }
+
+  try {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    state.audioContext = new AudioContextCtor();
+    state.audioAnalyser = state.audioContext.createAnalyser();
+    state.audioAnalyser.fftSize = 1024;
+    state.audioAnalyser.smoothingTimeConstant = 0.62;
+    state.audioSamples = new Uint8Array(state.audioAnalyser.frequencyBinCount);
+    state.audioSource = state.audioContext.createMediaElementSource(audioPlayer);
+    state.audioSource.connect(state.audioAnalyser);
+    state.audioAnalyser.connect(state.audioContext.destination);
+  } catch (error) {
+    state.audioAnalyser = null;
+    state.audioSamples = null;
+  }
+  return state.audioAnalyser;
+}
+
+function updateAudioDrivenLipSync(tokens) {
+  const analyser = state.audioAnalyser;
+  if (!analyser || !state.audioSamples || !state.speaking) {
+    state.avatarStage?.setAudioLevel?.(0);
+    return;
+  }
+
+  analyser.getByteFrequencyData(state.audioSamples);
+  let sum = 0;
+  for (let index = 4; index < Math.min(96, state.audioSamples.length); index += 1) {
+    sum += state.audioSamples[index];
+  }
+  const average = sum / Math.max(1, Math.min(96, state.audioSamples.length) - 4);
+  const level = Math.min(1, Math.pow(average / 110, 1.25));
+  const tokenIndex = Math.floor((audioPlayer.currentTime || 0) * 4.8) % tokens.length;
+  const token = tokens[tokenIndex] || "emora";
+
+  state.avatarStage?.setAudioLevel?.(level);
+  state.avatarStage?.cueSpeech(token);
+  setMouthShape(level < 0.08 ? "rest" : mouthShapeForText(token));
+  state.audioLevelRaf = window.requestAnimationFrame(() => updateAudioDrivenLipSync(tokens));
+}
+
+function startLipSync(text, options = {}) {
   stopLipSync();
   const tokens = String(text || "")
     .split(/\s+/)
     .map((token) => token.replace(/[^a-zA-Z]/g, ""))
     .filter(Boolean);
   const speechTokens = tokens.length ? tokens : ["emora"];
+
+  if (options.audioDriven) {
+    const analyser = ensureAudioAnalyser();
+    if (analyser) {
+      state.audioContext?.resume?.();
+      updateAudioDrivenLipSync(speechTokens);
+      return;
+    }
+  }
 
   state.lipSyncTimer = window.setInterval(() => {
     if (!state.speaking) {
@@ -214,12 +275,22 @@ function startLipSync(text) {
     if (phase === 0) {
       state.avatarStage?.cueSpeech(token);
     }
+    state.avatarStage?.setAudioLevel?.(phase === 1 ? 0.1 : 0.55 + Math.random() * 0.28);
     setMouthShape(phase === 1 ? "rest" : mouthShapeForText(token));
     state.lipSyncIndex += 1;
-  }, 120);
+  }, 155);
 }
 
 function cancelSpeechPlayback() {
+  state.streamGeneration += 1;
+  state.speechAbortController?.abort?.();
+  state.speechAbortController = null;
+  window.clearTimeout(state.streamPlaybackTimer);
+  state.streamPlaybackTimer = null;
+  state.streamSources.forEach((source) => {
+    try { source.stop(); } catch (_) { /* source may already have ended */ }
+  });
+  state.streamSources.clear();
   if (!audioPlayer.paused) {
     audioPlayer.pause();
     audioPlayer.currentTime = 0;
@@ -233,6 +304,27 @@ function cancelSpeechPlayback() {
   state.speechLoading = false;
   state.avatarStage?.setSpeaking(false);
   stopLipSync();
+}
+
+function estimateSpeechDuration(text = "") {
+  const wordCount = String(text || "").split(/\s+/).filter(Boolean).length;
+  return Math.min(12000, Math.max(2600, wordCount * 330));
+}
+
+function startSilentPerformance(text = "") {
+  stopLipSync();
+  state.speaking = true;
+  state.speechLoading = false;
+  state.avatarStage?.setSpeaking(true, text);
+  startLipSync(text);
+  updateSignals();
+
+  state.silentSpeechTimer = window.setTimeout(() => {
+    state.speaking = false;
+    state.avatarStage?.setSpeaking(false);
+    stopLipSync();
+    updateSignals();
+  }, estimateSpeechDuration(text));
 }
 
 function fillUserChrome() {
@@ -487,14 +579,25 @@ function buildPersonaPrompt() {
   return `${character.personaPrompt}\nLive-room context: ${cameraState}; ${micState}. If the user speaks by voice, answer naturally as a companion.`;
 }
 
-async function speakReply(text) {
+async function performThinkingMoment(brain) {
+  const thought = brain?.internalThought || {};
+  const duration = Math.max(120, Math.min(2200, Number(thought.thinkingDurationMs || 420)));
+  const hesitation = Math.max(0, Math.min(800, Number(thought.hesitationMs || 0)));
+  state.avatarStage?.setBrainBehavior?.(brain);
+  state.avatarStage?.setThinking(true);
+  updateSignals();
+  await new Promise((resolve) => window.setTimeout(resolve, duration + hesitation));
+  state.avatarStage?.setThinking(false);
+}
+
+async function speakReply(text, brain = null) {
   if (!state.voiceReplies || !text) {
     return;
   }
 
   console.debug("speakReply started", {
     companion: currentCharacter().id,
-    voiceId: getCompanionVoiceId(),
+    voiceAssignment: "server-managed",
     textLength: text.length,
   });
 
@@ -506,15 +609,24 @@ async function speakReply(text) {
   const payload = {
     text,
     companion_id: currentCharacter().id,
-    voice_id: getCompanionVoiceId(),
-    stream: false,
+    character_id: currentCharacter().id,
+    stream: true,
+    brain,
+    speech: brain?.speech || null,
   };
 
   try {
+    const streamGeneration = state.streamGeneration;
+    const abortController = new AbortController();
+    state.speechAbortController = abortController;
     const response = await fetch("/api/voices/speak", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
       body: JSON.stringify(payload),
+      signal: abortController.signal,
     });
 
     if (!response.ok) {
@@ -522,43 +634,79 @@ async function speakReply(text) {
       throw new Error(errorText || "Voice generation failed.");
     }
 
-    const audioBlob = await response.blob();
-    const url = URL.createObjectURL(audioBlob);
-    if (state.audioUrl) {
-      URL.revokeObjectURL(state.audioUrl);
+    console.debug("Companion voice assignment", {
+      companion: response.headers.get("X-Voice-Companion"),
+      voiceId: response.headers.get("X-TTS-Voice-Id"),
+      qwenSpeaker: response.headers.get("X-Qwen-Speaker"),
+      engine: response.headers.get("X-TTS-Engine"),
+    });
+
+    if (!response.body || !response.headers.get("content-type")?.toLowerCase().includes("audio/l16")) {
+      throw new Error("The voice server did not return a PCM stream.");
     }
 
-    state.audioUrl = url;
-    audioPlayer.src = url;
-    audioPlayer.onended = () => {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) throw new Error("Web Audio is unavailable in this browser.");
+    state.audioContext ||= new AudioContextCtor();
+    await state.audioContext.resume();
+    const reader = response.body.getReader();
+    let remainder = new Uint8Array(0);
+    let nextStartAt = state.audioContext.currentTime + 0.04;
+    let receivedAudio = false;
+
+    state.speechLoading = false;
+    state.speaking = true;
+    state.avatarStage?.setBrainBehavior?.(brain);
+    state.avatarStage?.setSpeaking(true, text);
+    startLipSync(text);
+    updateSignals();
+    setStatus("Companion voice playing.", "success");
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done || streamGeneration !== state.streamGeneration) break;
+      const combined = new Uint8Array(remainder.length + value.length);
+      combined.set(remainder);
+      combined.set(value, remainder.length);
+      const usableLength = combined.length - (combined.length % 2);
+      remainder = combined.slice(usableLength);
+      if (!usableLength) continue;
+
+      const view = new DataView(combined.buffer, combined.byteOffset, usableLength);
+      const samples = new Float32Array(usableLength / 2);
+      for (let index = 0; index < samples.length; index += 1) {
+        samples[index] = view.getInt16(index * 2, true) / 32768;
+      }
+      const audioBuffer = state.audioContext.createBuffer(1, samples.length, 24000);
+      audioBuffer.copyToChannel(samples, 0);
+      const source = state.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(state.audioContext.destination);
+      source.onended = () => state.streamSources.delete(source);
+      state.streamSources.add(source);
+      nextStartAt = Math.max(nextStartAt, state.audioContext.currentTime + 0.012);
+      source.start(nextStartAt);
+      nextStartAt += audioBuffer.duration;
+      receivedAudio = true;
+    }
+
+    if (!receivedAudio || streamGeneration !== state.streamGeneration) return;
+    const finishInMs = Math.max(0, (nextStartAt - state.audioContext.currentTime) * 1000 + 35);
+    state.streamPlaybackTimer = window.setTimeout(() => {
+      if (streamGeneration !== state.streamGeneration) return;
+      state.streamSources.clear();
+      state.speechAbortController = null;
       state.speaking = false;
       state.avatarStage?.setSpeaking(false);
       stopLipSync();
       updateSignals();
       setStatus("Companion finished speaking.", "success");
-    };
-    audioPlayer.onerror = () => {
-      state.speaking = false;
-      state.avatarStage?.setSpeaking(false);
-      stopLipSync();
-      updateSignals();
-      setStatus("Unable to play companion voice.", "warning");
-    };
-
-    state.speechLoading = false;
-    state.speaking = true;
-    state.avatarStage?.setSpeaking(true, text);
-    startLipSync(text);
-    updateSignals();
-    await audioPlayer.play();
-    setStatus("Companion voice playing.", "success");
+    }, finishInMs);
   } catch (error) {
-    state.speechLoading = false;
-    state.speaking = false;
-    state.avatarStage?.setSpeaking(false);
-    stopLipSync();
-    updateSignals();
-    setStatus(error?.message || "Voice request failed.", "warning");
+    if (error?.name === "AbortError") return;
+    state.avatarStage?.setBrainBehavior?.(brain);
+    startSilentPerformance(text);
+    setStatus("Voice is unavailable, so the companion is responding silently.", "warning");
   }
 }
 
@@ -570,6 +718,7 @@ async function requestCompanionReply(content) {
     body: {
       conversationId: state.conversationId || undefined,
       message: content,
+      characterId: character.id,
       characterName: `Your Emora - ${character.name}`,
       personaPrompt: buildPersonaPrompt(),
     },
@@ -609,9 +758,14 @@ async function sendMessage(messageOverride = "") {
     }
 
     const reply = response?.aiMessage?.message || response?.aiMessage?.content || "I am here with you.";
+    const brain = response?.brain || response?.aiMessage?.brain || null;
     state.messages[state.messages.length - 1] = { role: "assistant", content: reply };
     renderMessages();
-    void speakReply(reply);
+    if (brain) {
+      state.avatarStage?.setBrainBehavior?.(brain);
+      await performThinkingMoment(brain);
+    }
+    void speakReply(reply, brain);
     if (response?.warning) {
       setStatus(response.warning, "warning");
     } else if (!state.voiceReplies) {

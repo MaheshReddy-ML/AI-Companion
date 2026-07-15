@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body_class %}app-body play-body{% endblock %}
+{% block content %}
+<main class="play-shell">
+  <section class="play-hero">
+    <div class="play-orb play-orb-one"></div><div class="play-orb play-orb-two"></div>
+    <a class="play-back" href="/dashboard">← Back to workspace</a>
+    <div class="play-hero-grid">
+      <div><p class="eyebrow">EMORA PLAY / PRIVATE BY DESIGN</p><h1 class="serif">Make your inner world<br><em>feel alive.</em></h1><p class="play-lede">Tiny rituals, soft focus, and playful momentum—crafted to help you come back to yourself.</p><div class="play-hero-actions"><a class="btn btn-primary" href="#quests">See today’s quests</a><a class="btn btn-outline" href="/your-emora">Enter companion room</a></div></div>
+      <aside class="garden-preview"><div class="garden-grid"></div><div class="garden-glow"></div><div class="garden-moon"></div><div class="garden-hills hill-back"></div><div class="garden-hills hill-front"></div><div class="garden-stem stem-one"><i></i><i></i></div><div class="garden-stem stem-two"><i></i><i></i></div><div class="garden-stem stem-three"><i></i><i></i></div><div class="garden-caption"><p id="garden-stage">Your garden is waking up…</p><small id="garden-copy"></small></div></aside>
+    </div>
+  </section>
+  <section class="play-content">
+    <div class="play-section-heading" id="quests"><div><p class="eyebrow">TODAY’S RITUALS</p><h2 class="serif">Small wins, real momentum.</h2></div><span class="play-kicker">Complete a quest to tend your garden</span></div>
+    <div id="quest-list" class="quest-grid"></div>
+    <div class="play-feature-grid">
+      <section class="play-panel memory-panel"><div class="play-panel-top"><span class="panel-icon">✦</span><div><p class="eyebrow">REMEMBER</p><h3>Keep the good details close.</h3></div></div><p>Save a preference, a goal, or a tiny truth you want your companion to remember.</p><form id="memory-form" class="play-inline-form"><input id="memory-input" maxlength="300" placeholder="I feel most focused in the mornings…"/><button type="submit" aria-label="Save memory">+</button></form><div id="memory-list" class="memory-list"></div></section>
+      <section class="play-panel focus-panel"><div class="play-panel-top"><span class="panel-icon">◷</span><div><p class="eyebrow">FOCUS TOGETHER</p><h3>Bring a friend into the flow.</h3></div></div><p>Make a small, invite-only focus room. No feeds. No pressure. Just time held together.</p><form id="room-form" class="play-stack-form"><input id="room-name" value="Focus room" maxlength="60"/><div class="duration-row"><span>Session length</span><input id="room-minutes" type="number" min="5" max="120" value="25"/><span>minutes</span></div><button class="btn btn-primary btn-sm" type="submit">Create invite room</button></form><div class="join-row"><input id="room-code" placeholder="Invite code"/><button id="room-join" class="btn btn-outline btn-sm" type="button">Join</button></div><p id="room-status" class="panel-status"></p></section>
+      <section class="play-panel space-panel"><div class="play-panel-top"><span class="panel-icon">⌂</span><div><p class="eyebrow">YOUR SPACE</p><h3>Set the scene.</h3></div></div><p>Choose a room feeling that makes returning to Emora feel like a small exhale.</p><form id="space-form" class="space-controls"><label>Backdrop<select id="space-background"><option value="forest">Forest glow</option><option value="garden">Moon garden</option><option value="room">Cozy room</option></select></label><label>Ambience<select id="space-ambience"><option value="none">Quiet</option><option value="rain">Soft rain</option><option value="lofi">Lo-fi glow</option></select></label><label>Detail<select id="space-accessory"><option value="none">Minimal</option><option value="plant">Growing plant</option><option value="lamp">Warm lamp</option></select></label><button class="btn btn-outline btn-sm" type="submit">Save my space</button></form></section>
+    </div>
+    <section class="remix-studio"><div><p class="eyebrow">CONVERSATION REMIX</p><h2 class="serif">Turn a thought into its next shape.</h2><p>Plans, journal entries, reflection questions, and task lists—made from words that already matter to you.</p><div class="remix-chips"><span>Plan</span><span>Journal</span><span>Quiz</span><span>Tasks</span></div></div><form id="remix-form"><textarea id="remix-input" rows="6" placeholder="Paste a thought, an idea, or a meaningful part of a conversation…"></textarea><div class="remix-form-footer"><select id="remix-format"><option value="plan">Make a plan</option><option value="journal">Write a journal entry</option><option value="quiz">Make reflection questions</option><option value="tasks">Make a task list</option></select><button class="btn btn-primary" type="submit">Remix it ✦</button></div><pre id="remix-output"></pre></form></section>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/play.js"></script>{% endblock %}

@@ -76,6 +76,21 @@
         </div>
 
         <div class="emora-live-stage" id="emora-live-stage">
+          <div class="atmosphere-sky" aria-hidden="true">
+            <div class="atmosphere-orb"></div>
+            <div class="atmosphere-cloud atmosphere-cloud-one"></div>
+            <div class="atmosphere-cloud atmosphere-cloud-two"></div>
+            <div class="atmosphere-stars"></div>
+            <div class="atmosphere-rain"></div>
+            <div class="atmosphere-mist"></div>
+            <div class="atmosphere-horizon atmosphere-horizon-back"></div>
+            <div class="atmosphere-horizon atmosphere-horizon-front"></div>
+          </div>
+          <div class="atmosphere-status" aria-live="polite">
+            <span class="atmosphere-status-icon" data-atmosphere-icon>◌</span>
+            <span><strong data-atmosphere-title>Setting the scene</strong><small data-atmosphere-detail>Using your local time</small></span>
+            <button class="atmosphere-location-button" data-atmosphere-location type="button">Use location</button>
+          </div>
           <div class="emora-character-crop" id="emora-character-crop" data-character="Yuna" aria-label="Selected 3D Emora character">
             <div class="emora-avatar-loader" data-emora-avatar-loader>Loading avatar</div>
           </div>
@@ -156,5 +171,6 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/your-emora.js?v=20260511-anime-vroid"></script>
+  <script type="module" src="/static/js/atmosphere.js?v=20260713"></script>
+  <script type="module" src="/static/js/your-emora.js?v=20260606-vrm-fidelity"></script>
 {% endblock %}

@@ -63,13 +63,54 @@ def posts_collection() -> Collection:
     return get_database()["posts"]
 
 
+def attachments_collection() -> Collection:
+    return get_database()["attachments"]
+
+
+def memories_collection() -> Collection:
+    return get_database()["memories"]
+
+
+def feature_collection(name: str) -> Collection:
+    return get_database()[name]
+
+
+def check_database_connection() -> dict[str, Any]:
+    try:
+        get_client().admin.command("ping")
+    except PyMongoError as exc:
+        return {
+            "ok": False,
+            "database": settings.mongo_database,
+            "error": str(exc),
+        }
+
+    return {
+        "ok": True,
+        "database": settings.mongo_database,
+    }
+
+
 def ensure_indexes() -> None:
     try:
         users_collection().create_index([("email", ASCENDING)], unique=True)
         users_collection().create_index([("anonymous_id", ASCENDING)], unique=True, sparse=True)
+        users_collection().create_index([("token_version", ASCENDING)])
         conversations_collection().create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        conversations_collection().create_index([("user_id", ASCENDING), ("title", ASCENDING)])
         posts_collection().create_index([("created_at", DESCENDING)])
         posts_collection().create_index([("anonymous_id", ASCENDING), ("created_at", DESCENDING)])
+        posts_collection().create_index([("moderation_status", ASCENDING), ("created_at", DESCENDING)])
+        attachments_collection().create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        attachments_collection().create_index([("conversation_id", ASCENDING)])
+        memories_collection().create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        memories_collection().create_index([("user_id", ASCENDING), ("category", ASCENDING), ("key", ASCENDING)], unique=True)
+        memories_collection().create_index([("expires_at", ASCENDING)], sparse=True)
+        get_database()["quests"].create_index([("user_id", ASCENDING), ("date", DESCENDING)])
+        get_database()["focus_rooms"].create_index([("code", ASCENDING)], unique=True)
+        get_database()["user_spaces"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["journal_entries"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["goals"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
     except PyMongoError as exc:
         raise RuntimeError(
             f"MongoDB is not reachable at {settings.mongo_uri}. "
@@ -95,13 +136,19 @@ def serialize_user(document: dict[str, Any]) -> dict[str, Any]:
 
 
 def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
-    return {
+    payload = {
         "id": document.get("id"),
         "role": document.get("role", "user"),
         "content": document.get("content", ""),
         "attachmentName": document.get("attachment_name"),
+        "attachmentId": str(document["attachment_id"]) if document.get("attachment_id") else None,
         "timestamp": to_iso(document.get("timestamp")),
     }
+    if document.get("brain"):
+        payload["brain"] = document.get("brain")
+    if document.get("analysis"):
+        payload["analysis"] = document.get("analysis")
+    return payload
 
 
 def serialize_conversation(document: dict[str, Any]) -> dict[str, Any]:
@@ -118,10 +165,14 @@ def serialize_conversation(document: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def serialize_post(document: dict[str, Any]) -> dict[str, Any]:
+def serialize_post(document: dict[str, Any], *, current_anonymous_id: str | None = None) -> dict[str, Any]:
     return {
         "_id": str(document["_id"]),
         "content": document.get("content", ""),
         "created_at": to_iso(document.get("created_at")),
+        "updated_at": to_iso(document.get("updated_at")),
         "likes": int(document.get("likes", 0)),
+        "liked_by_current_user": bool(current_anonymous_id and current_anonymous_id in document.get("liked_by", [])),
+        "moderation_status": document.get("moderation_status", "visible"),
+        "owned_by_current_user": bool(current_anonymous_id and document.get("anonymous_id") == current_anonymous_id),
     }

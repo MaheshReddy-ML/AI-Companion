@@ -10,6 +10,7 @@ import {
   formatMessageTime,
   formatSidebarTime,
   getConversationDraftKey,
+  getToken,
   getStoredUser,
   initChrome,
   openExternal,
@@ -43,9 +44,12 @@ const elements = {
   attachmentRow: document.getElementById("attachment-row"),
   attachmentName: document.getElementById("attachment-name"),
   clearAttachment: document.getElementById("clear-attachment"),
+  conversationSearch: document.getElementById("conversation-search"),
   newChatButton: document.getElementById("new-chat-button"),
   pinChatButton: document.getElementById("pin-chat-button"),
   shareChatButton: document.getElementById("share-chat-button"),
+  exportChatButton: document.getElementById("export-chat-button"),
+  postcardButton: document.getElementById("postcard-button"),
   deleteChatButton: document.getElementById("delete-chat-button"),
   premiumButton: document.getElementById("premium-button"),
   settingsButton: document.getElementById("settings-button"),
@@ -62,6 +66,7 @@ const elements = {
 const state = {
   user: null,
   conversations: [],
+  conversationSearch: "",
   activeConversationId: null,
   drafts: {},
   selectedFile: null,
@@ -359,6 +364,8 @@ function renderChatHeader() {
     elements.pinChatButton.disabled = true;
     elements.pinChatButton.textContent = "Pin";
     elements.shareChatButton.disabled = true;
+    elements.exportChatButton.disabled = true;
+    elements.postcardButton.disabled = true;
     elements.deleteChatButton.disabled = true;
     elements.companionShelf.hidden = false;
     return;
@@ -370,6 +377,8 @@ function renderChatHeader() {
   const pinSvg = elements.pinChatButton.querySelector("svg")?.outerHTML || "";
   elements.pinChatButton.innerHTML = `${pinSvg} ${activeConversation.pinned ? "Unpin" : "Pin"}`;
   elements.shareChatButton.disabled = false;
+  elements.exportChatButton.disabled = false;
+  elements.postcardButton.disabled = false;
   elements.deleteChatButton.disabled = false;
   elements.companionShelf.hidden = Boolean(activeConversation.messages?.length);
 }
@@ -406,7 +415,7 @@ function renderMessages() {
               <span>${escapeHtml(formatMessageTime(message.timestamp))}</span>
             </div>
             <p>${escapeHtml(message.content)}</p>
-            ${message.attachmentName ? `<span class="attachment-chip">${escapeHtml(message.attachmentName)}</span>` : ""}
+            ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
           </div>
         </article>
       `,
@@ -461,9 +470,15 @@ function render() {
 }
 
 async function fetchConversations() {
-  state.conversations = await apiRequest("/api/chat", { auth: true });
+  const params = new URLSearchParams({ limit: "50" });
+  if (state.conversationSearch.trim()) {
+    params.set("search", state.conversationSearch.trim());
+  }
+  state.conversations = await apiRequest(`/api/chat?${params.toString()}`, { auth: true });
   if (!state.activeConversationId && state.conversations.length > 0) {
     state.activeConversationId = getOrderedConversations()[0].id;
+  } else if (state.activeConversationId && !state.conversations.some((item) => item.id === state.activeConversationId)) {
+    state.activeConversationId = state.conversations[0]?.id || null;
   }
 }
 
@@ -582,6 +597,75 @@ async function shareConversation(conversation) {
   showToast(`Copied "${conversation.title}" to clipboard.`, "success");
 }
 
+async function exportConversation(conversation) {
+  if (!conversation?.id) {
+    showToast("Choose a saved conversation to export.", "error");
+    return;
+  }
+  const response = await fetch(`/api/chat/conversations/${encodeURIComponent(conversation.id)}/export?format=text`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!response.ok) {
+    throw new Error("Could not export this conversation.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${conversation.title || "conversation"}.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("Conversation exported.", "success");
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("Could not read the attachment.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadSelectedAttachment(file) {
+  if (!file) return null;
+  const allowedTypes = ["application/pdf", "text/plain", "text/markdown", "image/png", "image/jpeg", "image/webp"];
+  if (!allowedTypes.includes(file.type) || file.size > 5 * 1024 * 1024) {
+    throw new Error("Choose a PDF, text, Markdown, PNG, JPG, or WEBP file under 5 MB.");
+  }
+  const response = await apiRequest("/api/chat/attachments", {
+    method: "POST",
+    auth: true,
+    body: { name: file.name, mediaType: file.type, dataUrl: await readFileAsDataUrl(file) },
+  });
+  return response?.attachment || null;
+}
+
+async function downloadAttachment(attachmentId) {
+  if (!attachmentId) return;
+  const response = await fetch(`/api/chat/attachments/${encodeURIComponent(attachmentId)}`, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!response.ok) throw new Error("Could not download this attachment.");
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "attachment";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function playPostcard(conversation) {
+  if (!conversation?.id) throw new Error("Choose a conversation first.");
+  const response = await fetch(`/api/play/postcard/${encodeURIComponent(conversation.id)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!response.ok) throw new Error("A voice postcard is not available for this conversation.");
+  const url = URL.createObjectURL(await response.blob());
+  const audio = new Audio(url);
+  audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+  await audio.play();
+  showToast("Playing your companion postcard.", "success");
+}
+
 async function shareToChannel(conversation, channel) {
   const text = buildShareText(conversation, displayNameForUser(state.user));
   if (!text) {
@@ -606,7 +690,8 @@ async function handleSend(promptOverride = null) {
   }
 
   const draft = (promptOverride ?? elements.messageInput.value).trim();
-  const attachmentName = state.selectedFile?.name || null;
+  const selectedFile = state.selectedFile;
+  const attachmentName = selectedFile?.name || null;
   if (!draft && !attachmentName) {
     return;
   }
@@ -642,6 +727,7 @@ async function handleSend(promptOverride = null) {
   render();
 
   try {
+    const attachment = await uploadSelectedAttachment(selectedFile);
     const response = await apiRequest("/api/chat", {
       method: "POST",
       auth: true,
@@ -649,6 +735,7 @@ async function handleSend(promptOverride = null) {
         conversationId: activeConversation.id,
         message: draft,
         attachmentName,
+        attachmentId: attachment?.id || null,
         personaPrompt: activeConversation.personaPrompt || null,
         characterName: activeConversation.characterName || null,
       },
@@ -677,6 +764,16 @@ function bindStaticEvents() {
     resizeComposer();
   });
 
+  let searchTimer = null;
+  elements.conversationSearch?.addEventListener("input", () => {
+    state.conversationSearch = elements.conversationSearch.value;
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(async () => {
+      await fetchConversations();
+      render();
+    }, 220);
+  });
+
   elements.messageInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
@@ -685,6 +782,16 @@ function bindStaticEvents() {
   });
 
   elements.sendButton.addEventListener("click", () => handleSend());
+
+  elements.chatMessages.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-download-attachment]");
+    if (!button?.dataset.downloadAttachment) return;
+    try {
+      await downloadAttachment(button.dataset.downloadAttachment);
+    } catch (error) {
+      showToast(error.message || "Could not download this attachment.", "error");
+    }
+  });
 
   elements.fileInput.addEventListener("change", () => {
     state.selectedFile = elements.fileInput.files?.[0] || null;
@@ -720,6 +827,18 @@ function bindStaticEvents() {
 
   elements.shareChatButton.addEventListener("click", async () => {
     await shareConversation(getActiveConversation());
+  });
+
+  elements.exportChatButton.addEventListener("click", async () => {
+    try {
+      await exportConversation(getActiveConversation());
+    } catch (error) {
+      showToast(error.message || "Could not export this conversation.", "error");
+    }
+  });
+
+  elements.postcardButton.addEventListener("click", async () => {
+    try { await playPostcard(getActiveConversation()); } catch (error) { showToast(error.message, "error"); }
   });
 
   elements.settingsButton.addEventListener("click", () => {

@@ -25,6 +25,11 @@
     <button class="btn btn-primary btn-sm w-full dashboard-cta" id="new-chat-button" type="button">New session</button>
 
     <div class="nav-group">
+      <label class="sr-only" for="conversation-search">Search conversations</label>
+      <input id="conversation-search" class="auth-input" type="search" placeholder="Search conversations" autocomplete="off" />
+    </div>
+
+    <div class="nav-group">
       <div class="nav-group-label">Pinned</div>
       <div id="pinned-conversations" class="conversation-list"></div>
     </div>
@@ -83,6 +88,8 @@
           <div class="chat-header-actions">
             <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button">Pin</button>
             <button class="btn btn-outline btn-sm" id="share-chat-button" type="button">Share</button>
+            <button class="btn btn-outline btn-sm" id="export-chat-button" type="button">Export</button>
+            <button class="btn btn-outline btn-sm" id="postcard-button" type="button">Voice postcard</button>
             <button class="btn btn-ghost btn-sm" id="delete-chat-button" type="button">Delete</button>
           </div>
         </div>
@@ -118,7 +125,7 @@
                 <polyline points="14,2 14,8 20,8"></polyline>
               </svg>
             </label>
-            <input id="file-input" type="file" hidden />
+            <input id="file-input" type="file" accept="application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/webp" hidden />
             <button id="send-button" class="send-btn" type="button" aria-label="Send message">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -130,7 +137,7 @@
           <div class="chat-input-hints">
             <span class="hint-chip">Press Enter to send</span>
             <span class="hint-chip">Shift + Enter for newline</span>
-            <span class="hint-chip">File name only</span>
+            <span class="hint-chip">PDF, text, or image up to 5 MB</span>
           </div>
         </div>
       </div>

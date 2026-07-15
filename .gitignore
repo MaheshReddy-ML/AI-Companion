@@ -1,57 +1,58 @@
-# Secrets and local configuration
+# Environment and secrets
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.crt
 
-# Python bytecode and caches
-__pycache__/
-*.py[cod]
-*$py.class
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# Virtual environments
+# Python environments, build output, and tooling
 .venv/
 venv/
 env/
 ENV/
-
-# Build and packaging output
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
 build/
 dist/
-*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
 
-# FastAPI / server runtime files
-*.log
-logs/
-tmp/
-temp/
-
-# Generated voice assets and model downloads
+# Runtime output, logs, and local data
 cache/
-models/voices/
-*.wav
-*.mp3
-*.ogg
-
-# Local databases and uploaded artifacts
-*.db
-*.sqlite
+logs/
+*.log
 *.sqlite3
-uploads/
+*.db
+app/static/uploads/
 
-# Editor and OS files
+# Downloaded TTS models/voices. Keep the editable pronunciation dictionary.
+models/voices/*
+!models/voices/pronunciations.json
+!models/voices/.gitkeep
+
+# OS and editor files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Node artifacts, in case frontend tooling is added later
+# JavaScript tooling output (the app currently has no frontend build step)
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+.npm/
+.parcel-cache/
+coverage/

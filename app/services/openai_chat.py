@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
+from app.companion_brain import companion_brain_system_prompt, extract_reply_and_brain
 from app.config import settings
 
 
@@ -26,10 +27,20 @@ def _normalize_history(history: list[dict] | None) -> list[dict]:
     return normalized
 
 
-def _build_messages(history: list[dict], message: str, persona_prompt: str | None) -> list[dict]:
+def _build_messages(
+    history: list[dict],
+    message: str,
+    persona_prompt: str | None,
+    brain_prompt: str | None = None,
+    companion_context: str | None = None,
+) -> list[dict]:
     system_text = SYSTEM_PROMPT
     if persona_prompt and persona_prompt.strip():
         system_text = f"{SYSTEM_PROMPT}\n\n{persona_prompt.strip()}"
+    if brain_prompt:
+        system_text = f"{system_text}\n\n{brain_prompt}"
+    if companion_context:
+        system_text = f"{system_text}\n\n{companion_context}"
 
     return [
         {"role": "system", "content": system_text},
@@ -81,6 +92,8 @@ async def get_openai_reply(
     model: str | None = None,
     api_key: str | None = None,
     persona_prompt: str | None = None,
+    character_id: str | None = None,
+    companion_context: str | None = None,
 ) -> tuple[str, str]:
     try:
         from openai import AsyncOpenAI
@@ -101,10 +114,24 @@ async def get_openai_reply(
     )
 
     try:
-        response = await client.chat.completions.create(
-            model=resolved_model,
-            messages=_build_messages(normalized_history, message, persona_prompt),
+        messages = _build_messages(
+            normalized_history,
+            message,
+            persona_prompt,
+            companion_brain_system_prompt(character_id or "yuna"),
+            companion_context,
         )
+        try:
+            response = await client.chat.completions.create(
+                model=resolved_model,
+                messages=messages,
+                response_format={"type": "json_object"},
+            )
+        except Exception:
+            response = await client.chat.completions.create(
+                model=resolved_model,
+                messages=messages,
+            )
     except Exception as exc:
         raise ValueError(str(exc) or "OpenAI request failed.") from exc
     finally:
@@ -115,3 +142,25 @@ async def get_openai_reply(
         raise ValueError("OpenAI returned an empty response.")
 
     return content, resolved_model
+
+
+async def get_openai_companion_reply(
+    message: str,
+    history: list[dict] | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
+    persona_prompt: str | None = None,
+    character_id: str | None = None,
+    companion_context: str | None = None,
+) -> tuple[str, dict[str, Any], str]:
+    raw_content, resolved_model = await get_openai_reply(
+        message=message,
+        history=history,
+        model=model,
+        api_key=api_key,
+        persona_prompt=persona_prompt,
+        character_id=character_id,
+        companion_context=companion_context,
+    )
+    reply, raw_brain = extract_reply_and_brain(raw_content)
+    return reply, raw_brain, resolved_model

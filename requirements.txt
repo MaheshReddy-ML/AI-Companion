@@ -9,11 +9,17 @@ google-auth>=2.40,<3.0
 httpx>=0.28,<1.0
 jinja2>=3.1,<4.0
 openai>=1.0,<2.0
-
-
-# TTS pipeline requirements
-huggingface_hub>=0.17.0
-piper-tts>=1.2.0
-aiofiles>=23.2.1
-soundfile>=0.12.1
+pytest>=8.2,<9.0
 requests>=2.31
+
+
+# Kokoro TTS pipeline requirements
+kokoro>=0.9.4
+misaki[en]>=0.9.4
+numpy>=1.26
+soundfile>=0.12.1
+huggingface_hub>=0.17.0
+aiofiles>=23.2.1
+redis>=5.0,<7.0
+# Apple Silicon primary runtime. Kokoro remains an automatic local fallback.
+mlx-audio>=0.3
