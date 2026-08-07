@@ -65,6 +65,7 @@ class Settings:
     chat_mlx_model: str = os.getenv("CHAT_MLX_MODEL", "Qwen/Qwen3-1.7B-MLX-4bit")
     chat_mlx_max_tokens: int = int(os.getenv("CHAT_MLX_MAX_TOKENS", "1024"))
     chat_mlx_temperature: float = float(os.getenv("CHAT_MLX_TEMPERATURE", "0.7"))
+    chat_mlx_enable_thinking: bool = os.getenv("CHAT_MLX_ENABLE_THINKING", "true").lower() in {"1", "true", "yes", "on"}
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
 

@@ -57,18 +57,20 @@ class LocalMLXChatProvider:
         messages: list[dict[str, str]],
         max_tokens: int,
         temperature: float,
+        enable_thinking: bool = True,
     ) -> str:
         model, tokenizer, generate, make_sampler = self._runtime_for(model_id)
         # The cached Qwen3 1.7B MLX tokenizer predates its
         # ``enable_thinking`` chat-template flag.  Qwen's native directive
-        # still works and avoids spending most of a short companion reply on a
-        # private reasoning trace.
+        # still works for that tokenizer. Any trace is stripped before a reply
+        # can leave this provider.
         rendered_messages = [dict(item) for item in messages]
         if rendered_messages and rendered_messages[-1].get("role") == "user":
-            rendered_messages[-1]["content"] = f"{rendered_messages[-1].get('content', '').rstrip()}\n/no_think"
+            directive = "/think" if enable_thinking else "/no_think"
+            rendered_messages[-1]["content"] = f"{rendered_messages[-1].get('content', '').rstrip()}\n{directive}"
         try:
             rendered = tokenizer.apply_chat_template(
-                rendered_messages, add_generation_prompt=True, enable_thinking=False
+                rendered_messages, add_generation_prompt=True, enable_thinking=enable_thinking
             )
         except TypeError:
             rendered = tokenizer.apply_chat_template(rendered_messages, add_generation_prompt=True)

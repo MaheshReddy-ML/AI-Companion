@@ -144,6 +144,12 @@ function getDraftStorageKey() {
   return getConversationDraftKey(state.user);
 }
 
+function displayCompanionMessage(content) {
+  // Hide the old model prefix in historic messages saved before the server
+  // response guard was introduced.
+  return String(content || "").replace(/^\s*(?:(?::|;|=)-?\(|:'\(|D:|☹️?|🙁|😞)\s*/i, "").trim();
+}
+
 function loadDrafts() {
   const raw = localStorage.getItem(getDraftStorageKey());
   if (!raw) {
@@ -454,7 +460,7 @@ function renderMessages() {
               ${escapeHtml(message.role === "assistant" ? activeConversation.characterName || "AI Companion" : displayNameForUser(state.user))}
               <span>${escapeHtml(formatMessageTime(message.timestamp))}</span>
             </div>
-            <p>${escapeHtml(message.content)}</p>
+            <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
           </div>
         </article>

@@ -20,7 +20,9 @@ SYSTEM_PROMPT = (
     "claim human feelings, needs, or memories you do not have. Do not call the user a friend unless "
     "they have invited that language. Keep most replies to one to three natural sentences and ask at "
     "most one relevant follow-up question. Be clear that you are an AI companion, not a therapist or "
-    "emergency service; for imminent harm, encourage local emergency services or a crisis line."
+    "emergency service; for imminent harm, encourage local emergency services or a crisis line. When a user asks "
+    "whether you know their name or remember them, consult the trusted account profile and relevant memory context, "
+    "state only the exact information present there, and never substitute generic praise."
 )
 MAX_HISTORY_MESSAGES = 16
 LEADING_SAD_EMOTICON = re.compile(r"^\s*(?:(?::|;|=)-?\(|:'\(|D:|☹️?|🙁|😞)\s*", re.IGNORECASE)
@@ -75,6 +77,7 @@ async def get_companion_reply(
             ),
             max_tokens=settings.chat_mlx_max_tokens,
             temperature=settings.chat_mlx_temperature,
+            enable_thinking=settings.chat_mlx_enable_thinking,
         )
     except RuntimeError as exc:
         raise ValueError(str(exc)) from exc
