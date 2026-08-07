@@ -20,3 +20,15 @@ def test_local_companion_reply_requires_no_api_key(monkeypatch):
     assert model == "Qwen/test-mlx"
     assert captured["model_id"] == "Qwen/test-mlx"
     assert "continuous conversation" in captured["messages"][0]["content"]
+
+
+def test_local_companion_reply_removes_a_leading_sad_emoticon(monkeypatch):
+    monkeypatch.setattr(
+        companion_chat.local_mlx_chat,
+        "generate",
+        lambda **kwargs: '{"reply":":( You are so sweet!"}',
+    )
+
+    reply, _, _ = asyncio.run(companion_chat.get_companion_reply("hello"))
+
+    assert reply == "You are so sweet!"

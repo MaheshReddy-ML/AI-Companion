@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
 from app.companion_brain import companion_brain_system_prompt, extract_reply_and_brain
@@ -22,6 +23,7 @@ SYSTEM_PROMPT = (
     "emergency service; for imminent harm, encourage local emergency services or a crisis line."
 )
 MAX_HISTORY_MESSAGES = 16
+LEADING_SAD_EMOTICON = re.compile(r"^\s*(?:(?::|;|=)-?\(|:'\(|D:|☹️?|🙁|😞)\s*", re.IGNORECASE)
 
 
 def _normalize_history(history: list[dict] | None) -> list[dict[str, str]]:
@@ -49,6 +51,11 @@ def _build_messages(
     return [{"role": "system", "content": system_text}, *history, {"role": "user", "content": message}]
 
 
+def _clean_reply(reply: str) -> str:
+    """Never display a model-generated sad reaction before the actual reply."""
+    return LEADING_SAD_EMOTICON.sub("", reply).strip()
+
+
 async def get_companion_reply(
     message: str,
     history: list[dict] | None = None,
@@ -72,4 +79,4 @@ async def get_companion_reply(
     except RuntimeError as exc:
         raise ValueError(str(exc)) from exc
     reply, raw_brain = extract_reply_and_brain(raw_content)
-    return reply, raw_brain, resolved_model
+    return _clean_reply(reply), raw_brain, resolved_model
