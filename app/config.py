@@ -12,14 +12,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
-def _env_first(*names: str, default: str = "") -> str:
-    for name in names:
-        value = os.getenv(name)
-        if value is not None and value != "":
-            return value
-    return default
-
-
 def _derive_database_name(mongo_uri: str) -> str:
     parsed = urlparse(mongo_uri)
     db_name = parsed.path.lstrip("/")
@@ -68,16 +60,14 @@ class Settings:
     google_auth_success_redirect: str = os.getenv("GOOGLE_AUTH_SUCCESS_REDIRECT", "http://127.0.0.1:8000/dashboard")
     google_auth_failure_redirect: str = os.getenv("GOOGLE_AUTH_FAILURE_REDIRECT", "http://127.0.0.1:8000/login?googleError=1")
 
-    openai_api_key: str = _env_first("OPENAI_API_KEY", "VITE_OPENAI_API_KEY")
-    openai_base_url: str = _env_first(
-        "OPENAI_BASE_URL",
-        "VITE_OPENAI_BASE_URL",
-        default="https://models.inference.ai.azure.com/",
-    )
-    openai_model: str = _env_first("OPENAI_MODEL", "VITE_OPENAI_MODEL", default="gpt-4o")
+    # Local chat model weights download once into the Hugging Face cache and
+    # remain loaded for the lifetime of the running server process.
+    chat_mlx_model: str = os.getenv("CHAT_MLX_MODEL", "Qwen/Qwen3-1.7B-MLX-4bit")
+    chat_mlx_max_tokens: int = int(os.getenv("CHAT_MLX_MAX_TOKENS", "1024"))
+    chat_mlx_temperature: float = float(os.getenv("CHAT_MLX_TEMPERATURE", "0.7"))
+    vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
+    vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
 
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
     @property
     def google_audiences(self) -> list[str]:

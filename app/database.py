@@ -148,6 +148,10 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         payload["brain"] = document.get("brain")
     if document.get("analysis"):
         payload["analysis"] = document.get("analysis")
+    if document.get("behavior_report"):
+        payload["behaviorReport"] = document.get("behavior_report")
+    if document.get("vision"):
+        payload["vision"] = document.get("vision")
     return payload
 
 

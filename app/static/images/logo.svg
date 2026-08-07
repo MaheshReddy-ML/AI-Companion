@@ -1,27 +1,6 @@
-<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI Companion logo">
-  <defs>
-    <linearGradient id="logo-bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2AAAD6"/>
-      <stop offset="0.52" stop-color="#1B7EB1"/>
-      <stop offset="1" stop-color="#0C5276"/>
-    </linearGradient>
-    <linearGradient id="bubble-right" x1="54" y1="42" x2="106" y2="90" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#DBF6FF"/>
-      <stop offset="1" stop-color="#BEE9FA"/>
-    </linearGradient>
-  </defs>
-
-  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#logo-bg)"/>
-  <rect x="8.75" y="8.75" width="110.5" height="110.5" rx="29.25" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1.5"/>
-
-  <rect x="22" y="28" width="52" height="38" rx="14" fill="#F7FCFF"/>
-  <path d="M40 66L30 76V66H40Z" fill="#F7FCFF"/>
-
-  <rect x="54" y="42" width="52" height="38" rx="14" fill="url(#bubble-right)"/>
-  <path d="M90 80L100 90V80H90Z" fill="#C6EEFC"/>
-
-  <circle cx="64" cy="56" r="10" fill="#0F638F"/>
-  <path d="M64 48L66.65 53.35L72 56L66.65 58.65L64 64L61.35 58.65L56 56L61.35 53.35L64 48Z" fill="white"/>
-
-  <path d="M44 92C49.8 97.7 57 101 64 101C71 101 78.2 97.7 84 92" stroke="#EAF7FE" stroke-width="5" stroke-linecap="round"/>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Emora logo">
+  <defs><linearGradient id="night" x1="18" y1="12" x2="108" y2="116" gradientUnits="userSpaceOnUse"><stop stop-color="#D9B6F2"/><stop offset=".5" stop-color="#8F8BE8"/><stop offset="1" stop-color="#55C4B2"/></linearGradient><linearGradient id="core" x1="46" y1="38" x2="82" y2="87" gradientUnits="userSpaceOnUse"><stop stop-color="#FFF4D6"/><stop offset="1" stop-color="#F5B978"/></linearGradient></defs>
+  <rect x="7" y="7" width="114" height="114" rx="35" fill="#111426"/><rect x="8" y="8" width="112" height="112" rx="34" stroke="url(#night)" stroke-opacity=".84" stroke-width="2"/>
+  <path d="M64 25C70.5 37.3 80.7 43.2 93 47.5C88.7 59.8 88.7 69.2 93 80.5C80.7 84.8 70.5 90.7 64 103C57.5 90.7 47.3 84.8 35 80.5C39.3 69.2 39.3 59.8 35 47.5C47.3 43.2 57.5 37.3 64 25Z" fill="url(#night)"/>
+  <circle cx="64" cy="64" r="17" fill="#171B31" stroke="#F7E6B2" stroke-opacity=".55"/><path d="M64 43L68.3 55.7L81 60L68.3 64.3L64 77L59.7 64.3L47 60L59.7 55.7L64 43Z" fill="url(#core)"/><circle cx="94" cy="32" r="4" fill="#F7E6B2"/><circle cx="31" cy="94" r="3" fill="#73D4C3"/>
 </svg>

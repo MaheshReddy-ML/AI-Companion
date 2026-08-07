@@ -2,7 +2,7 @@ from pydantic import ValidationError
 
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
-from app.companion import analyze_emotion, build_memory_context, dashboard_from_messages, extract_memory_candidates
+from app.companion import analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
 from app.companion_brain import extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
@@ -10,6 +10,7 @@ from app.routers.api_chat import create_chat_title
 from app.routers.insights import _classify
 from app.services.attachments import _is_valid_payload
 from app.services.posts import moderate_content
+from app.services.local_mlx_vision import parse_visual_report
 
 
 def test_create_chat_title_handles_blank_short_and_long_text():
@@ -63,6 +64,12 @@ def test_chat_request_rejects_oversized_message():
         raise AssertionError("oversized chat messages should fail validation")
 
 
+def test_chat_request_has_an_explicit_camera_opt_in_contract():
+    request = ChatSendRequest(message="hello", cameraOptIn=True, cameraFrame="data:image/jpeg;base64,AAAA")
+    assert request.camera_opt_in is True
+    assert request.camera_frame.startswith("data:image/")
+
+
 def test_extract_reply_and_brain_accepts_plain_text_and_json():
     plain_reply, plain_brain = extract_reply_and_brain("hello")
     assert plain_reply == "hello"
@@ -91,6 +98,23 @@ def test_companion_emotion_and_dashboard_are_conversation_driven():
     )
     assert dashboard["stress"] >= 80
     assert dashboard["memoryCount"] == 3
+
+
+def test_behavior_report_is_reflective_and_keeps_camera_observations_coarse():
+    report = behavior_report(analyze_emotion("I feel stressed"), {
+        "visible": True, "expression": "tense", "engagement": "engaged", "confidence": 0.7,
+    })
+    assert report["textSignal"] == "nervous"
+    assert report["cameraCheckIn"]["expression"] == "tense"
+    assert "not a diagnosis" in report["reflection"]
+    assert "momentary visual cue" in vision_prompt_context({"visible": True, "expression": "tense", "engagement": "engaged", "confidence": 0.7})
+
+
+def test_visual_report_parser_limits_results_to_safe_momentary_categories():
+    report = parse_visual_report('{"visible":true,"expression":"angry","engagement":"focused","confidence":3,"summary":"x","supportCue":"y"}')
+    assert report["expression"] == "unclear"
+    assert report["engagement"] == "uncertain"
+    assert report["confidence"] == 1.0
 
 
 def test_memory_retrieval_prioritizes_relevant_facts():

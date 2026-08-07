@@ -63,7 +63,8 @@ def readiness_check() -> dict:
     return {
         "status": "ready" if database["ok"] else "degraded",
         "database": database,
-        "chatConfigured": bool(settings.openai_api_key),
+        "chatConfigured": True,
+        "chatProvider": "local-mlx",
         "emailConfigured": settings.email_configured,
         "googleConfigured": bool(settings.google_client_id),
     }

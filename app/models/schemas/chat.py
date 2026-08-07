@@ -42,10 +42,13 @@ class ChatSendRequest(BaseModel):
     attachment_name: str | None = Field(default=None, alias="attachmentName", max_length=255)
     attachment_id: str | None = Field(default=None, alias="attachmentId", max_length=64)
     model: str | None = Field(default=None, max_length=200)
-    api_key: str | None = Field(default=None, alias="apiKey")
     persona_prompt: str | None = Field(default=None, alias="personaPrompt", max_length=MAX_PERSONA_PROMPT_LENGTH)
     character_id: str | None = Field(default=None, alias="characterId", max_length=100)
     character_name: str | None = Field(default=None, alias="characterName", max_length=120)
+    # Captured only after an explicit browser permission and user action. The
+    # server analyzes it in memory and persists a report, never image pixels.
+    camera_opt_in: bool = Field(default=False, alias="cameraOptIn")
+    camera_frame: str | None = Field(default=None, alias="cameraFrame", max_length=3_000_000)
     history: list[ChatHistoryMessage] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)

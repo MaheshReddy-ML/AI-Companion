@@ -306,6 +306,22 @@ function cancelSpeechPlayback() {
   stopLipSync();
 }
 
+function primeVoicePlayback() {
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) return;
+
+  // Browsers only reliably allow AudioContext.resume() from a direct user
+  // gesture.  A companion reply arrives after an async chat request, which is
+  // too late in some browsers and results in a successful PCM stream with no
+  // audible playback.
+  state.audioContext ||= new AudioContextCtor();
+  if (state.audioContext.state !== "running") {
+    state.audioContext.resume().catch((error) => {
+      console.debug("Voice playback is awaiting a user gesture.", error);
+    });
+  }
+}
+
 function estimateSpeechDuration(text = "") {
   const wordCount = String(text || "").split(/\s+/).filter(Boolean).length;
   return Math.min(12000, Math.max(2600, wordCount * 330));
@@ -729,6 +745,10 @@ async function sendMessage(messageOverride = "") {
   const content = (messageOverride || elements.messageInput.value).trim();
   if (!content || state.thinking) {
     return;
+  }
+
+  if (state.voiceReplies) {
+    primeVoicePlayback();
   }
 
   const character = currentCharacter();

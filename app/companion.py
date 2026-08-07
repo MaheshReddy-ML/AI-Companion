@@ -153,6 +153,41 @@ def memory_prompt_context(memories: list[dict[str, Any]], emotion: dict[str, Any
     )
 
 
+def behavior_report(emotion: dict[str, Any], vision: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Create a short reflective report from opt-in, non-clinical signals."""
+    primary = str(emotion.get("primary", "calm"))
+    intensity = float(emotion.get("intensity", 0.0))
+    report: dict[str, Any] = {
+        "version": "behavior-report.v1",
+        "textSignal": primary,
+        "intensity": round(max(0.0, min(1.0, intensity)), 2),
+        "summary": f"Your words in this check-in suggested a {primary} tone.",
+        "reflection": "This is a momentary pattern to reflect on, not a diagnosis.",
+    }
+    if vision:
+        report["cameraCheckIn"] = {
+            "expression": vision.get("expression", "unclear"),
+            "engagement": vision.get("engagement", "uncertain"),
+            "confidence": vision.get("confidence", 0.0),
+        }
+        if vision.get("visible"):
+            report["summary"] = (
+                f"Your words suggested a {primary} tone; the opt-in camera check-in "
+                f"observed a momentary {vision.get('expression', 'unclear')} expression."
+            )
+    return report
+
+
+def vision_prompt_context(vision: dict[str, Any] | None) -> str:
+    if not vision or not vision.get("visible"):
+        return ""
+    return (
+        "Opt-in camera check-in (momentary visual cue, not a fact about feelings or identity): "
+        f"expression={vision.get('expression')}; engagement={vision.get('engagement')}; "
+        f"confidence={vision.get('confidence')}. Use it gently and never mention it unless helpful."
+    )
+
+
 def companion_emotion_for_avatar(emotion: dict[str, Any]) -> str:
     primary = emotion.get("primary", "calm")
     return {

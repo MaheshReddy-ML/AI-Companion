@@ -34,10 +34,9 @@ def diagnostics(_: None = Depends(require_admin_key)) -> dict:
         "database": database,
         "counts": counts,
         "integrations": {
-            "chatConfigured": bool(settings.openai_api_key),
+            "chatConfigured": True,
             "emailConfigured": settings.email_configured,
             "googleConfigured": bool(settings.google_client_id),
-            "geminiConfigured": bool(settings.gemini_api_key),
         },
         "features": {
             "rateLimitEnabled": settings.rate_limit_enabled,

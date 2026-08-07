@@ -54,6 +54,9 @@ def get_insights(
     moods: Counter[str] = Counter()
     all_messages: list[dict] = []
     weekday_tones: defaultdict[int, list[float]] = defaultdict(list)
+    visual_expressions: Counter[str] = Counter()
+    visual_engagement: Counter[str] = Counter()
+    latest_visual: dict | None = None
 
     for conversation in conversations_collection().find({"user_id": current_user["_id"]}, {"messages": 1}):
         for message in conversation.get("messages", []):
@@ -73,6 +76,12 @@ def get_insights(
             daily[day]["toneCount"] += 1
             moods[mood] += 1
             weekday_tones[timestamp.weekday()].append(tone)
+            vision = message.get("vision")
+            if isinstance(vision, dict):
+                visual_expressions[str(vision.get("expression", "unclear"))] += 1
+                visual_engagement[str(vision.get("engagement", "uncertain"))] += 1
+                if latest_visual is None or timestamp > latest_visual["timestamp"]:
+                    latest_visual = {"timestamp": timestamp, **vision}
 
     timeline = [
         {"date": date, "messages": values["messages"], "tone": round(values["toneTotal"] / values["toneCount"] * 100) if values["toneCount"] else None}
@@ -92,5 +101,11 @@ def get_insights(
         "activeDays": sum(1 for item in timeline if item["messages"]),
         "messageCount": sum(item["messages"] for item in timeline),
         "dashboard": dashboard,
-        "notice": "Insights are lightweight estimates from words you choose to share; they are not a diagnosis.",
+        "camera": {
+            "checkInCount": sum(visual_expressions.values()),
+            "expressions": dict(visual_expressions),
+            "engagement": dict(visual_engagement),
+            "latest": {key: value for key, value in (latest_visual or {}).items() if key != "timestamp"},
+        },
+        "notice": "Insights are lightweight estimates from words and optional camera check-ins you choose to share; they are not a diagnosis.",
     }

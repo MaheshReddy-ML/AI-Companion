@@ -31,6 +31,9 @@ htmlcov/
 
 # Runtime output, logs, and local data
 cache/
+.cache/
+.huggingface/
+.hf_cache/
 logs/
 *.log
 *.sqlite3
@@ -41,6 +44,14 @@ app/static/uploads/
 models/voices/*
 !models/voices/pronunciations.json
 !models/voices/.gitkeep
+
+# Downloaded local MLX / vision checkpoints. Model identifiers and setup stay
+# documented in .env.example and README; large runtime weights never belong in Git.
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.gguf
+models/**/*.onnx
+*.mlmodelc/
 
 # OS and editor files
 .DS_Store

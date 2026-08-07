@@ -93,6 +93,21 @@ const CAMERA_FRAMING = {
   widthMargin: 1.12,
 };
 
+// The most recently created interactive stage is the target for the small
+// public impact helpers below.  A page can still use its own returned stage
+// instance when it hosts more than one avatar.
+let activeImpactStage = null;
+
+/** Give a humanoid limb a brief anime-style squash/stretch impact. */
+export function applyImpactStretch(boneName, stretchAmount = 1.2, returnSpeed = 12) {
+  return activeImpactStage?.applyImpactStretch(boneName, stretchAmount, returnSpeed) || false;
+}
+
+/** Add a decaying camera/FOV hit to the active Emora stage. */
+export function triggerImpactShake(intensity = 0.35, duration = 0.22) {
+  return activeImpactStage?.triggerImpactShake(intensity, duration) || false;
+}
+
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
@@ -443,7 +458,7 @@ function fitModelToStage(vrm, targetHeight = 1.72) {
   const hipsPosition = new THREE.Vector3();
   hips?.getWorldPosition(hipsPosition);
 
-  return {
+  const stageApi = {
     originalHeight: size.y,
     scale,
     stageHeight: groundedSize.y,
@@ -458,6 +473,8 @@ function fitModelToStage(vrm, targetHeight = 1.72) {
     hipsY: hips ? hipsPosition.y : groundedCenter.y,
     groundOffset: -alignedBox.min.y,
   };
+  activeImpactStage = stageApi;
+  return stageApi;
 }
 
 export function createEmoraAvatarStage(container, options = {}) {
@@ -481,6 +498,12 @@ export function createEmoraAvatarStage(container, options = {}) {
   let modelMetrics = null;
   let lastDiagnostics = null;
   let lastCameraProjection = null;
+  const impact = {
+    startedAt: -10,
+    duration: 0,
+    intensity: 0,
+    stretches: new Map(),
+  };
 
   container.dataset.avatarReady = "false";
 
@@ -497,6 +520,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     mouthPulseValue: 0,
     mouthPulseTarget: 0,
     speechEnergy: 0.75,
+    engagementTarget: 0.42,
     emotion: "relaxed",
     gestureMode: "calm",
     gestureTempo: 3.2,
@@ -560,6 +584,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     modelRotZ: new ScalarSpring({ frequency: 1.6, damping: 1 }),
     mouth: new ScalarSpring({ frequency: 12, damping: 0.86 }),
     expression: new ScalarSpring({ frequency: 3.4, damping: 1 }),
+    engagement: new ScalarSpring({ value: 0.42, frequency: 1.7, damping: 1 }),
     cameraX: new ScalarSpring({ frequency: 1.6, damping: 1 }),
     cameraY: new ScalarSpring({ frequency: 1.6, damping: 1 }),
     cameraZ: new ScalarSpring({ frequency: 1.6, damping: 1 }),
@@ -710,14 +735,46 @@ export function createEmoraAvatarStage(container, options = {}) {
     };
   }
 
-  function updateCamera(delta) {
+  function currentImpact(elapsed) {
+    const age = elapsed - impact.startedAt;
+    if (age < 0 || age >= impact.duration || impact.duration <= 0) {
+      return { x: 0, y: 0, fov: 0 };
+    }
+    const progress = age / impact.duration;
+    // A squared envelope removes the shake quickly while the high-frequency
+    // sine creates a crisp anime hit instead of a slow camera drift.
+    const decay = (1 - progress) ** 2;
+    const frequency = 68;
+    const phase = age * frequency;
+    return {
+      x: Math.sin(phase * 1.17) * impact.intensity * 0.035 * decay,
+      y: Math.cos(phase * 0.91) * impact.intensity * 0.026 * decay,
+      fov: impact.intensity * 3.4 * decay,
+    };
+  }
+
+  function updateImpactStretch(delta) {
+    impact.stretches.forEach((stretch, bone) => {
+      // Exponential lerp is frame-rate independent: the visible return stays
+      // equally smooth at 30 Hz and 120 Hz.
+      const alpha = 1 - Math.exp(-stretch.returnSpeed * delta);
+      bone.scale.y = THREE.MathUtils.lerp(bone.scale.y, stretch.baseY, alpha);
+      if (Math.abs(bone.scale.y - stretch.baseY) < 0.001) {
+        bone.scale.y = stretch.baseY;
+        impact.stretches.delete(bone);
+      }
+    });
+  }
+
+  function updateCamera(delta, elapsed) {
     const target = desiredCameraPlacement();
+    const hit = currentImpact(elapsed);
     camera.position.set(
-      springs.cameraX.update(target.x, delta),
-      springs.cameraY.update(target.y, delta),
+      springs.cameraX.update(target.x, delta) + hit.x,
+      springs.cameraY.update(target.y, delta) + hit.y,
       springs.cameraZ.update(target.z, delta),
     );
-    camera.fov = springs.cameraFov.update(target.fov, delta);
+    camera.fov = springs.cameraFov.update(target.fov, delta) + hit.fov;
     camera.near = clamp(target.z * 0.025, 0.01, 0.12);
     camera.far = Math.max(20, target.z + modelMetrics?.stageHeight + 5);
     camera.lookAt(target.lookX, springs.cameraLookY.update(target.lookY, delta), target.lookZ);
@@ -738,6 +795,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     motion.audioLevel = 0;
     motion.audioLevelTarget = 0;
     motion.speechIntensity = 0;
+    motion.engagementTarget = 0.42;
     motion.mouthShape = "rest";
     motion.mouthTarget = 0;
     motion.mouthValue = 0;
@@ -1191,6 +1249,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     const talk = motion.speaking ? 1 : 0;
     const listening = motion.listening && !motion.speaking ? 1 : 0;
     const thinking = motion.thinking && !motion.speaking ? 1 : 0;
+    const engagement = springs.engagement.update(motion.engagementTarget, delta);
     const breath = Math.sin(elapsed * 1.38 + motion.stanceSeed);
     const breathLift = 0.5 + 0.5 * breath;
     const sway = Math.sin(elapsed * 0.48 + motion.stanceSeed);
@@ -1232,12 +1291,12 @@ export function createEmoraAvatarStage(container, options = {}) {
       listening && motion.listenNodDuration > 0
         ? smoothPulse(elapsed - motion.listenNodStartedAt, motion.listenNodDuration) * motion.listenNodStrength
         : 0;
-    const listenLean = listening * 0.045;
+    const listenLean = listening * (0.032 + 0.024 * engagement);
     const thinkingDrop = thinking * 0.065 + (motion.emotion === "sleepy" ? 0.02 : 0);
     const curiousTilt = motion.emotion === "curious" ? 0.025 * talk : 0;
     const emotionTilt = motion.emotion === "embarrassed" ? 0.025 : motion.emotion === "comforting" ? -0.012 : 0;
     const audioDrive = motion.audioLevel * talk;
-    const bodyLeanX = 0.01 * slowSway + 0.007 * postureNoise + 0.012 * talk * Math.sin(speechElapsed * 1.05 + motion.gestureSeed);
+    const bodyLeanX = 0.01 * slowSway + 0.007 * postureNoise + 0.012 * talk * Math.sin(speechElapsed * 1.05 + motion.gestureSeed) - 0.012 * engagement * (talk + listening);
     const bodyLeanZ = 0.014 * weightShift + 0.008 * postureNoise + 0.01 * talk * Math.sin(speechElapsed * 0.86 + motion.gestureSeed);
     const bodyRise = 0.006 * breathLift + 0.004 * audioDrive + 0.003 * talk * Math.max(0, Math.sin(speechElapsed * 1.9));
 
@@ -1487,10 +1546,11 @@ export function createEmoraAvatarStage(container, options = {}) {
     motion.introAlpha = approach(motion.introAlpha, motion.introTarget, delta, 5.8);
     renderer.domElement.style.opacity = String(clamp(motion.introAlpha));
 
-    updateCamera(delta);
+    updateCamera(delta, elapsed);
     if (currentVrm) {
       updateGaze(delta, elapsed);
       updateRig(delta, elapsed);
+      updateImpactStretch(delta);
       updateExpressions(delta, elapsed);
       currentVrm.update(delta);
     }
@@ -1558,6 +1618,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     setSpeaking(isSpeaking, spokenText = "") {
       motion.speaking = Boolean(isSpeaking);
       if (motion.speaking) {
+        motion.engagementTarget = 0.82;
         const text = String(spokenText || "");
         const profile = analyzeSpeechMotion(text);
         const punctuationLift = /[!?]/.test(text) ? 0.08 : 0;
@@ -1590,6 +1651,7 @@ export function createEmoraAvatarStage(container, options = {}) {
         }
       }
       if (!motion.speaking) {
+        motion.engagementTarget = motion.listening ? 0.76 : motion.thinking ? 0.58 : 0.42;
         setMouth("rest");
         motion.emotion = motion.thinking ? "thoughtful" : "relaxed";
         motion.gestureMode = "calm";
@@ -1632,10 +1694,12 @@ export function createEmoraAvatarStage(container, options = {}) {
 
       motion.listening = nextListening;
       if (nextListening) {
+        motion.engagementTarget = 0.88;
         motion.nextListenNodAt = clock.elapsedTime + randomBetween(1.1, 2.8);
         motion.attentionLostUntil = 0;
         motion.nextGazeShift = clock.elapsedTime + randomBetween(0.08, 0.28);
       } else if (!motion.speaking) {
+        motion.engagementTarget = motion.thinking ? 0.58 : 0.44;
         // A short acknowledgement makes the hand-off from user speech to thinking feel responsive.
         triggerAction("acknowledge", randomBetween(0.32, 0.48), randomBetween(0.85, 1.2), { minGap: 0.6 });
         motion.nextGazeShift = clock.elapsedTime + randomBetween(0.18, 0.42);
@@ -1645,6 +1709,9 @@ export function createEmoraAvatarStage(container, options = {}) {
       const nextThinking = Boolean(isThinking);
       const changed = motion.thinking !== nextThinking;
       motion.thinking = nextThinking;
+      if (!motion.speaking && !motion.listening) {
+        motion.engagementTarget = nextThinking ? 0.58 : 0.42;
+      }
       if (changed && nextThinking && !motion.speaking) {
         // Deliberately glance aside while formulating a response, then the gaze spring returns to the user.
         motion.gazeTargetX = randomBetween(-0.16, 0.16);
@@ -1675,6 +1742,7 @@ export function createEmoraAvatarStage(container, options = {}) {
       const confidence = clamp(Number(emotion.confidence ?? thought.responseConfidence ?? 0.68));
 
       motion.speechEnergy = clamp(0.42 + arousal * 0.48 + confidence * 0.12, 0.42, 1);
+      motion.engagementTarget = clamp(0.28 + empathy * 0.34 + curiosity * 0.22 + arousal * 0.16, 0.3, 0.92);
       motion.gestureIntensity = clamp(Number(behavior.gestureIntensity ?? 0.22 + arousal * 0.42), 0.12, 0.96);
       motion.gestureTempo = 2.6 + clamp(Number(behavior.gestureTempo ?? arousal)) * 2.4;
       motion.cueStrength = clamp(Number(behavior.microUncertainty ?? 1 - confidence), 0.05, 0.85);
@@ -1703,6 +1771,25 @@ export function createEmoraAvatarStage(container, options = {}) {
       }
     },
     setMouth,
+    applyImpactStretch(boneName, stretchAmount = 1.2, returnSpeed = 12) {
+      const normalizedName = String(boneName || "").replace(/[-_\s]/g, "").toLowerCase();
+      const entry = Object.entries(BONE_NAMES).find(([label, humanoidName]) =>
+        label.toLowerCase() === normalizedName || String(humanoidName).replace(/[-_\s]/g, "").toLowerCase() === normalizedName,
+      );
+      const bone = entry ? bones[entry[0]] : null;
+      if (!bone) return false;
+      const amount = clamp(Number(stretchAmount) || 1, 0.8, 1.45);
+      const baseY = impact.stretches.get(bone)?.baseY ?? bone.scale.y;
+      impact.stretches.set(bone, { baseY, returnSpeed: clamp(Number(returnSpeed) || 12, 2, 30) });
+      bone.scale.y = baseY * amount;
+      return true;
+    },
+    triggerImpactShake(intensity = 0.35, duration = 0.22) {
+      impact.intensity = clamp(Number(intensity) || 0, 0, 1);
+      impact.duration = clamp(Number(duration) || 0.22, 0.08, 1.2);
+      impact.startedAt = clock.elapsedTime;
+      return impact.intensity > 0;
+    },
     setAudioLevel(level = 0) {
       motion.audioLevelTarget = clamp(Number(level) || 0, 0, 1);
     },
@@ -1719,6 +1806,7 @@ export function createEmoraAvatarStage(container, options = {}) {
       scene.environment?.dispose?.();
       renderer.dispose();
       renderer.domElement.remove();
+      if (activeImpactStage === stageApi) activeImpactStage = null;
     },
   };
 }

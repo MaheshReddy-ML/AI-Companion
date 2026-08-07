@@ -61,5 +61,5 @@
     <g transform="translate(1168 234)"><rect width="286" height="70" rx="18" fill="#ffffff" fill-opacity=".06" stroke="#ffffff" stroke-opacity=".13"/><circle cx="31" cy="35" r="9" fill="#9caeff"/><text x="55" y="31" fill="#ecf0ff">RESPONDS</text><text x="55" y="51" fill="#90a5bb" font-size="12" font-weight="400" letter-spacing="0">with emotional context</text></g>
     <g transform="translate(1055 408)"><rect width="286" height="70" rx="18" fill="#ffffff" fill-opacity=".06" stroke="#ffffff" stroke-opacity=".13"/><circle cx="31" cy="35" r="9" fill="#f2cc78"/><text x="55" y="31" fill="#fff3d8">COMES ALIVE</text><text x="55" y="51" fill="#90a5bb" font-size="12" font-weight="400" letter-spacing="0">through VRM motion and local TTS</text></g>
   </g>
-  <text x="118" y="560" fill="#7290a9" font-family="Arial, Helvetica, sans-serif" font-size="15">FASTAPI  •  MONGODB  •  OPENAI-COMPATIBLE CHAT  •  QWEN3-TTS  •  VRM</text>
+  <text x="118" y="560" fill="#7290a9" font-family="Arial, Helvetica, sans-serif" font-size="15">FASTAPI  •  MONGODB  •  LOCAL QWEN3 MLX CHAT  •  QWEN3-TTS  •  VRM</text>
 </svg>

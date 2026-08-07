@@ -117,6 +117,12 @@
             <button id="clear-attachment" class="btn btn-ghost btn-sm" type="button">Remove</button>
           </div>
 
+          <div class="attachment-row" id="camera-row" hidden>
+            <video id="camera-preview" autoplay muted playsinline width="112" height="84" aria-label="Private camera preview"></video>
+            <span>Camera is on. A single frame is analyzed only when you send a message; images are never saved.</span>
+            <button id="camera-stop-button" class="btn btn-ghost btn-sm" type="button">Turn off</button>
+          </div>
+
           <div class="chat-input-wrap">
             <textarea id="message-input" class="chat-textarea" placeholder="Type what's on your mind..." rows="1"></textarea>
             <label class="file-btn" for="file-input" aria-label="Attach file">
@@ -126,6 +132,7 @@
               </svg>
             </label>
             <input id="file-input" type="file" accept="application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/webp" hidden />
+            <button id="camera-button" class="file-btn" type="button" aria-label="Turn on optional camera check-in" title="Optional camera check-in">◉</button>
             <button id="send-button" class="send-btn" type="button" aria-label="Send message">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -239,7 +246,7 @@
         <h3>Privacy</h3>
         <p>Your account profile, conversations, OTP records, and session checks are stored to support the app experience.</p>
         <p>Uploaded files in this dashboard are currently treated as attachment names only and are not persisted as file content.</p>
-        <p>Third-party services such as Google Sign-In and the chat provider are used only when you explicitly trigger them.</p>
+          <p>Google Sign-In is used only when you explicitly trigger it. Companion chat and optional camera check-ins run locally on this Mac.</p>
       </section>
       <section class="policy-block">
         <h3>Terms</h3>

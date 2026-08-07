@@ -41,6 +41,10 @@ const elements = {
   messageInput: document.getElementById("message-input"),
   sendButton: document.getElementById("send-button"),
   fileInput: document.getElementById("file-input"),
+  cameraButton: document.getElementById("camera-button"),
+  cameraRow: document.getElementById("camera-row"),
+  cameraPreview: document.getElementById("camera-preview"),
+  cameraStopButton: document.getElementById("camera-stop-button"),
   attachmentRow: document.getElementById("attachment-row"),
   attachmentName: document.getElementById("attachment-name"),
   clearAttachment: document.getElementById("clear-attachment"),
@@ -73,7 +77,43 @@ const state = {
   isThinking: false,
   toastTimerId: null,
   activeModal: null,
+  cameraStream: null,
 };
+
+async function startCameraCheckIn() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    showToast("Camera access is not available in this browser.", "error");
+    return;
+  }
+  try {
+    state.cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    elements.cameraPreview.srcObject = state.cameraStream;
+    elements.cameraRow.hidden = false;
+    elements.cameraButton.setAttribute("aria-pressed", "true");
+    showToast("Camera is on. Only the frame sent with your next message is analyzed locally.", "info");
+  } catch {
+    showToast("Camera permission was not granted. You can keep chatting without it.", "warning");
+  }
+}
+
+function stopCameraCheckIn() {
+  state.cameraStream?.getTracks().forEach((track) => track.stop());
+  state.cameraStream = null;
+  if (elements.cameraPreview) elements.cameraPreview.srcObject = null;
+  if (elements.cameraRow) elements.cameraRow.hidden = true;
+  elements.cameraButton?.setAttribute("aria-pressed", "false");
+}
+
+function captureCameraFrame() {
+  const video = elements.cameraPreview;
+  if (!state.cameraStream || !video?.videoWidth || !video.videoHeight) return null;
+  const scale = Math.min(1, 640 / video.videoWidth, 480 / video.videoHeight);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.72);
+}
 
 const QUICK_PROMPTS = [
   {
@@ -702,6 +742,7 @@ async function handleSend(promptOverride = null) {
   }
 
   const outgoingContent = draft || `Shared file: ${attachmentName}`;
+  const cameraFrame = captureCameraFrame();
   const snapshot = JSON.parse(JSON.stringify(activeConversation));
   const optimisticMessage = {
     id: `temp-${Date.now()}`,
@@ -738,6 +779,8 @@ async function handleSend(promptOverride = null) {
         attachmentId: attachment?.id || null,
         personaPrompt: activeConversation.personaPrompt || null,
         characterName: activeConversation.characterName || null,
+        cameraOptIn: Boolean(cameraFrame),
+        cameraFrame,
       },
     });
 
@@ -782,6 +825,12 @@ function bindStaticEvents() {
   });
 
   elements.sendButton.addEventListener("click", () => handleSend());
+  elements.cameraButton?.addEventListener("click", () => {
+    if (state.cameraStream) stopCameraCheckIn();
+    else startCameraCheckIn();
+  });
+  elements.cameraStopButton?.addEventListener("click", stopCameraCheckIn);
+  window.addEventListener("pagehide", stopCameraCheckIn, { once: true });
 
   elements.chatMessages.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-download-attachment]");

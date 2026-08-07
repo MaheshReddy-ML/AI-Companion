@@ -37,7 +37,8 @@ This checklist covers the minimum production setup for the FastAPI version of Em
 
 ## External Services
 
-- Set `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` for chat replies.
+- Chat runs exclusively on local Qwen3 MLX and requires no API key. Its model files persist in the Hugging Face cache across server restarts; model memory is loaded once per server process.
+- Optional camera check-ins use local MLX-VLM (`VISION_MLX_MODEL`). Browser permission and a send-time frame are both required. Do not add camera-frame logging or persistence: only the coarse behavior report belongs in Insights.
 - Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for Google sign-in.
 - Set `GOOGLE_CALLBACK_URL` to the public HTTPS callback URL.
 - Set `EMAIL_USER` and `EMAIL_PASS` for OTP delivery.

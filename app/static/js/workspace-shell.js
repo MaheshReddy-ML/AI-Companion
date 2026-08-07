@@ -110,6 +110,16 @@ function renderInsights(data) {
   document.getElementById("insights-timeline-meta").textContent = `${data.messageCount || 0} check-in messages`;
   document.getElementById("insights-mood-meta").textContent = `Last ${data.days} days`;
   document.getElementById("insights-activity-meta").textContent = `${data.activeDays || 0} active days`;
+  const camera = data.camera || {};
+  const cameraMeta = document.getElementById("camera-checkin-meta");
+  const cameraSummary = document.getElementById("camera-checkin-summary");
+  if (cameraMeta) cameraMeta.textContent = camera.checkInCount ? `${camera.checkInCount} opt-in check-in${camera.checkInCount === 1 ? "" : "s"}` : "No camera check-ins yet";
+  if (cameraSummary && camera.checkInCount) {
+    const latest = camera.latest || {};
+    cameraSummary.textContent = latest.visible
+      ? `Latest momentary observation: ${latest.summary || "a visual check-in was recorded"}. This is not a diagnosis.`
+      : "Your latest optional camera check-in was inconclusive. This is not a diagnosis.";
+  }
   document.getElementById("insights-notice").textContent = data.notice || "";
 }
 

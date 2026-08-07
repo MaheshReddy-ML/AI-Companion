@@ -2826,19 +2826,19 @@ textarea::placeholder {
   .dashboard-container {
     flex-direction: column;
   }
-  
+
   .sidebar {
     width: 100%;
     height: auto;
     border-right: none;
     border-bottom: 1px solid var(--border-soft);
   }
-  
+
   .chat-container {
     max-width: none;
     padding: 0 16px;
   }
-  
+
   .modal-content {
     margin: 20px;
     width: calc(100% - 40px);

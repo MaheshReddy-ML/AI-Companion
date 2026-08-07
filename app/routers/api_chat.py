@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import json
+import asyncio
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,15 +10,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.audit import audit_event
-from app.companion import analyze_emotion, companion_emotion_for_avatar, memory_prompt_context
+from app.companion import analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
+from app.config import settings
 from app.companion_brain import build_companion_brain
 from app.database import attachments_collection, conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
 from app.models.schemas import AttachmentUploadRequest, ChatSendRequest, ConversationCreateRequest, ConversationUpdateRequest
 from app.rate_limit import rate_limit
 from app.security import get_current_user
-from app.services.openai_chat import get_openai_companion_reply
+from app.services.companion_chat import get_companion_reply
 from app.services.companion_memory import retrieve_memories, save_memory_candidates
 from app.services.attachments import create_attachment, delete_attachments_for_conversations, get_attachment_or_404
+from app.services.local_mlx_vision import VisionAnalysisError, local_mlx_vision
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -226,6 +229,23 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     user_message = build_message("user", outgoing_content, attachment_name, attachment_id)
     user_analysis = analyze_emotion(outgoing_content)
     user_message["analysis"] = user_analysis
+    vision: dict | None = None
+    vision_warning: str | None = None
+    if payload.camera_frame:
+        if not payload.camera_opt_in:
+            raise HTTPException(status_code=400, detail="Camera analysis requires explicit opt-in.")
+        try:
+            vision = await asyncio.to_thread(
+                local_mlx_vision.analyze,
+                model_id=settings.vision_mlx_model,
+                data_url=payload.camera_frame,
+                max_tokens=settings.vision_mlx_max_tokens,
+            )
+            user_message["vision"] = vision
+        except VisionAnalysisError as exc:
+            # A camera failure never blocks a text conversation and never saves pixels.
+            vision_warning = str(exc)
+    user_message["behavior_report"] = behavior_report(user_analysis, vision)
     relevant_memories = retrieve_memories(current_user["_id"], outgoing_content)
 
     conversations = conversations_collection()
@@ -267,18 +287,20 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     conversation["messages"].append(user_message)
     conversation["updated_at"] = user_message["timestamp"]
 
-    warning: str | None = None
+    warning: str | None = vision_warning
     resolved_model = payload.model or ""
 
     try:
-        assistant_text, raw_brain, resolved_model = await get_openai_companion_reply(
+        assistant_text, raw_brain, resolved_model = await get_companion_reply(
             message=outgoing_content,
             history=history_source,
             model=payload.model,
-            api_key=payload.api_key,
             persona_prompt=conversation.get("persona_prompt"),
             character_id=conversation.get("character_id") or payload.character_id,
-            companion_context=memory_prompt_context(relevant_memories, user_analysis),
+            companion_context="\n\n".join(filter(None, [
+                memory_prompt_context(relevant_memories, user_analysis),
+                vision_prompt_context(vision),
+            ])),
         )
     except ValueError as exc:
         warning = str(exc)
@@ -331,5 +353,6 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         "brain": brain,
         "model": resolved_model,
         "warning": warning,
+        "behaviorReport": user_message["behavior_report"],
         "memoriesSaved": len(saved_memories),
     }
