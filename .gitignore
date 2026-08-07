@@ -1,0 +1,69 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Python environments, build output, and tooling
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+
+# Runtime output, logs, and local data
+cache/
+.cache/
+.huggingface/
+.hf_cache/
+logs/
+*.log
+*.sqlite3
+*.db
+app/static/uploads/
+
+# Downloaded TTS models/voices. Keep the editable pronunciation dictionary.
+models/voices/*
+!models/voices/pronunciations.json
+!models/voices/.gitkeep
+
+# Downloaded local MLX / vision checkpoints. Model identifiers and setup stay
+# documented in .env.example and README; large runtime weights never belong in Git.
+models/**/*.safetensors
+models/**/*.bin
+models/**/*.gguf
+models/**/*.onnx
+*.mlmodelc/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# JavaScript tooling output (the app currently has no frontend build step)
+node_modules/
+.npm/
+.parcel-cache/
+coverage/

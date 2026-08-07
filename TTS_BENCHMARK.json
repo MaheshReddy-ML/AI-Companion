@@ -1,0 +1,39 @@
+{
+  "engine": "qwen3-mlx",
+  "model": "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-6bit",
+  "sampleRate": 24000,
+  "process": {
+    "pid": 18992,
+    "peakRssBytes": 3246276608,
+    "peakRssDeltaBytes": 3220979712
+  },
+  "timingMilliseconds": {
+    "managerConstruction": 0.0,
+    "firstSynthesisIncludingModelLoad": 9340.4,
+    "cachedSynthesis": 0.6
+  },
+  "audioQualityHealth": {
+    "validWav": true,
+    "durationSeconds": 12.56,
+    "sampleRate": 24000,
+    "sampleWidthBytes": 2,
+    "bytes": 602924
+  },
+  "pronunciationRegression": {
+    "input": "Emora uses an API on 2026-07-15. The M L X voice costs $12.50, and the Qwen three model sounds calm.",
+    "expects": [
+      "Emora",
+      "A P I",
+      "July fifteenth",
+      "twelve dollars and fifty cents",
+      "M L X",
+      "Qwen three"
+    ]
+  },
+  "humanListeningRubric": {
+    "audioQuality": "Score 1-5 for naturalness, clipping, and audible artifacts.",
+    "pronunciationQuality": "Score 1-5 by checking every item in pronunciationRegression.expects.",
+    "emotionalStyle": "Score 1-5 for whether the requested style is recognizable without becoming theatrical."
+  },
+  "cacheHit": true
+}
