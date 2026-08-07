@@ -2,7 +2,7 @@ from pydantic import ValidationError
 
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
-from app.companion import analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
+from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
 from app.companion_brain import extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
@@ -108,6 +108,12 @@ def test_behavior_report_is_reflective_and_keeps_camera_observations_coarse():
     assert report["cameraCheckIn"]["expression"] == "tense"
     assert "not a diagnosis" in report["reflection"]
     assert "momentary visual cue" in vision_prompt_context({"visible": True, "expression": "tense", "engagement": "engaged", "confidence": 0.7})
+
+
+def test_account_profile_context_is_data_and_does_not_invent_memory():
+    context = account_profile_prompt_context({"name": "Mahesh"})
+    assert '"display_name": "Mahesh"' in context
+    assert "do not claim memories" in context
 
 
 def test_visual_report_parser_limits_results_to_safe_momentary_categories():

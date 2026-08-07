@@ -247,8 +247,16 @@ def login_user(payload: LoginRequest) -> dict:
         audit_event("auth.login.failed", user_id=user["_id"], email=email, reason="bad_password")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    users.update_one({"_id": user["_id"]}, {"$set": {"updated_at": utc_now()}})
-    user["updated_at"] = utc_now()
+    now = utc_now()
+    updates: dict = {"updated_at": now}
+    # Existing local users may have a bcrypt hash created before the
+    # SHA-256 pre-hash scheme. Upgrade it only after successful verification,
+    # keeping old accounts usable without weakening password handling.
+    if not user["password_hash"].startswith("bcrypt_sha256$"):
+        updates["password_hash"] = hash_password(password)
+        user["password_hash"] = updates["password_hash"]
+    users.update_one({"_id": user["_id"]}, {"$set": updates})
+    user["updated_at"] = now
     audit_event("auth.login.success", user_id=user["_id"], email=email)
     return build_auth_payload(user)
 

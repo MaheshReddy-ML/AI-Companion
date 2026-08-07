@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.audit import audit_event
-from app.companion import analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
+from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
 from app.config import settings
 from app.companion_brain import build_companion_brain
 from app.database import attachments_collection, conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
@@ -298,6 +298,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             persona_prompt=conversation.get("persona_prompt"),
             character_id=conversation.get("character_id") or payload.character_id,
             companion_context="\n\n".join(filter(None, [
+                account_profile_prompt_context(current_user),
                 memory_prompt_context(relevant_memories, user_analysis),
                 vision_prompt_context(vision),
             ])),

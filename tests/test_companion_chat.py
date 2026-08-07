@@ -19,4 +19,4 @@ def test_local_companion_reply_requires_no_api_key(monkeypatch):
     assert brain["emotion"]["empathy"] == 0.9
     assert model == "Qwen/test-mlx"
     assert captured["model_id"] == "Qwen/test-mlx"
-    assert "emotionally supportive AI companion" in captured["messages"][0]["content"]
+    assert "continuous conversation" in captured["messages"][0]["content"]
