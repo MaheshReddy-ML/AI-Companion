@@ -208,8 +208,14 @@ def register_user(payload: RegisterRequest) -> dict:
     try:
         inserted = users.insert_one(document)
     except DuplicateKeyError as exc:
+        details = getattr(exc, "details", None) or {}
+        key_pattern = details.get("keyPattern") or {}
         # Let MongoDB's unique index make the authoritative decision. This is
-        # race-safe and only reports a duplicate for the same normalized email.
+        # race-safe and must only call out an existing account when the email
+        # index was the key that actually rejected the insert.
+        if key_pattern and "email" not in key_pattern:
+            logger.exception("Registration failed because of a non-email unique index: %s", key_pattern)
+            raise HTTPException(status_code=500, detail="Account creation could not be completed. Please try again.") from exc
         audit_event("auth.register.duplicate", email=email)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
