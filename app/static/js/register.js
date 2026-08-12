@@ -152,11 +152,9 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const existingSession = await ensureSession({ redirectTo: null });
-  if (existingSession?.verified) {
-    redirect("/dashboard");
-    return;
-  }
+  // Keep this page usable on a shared device. A stored session should not
+  // prevent someone from creating a separate account with a different email.
+  await ensureSession({ redirectTo: null });
 
   if (document.readyState === "complete") {
     initializeGoogleButton();

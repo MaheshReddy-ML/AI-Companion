@@ -2,8 +2,8 @@ from pydantic import ValidationError
 
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
-from app.companion import analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
-from app.companion_brain import extract_reply_and_brain
+from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
+from app.companion_brain import build_companion_brain, extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
 from app.routers.api_chat import create_chat_title
@@ -80,6 +80,68 @@ def test_extract_reply_and_brain_accepts_plain_text_and_json():
     assert brain["attentionState"] == "curious"
 
 
+def test_companion_brain_keeps_model_metadata_within_safe_animation_ranges():
+    brain = build_companion_brain(
+        reply="That is wonderful news! You earned this.",
+        raw_brain={"behavior": {"gestureIntensity": 99, "headTilt": -99}},
+        message="I finally passed my exam!",
+        history=[],
+        character_name="Yuna",
+    )
+
+    assert brain["schemaVersion"] == "companion-brain.v1"
+    assert brain["behavior"]["gestureIntensity"] == 1.0
+    assert brain["behavior"]["headTilt"] == -1.0
+    assert brain["behavior"]["gesture"] == "celebration"
+    assert brain["emotion"]["primary"] in {"happy", "excited"}
+    assert 0 <= brain["emotion"]["arousal"] <= 1
+    assert brain["behavior"]["attentionState"] in {"idle", "listening", "thinking", "responding", "curious", "reflecting", "excited"}
+
+
+def test_companion_brain_uses_only_allowlisted_gesture_intents():
+    brain = build_companion_brain(
+        reply="I can help you work through it.",
+        raw_brain={"behavior": {"gesture": "arbitrary_function_call"}},
+        message="I don't understand this.",
+        history=[],
+        character_name="Yuna",
+    )
+
+    assert brain["behavior"]["gesture"] == "confusion"
+
+
+def test_companion_brain_behavior_scenarios_are_contextual():
+    cases = [
+        ("I finally passed my exam!", "That is wonderful news!", {"celebration"}),
+        ("I don't understand this.", "Let us work through it step by step.", {"confusion"}),
+        ("Explain backpropagation.", "Backpropagation adjusts a model after an error.", {"explanation"}),
+        ("Hey, what's up?", "Hey! I am here.", {"greeting"}),
+        ("Good night, see you tomorrow.", "Good night.", {"goodbye"}),
+    ]
+    for message, reply, expected_gestures in cases:
+        brain = build_companion_brain(reply=reply, raw_brain=None, message=message, history=[], character_name="Yuna")
+        assert brain["behavior"]["gesture"] in expected_gestures
+        assert 0 <= brain["behavior"]["eyeContact"] <= 1
+        assert 0 <= brain["speech"]["speed"] <= 1.24
+
+
+def test_companion_brain_composes_a_safe_sentence_timeline_and_user_reaction():
+    brain = build_companion_brain(
+        reply="That is wonderful news! You worked hard for it. Remember to celebrate your progress.",
+        raw_brain=None,
+        message="I finally passed my exam!",
+        history=[],
+        character_name="Yuna",
+    )
+
+    behavior = brain["behavior"]
+    assert behavior["posture"] == "energetic"
+    assert behavior["userReaction"]
+    assert len(behavior["timeline"]) >= 2
+    assert [item["atMs"] for item in behavior["timeline"]] == sorted(item["atMs"] for item in behavior["timeline"])
+    assert all(item["gesture"] in {"acknowledgment", "celebration", "concern", "confusion", "emphasis", "explanation", "greeting", "goodbye", "happiness", "listening", "open_palm", "pointing", "shrug", "thinking", "thumbs_down", "thumbs_up", "waiting"} for item in behavior["timeline"])
+
+
 def test_companion_only_extracts_clear_long_term_or_temporary_memories():
     candidates = extract_memory_candidates("I love astronomy. My exam is next week.")
 
@@ -100,6 +162,11 @@ def test_companion_emotion_and_dashboard_are_conversation_driven():
     assert dashboard["memoryCount"] == 3
 
 
+def test_companion_recognizes_depressed_and_low_confidence_language():
+    assert analyze_emotion("I am very much depressed after my marks")["primary"] == "sad"
+    assert analyze_emotion("I am feeling low in confidence")["primary"] == "sad"
+
+
 def test_behavior_report_is_reflective_and_keeps_camera_observations_coarse():
     report = behavior_report(analyze_emotion("I feel stressed"), {
         "visible": True, "expression": "tense", "engagement": "engaged", "confidence": 0.7,
@@ -108,6 +175,12 @@ def test_behavior_report_is_reflective_and_keeps_camera_observations_coarse():
     assert report["cameraCheckIn"]["expression"] == "tense"
     assert "not a diagnosis" in report["reflection"]
     assert "momentary visual cue" in vision_prompt_context({"visible": True, "expression": "tense", "engagement": "engaged", "confidence": 0.7})
+
+
+def test_account_profile_context_is_data_and_does_not_invent_memory():
+    context = account_profile_prompt_context({"name": "Mahesh"})
+    assert '"display_name": "Mahesh"' in context
+    assert "do not claim memories" in context
 
 
 def test_visual_report_parser_limits_results_to_safe_momentary_categories():

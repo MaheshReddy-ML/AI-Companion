@@ -12,7 +12,7 @@ import {
   renderUserAvatar,
   showStatus,
 } from "./common.js";
-import { createEmoraAvatarStage } from "./emora-avatar-stage.js?v=20260715-full-body-framing";
+import { createEmoraAvatarStage } from "./emora-avatar-stage.js?v=20260811-living-companion";
 
 const ASSET_VERSION = "20260511-anime-vroid";
 
@@ -117,10 +117,13 @@ const elements = {
   composeForm: document.getElementById("emora-compose-form"),
   messageInput: document.getElementById("emora-message-input"),
   sendButton: document.getElementById("emora-send-button"),
+  interruptButton: document.getElementById("emora-interrupt-button"),
   status: document.getElementById("emora-status"),
   listeningSignal: document.getElementById("emora-listening-signal"),
   visionSignal: document.getElementById("emora-vision-signal"),
   voiceSignal: document.getElementById("emora-voice-signal"),
+  socialPresence: document.getElementById("emora-social-presence"),
+  debugOutput: document.getElementById("emora-debug-output"),
 };
 
 const state = {
@@ -152,10 +155,48 @@ const state = {
   lipSyncRestTimer: null,
   silentSpeechTimer: null,
   lipSyncIndex: 0,
+  speechGestureTimers: [],
+  debug: {},
+  companionEmotion: "calm",
 };
+
+function updateDebugTelemetry(values = {}) {
+  if (!elements.debugOutput) return;
+  state.debug = { ...state.debug, ...values };
+  const brain = state.debug.brain || {};
+  const emotion = brain.emotion || {};
+  const behavior = brain.behavior || {};
+  const speech = brain.speech || {};
+  const snapshot = {
+    model: state.debug.model || "waiting",
+    chatRequestMs: state.debug.chatRequestMs ?? null,
+    firstAudioMs: state.debug.firstAudioMs ?? null,
+    emotion: emotion.label || emotion.primary || null,
+    valence: emotion.valence ?? null,
+    arousal: emotion.arousal ?? null,
+    attention: behavior.attentionState || null,
+    gestureIntensity: behavior.gestureIntensity ?? null,
+    eyeContact: behavior.eyeContact ?? null,
+    speechStyle: speech.style || null,
+    speechSpeed: speech.speed ?? null,
+    replyWords: state.debug.replyWords ?? null,
+    modelLoadMs: state.debug.generationStats?.lastModelLoadMs ?? null,
+    modelGenerationMs: state.debug.generationStats?.lastGenerationMs ?? null,
+    modelOutputTokensApprox: state.debug.generationStats?.lastOutputTokensApprox ?? null,
+    render: state.debug.renderStats?.runtime || null,
+    browserHeapBytes: performance.memory?.usedJSHeapSize ?? null,
+  };
+  elements.debugOutput.textContent = JSON.stringify(snapshot, null, 2);
+}
 
 function currentCharacter() {
   return CHARACTERS[state.characterId] || CHARACTERS.Yuna;
+}
+
+function personalizedGreeting(character = currentCharacter()) {
+  const name = displayNameForUser(state.user);
+  const greetingName = name && name !== "Friend" ? `, ${name}` : "";
+  return `Hi${greetingName}, I’m ${character.name}. I’m glad you’re here. How are you feeling as you arrive?`;
 }
 
 function getConversationStorageKey(characterId = state.characterId) {
@@ -287,6 +328,8 @@ function cancelSpeechPlayback() {
   state.speechAbortController = null;
   window.clearTimeout(state.streamPlaybackTimer);
   state.streamPlaybackTimer = null;
+  state.speechGestureTimers.forEach((timer) => window.clearTimeout(timer));
+  state.speechGestureTimers = [];
   state.streamSources.forEach((source) => {
     try { source.stop(); } catch (_) { /* source may already have ended */ }
   });
@@ -387,21 +430,24 @@ function renderCharacter() {
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 
-  if (!state.messages.length) {
-    state.messages = [{ role: "assistant", content: character.greeting }];
-  }
 }
 
 function renderMessages() {
+  if (!state.messages.length) {
+    elements.transcript.innerHTML = `
+      <section class="emora-empty-conversation">
+        <span>Emora is here</span>
+        <p>Talk to me.</p>
+      </section>`;
+    return;
+  }
+
   elements.transcript.innerHTML = state.messages
-    .map(
-      (message) => `
-        <article class="emora-message ${message.role}">
+    .map((message, index) => `
+        <article class="emora-message ${message.role} ${index === state.messages.length - 1 ? "latest" : ""}">
           <span>${escapeHtml(message.role === "assistant" ? currentCharacter().name : displayNameForUser(state.user))}</span>
           <p>${escapeHtml(message.content)}</p>
-        </article>
-      `,
-    )
+        </article>`)
     .join("");
 
   window.requestAnimationFrame(() => {
@@ -426,11 +472,27 @@ function updateSignals() {
   elements.visionSignal.textContent = cameraOn ? "Ready" : "Off";
   elements.voiceSignal.textContent = state.voiceReplies ? currentCharacter().voiceLabel || `Soft ${currentCharacter().voiceGender || "voice"}` : "Off";
   elements.voiceSignal.title = state.voiceName ? `Using ${state.voiceName}` : "";
-  elements.listenButton.textContent = state.listening ? "Stop talking" : "Start talking";
+  const socialState = state.speaking ? "speaking" : state.thinking || state.speechLoading ? "thinking" : state.listening ? "listening" : "idle";
+  const socialLabel = state.speaking ? `Present · ${state.companionEmotion}` : state.thinking || state.speechLoading ? "Reflecting · attentive" : state.listening ? "Listening · attentive" : "Present · calm";
+  if (elements.socialPresence) {
+    elements.socialPresence.dataset.state = socialState;
+    elements.socialPresence.textContent = socialLabel;
+  }
+  const listenLabel = state.listening ? "Stop" : "Talk";
+  const listenLabelElement = elements.listenButton.querySelector("span");
+  if (listenLabelElement) {
+    listenLabelElement.textContent = listenLabel;
+  } else {
+    elements.listenButton.textContent = listenLabel;
+  }
+  elements.listenButton.setAttribute("aria-label", state.listening ? "Stop talking" : "Start talking");
   elements.listenButton.disabled = state.thinking;
   elements.sendButton.disabled = state.thinking;
   elements.messageInput.disabled = state.thinking;
+  elements.interruptButton.hidden = !state.speaking && !state.speechLoading;
   elements.stage.dataset.speaking = state.speaking ? "true" : "false";
+  elements.stage.dataset.companionState = socialState;
+  elements.stage.dataset.companionEmotion = state.companionEmotion;
   state.avatarStage?.setListening(state.listening);
   state.avatarStage?.setThinking((state.thinking || state.speechLoading) && !state.speaking);
 }
@@ -441,6 +503,24 @@ function setStatus(message, tone = "info") {
 
 function stopStream(stream) {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+function captureCameraCheckIn() {
+  // A single reduced frame is created only at the moment the user sends a
+  // message with their already-enabled camera. It stays in memory and is
+  // handed to the existing local-only API contract; neither pixels nor video
+  // are stored by this page.
+  const video = elements.cameraPreview;
+  if (!state.cameraStream || !video?.videoWidth || !video?.videoHeight) return null;
+  const maxEdge = 384;
+  const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return null;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.72);
 }
 
 async function requestCamera() {
@@ -630,6 +710,7 @@ async function speakReply(text, brain = null) {
     brain,
     speech: brain?.speech || null,
   };
+  const voiceStartedAt = performance.now();
 
   try {
     const streamGeneration = state.streamGeneration;
@@ -672,8 +753,11 @@ async function speakReply(text, brain = null) {
 
     state.speechLoading = false;
     state.speaking = true;
-    state.avatarStage?.setBrainBehavior?.(brain);
     state.avatarStage?.setSpeaking(true, text);
+    // Speaking establishes lip/beat timing first; the validated Brain plan is
+    // then applied last so text heuristics cannot override its emotion/gaze.
+    state.avatarStage?.setBrainBehavior?.(brain);
+    state.avatarStage?.playBehaviorTimeline?.(brain?.behavior?.timeline || []);
     startLipSync(text);
     updateSignals();
     setStatus("Companion voice playing.", "success");
@@ -703,6 +787,9 @@ async function speakReply(text, brain = null) {
       nextStartAt = Math.max(nextStartAt, state.audioContext.currentTime + 0.012);
       source.start(nextStartAt);
       nextStartAt += audioBuffer.duration;
+      if (!receivedAudio) {
+        updateDebugTelemetry({ firstAudioMs: Math.round(performance.now() - voiceStartedAt) });
+      }
       receivedAudio = true;
     }
 
@@ -728,6 +815,7 @@ async function speakReply(text, brain = null) {
 
 async function requestCompanionReply(content) {
   const character = currentCharacter();
+  const cameraFrame = captureCameraCheckIn();
   return apiRequest("/api/chat", {
     method: "POST",
     auth: true,
@@ -737,6 +825,8 @@ async function requestCompanionReply(content) {
       characterId: character.id,
       characterName: `Your Emora - ${character.name}`,
       personaPrompt: buildPersonaPrompt(),
+      cameraOptIn: Boolean(cameraFrame),
+      cameraFrame: cameraFrame || undefined,
     },
   });
 }
@@ -752,6 +842,7 @@ async function sendMessage(messageOverride = "") {
   }
 
   const character = currentCharacter();
+  const chatStartedAt = performance.now();
   state.thinking = true;
   elements.messageInput.value = "";
   state.messages.push({ role: "user", content });
@@ -779,10 +870,21 @@ async function sendMessage(messageOverride = "") {
 
     const reply = response?.aiMessage?.message || response?.aiMessage?.content || "I am here with you.";
     const brain = response?.brain || response?.aiMessage?.brain || null;
+    state.companionEmotion = brain?.emotion?.label || brain?.emotion?.primary || "calm";
+    updateDebugTelemetry({
+      brain,
+      model: response?.model || "local-mlx",
+      chatRequestMs: Math.round(performance.now() - chatStartedAt),
+      firstAudioMs: null,
+      replyWords: reply.trim() ? reply.trim().split(/\s+/).length : 0,
+      generationStats: response?.generationStats || null,
+      renderStats: state.avatarStage?.getDiagnostics?.() || null,
+    });
     state.messages[state.messages.length - 1] = { role: "assistant", content: reply };
     renderMessages();
     if (brain) {
       state.avatarStage?.setBrainBehavior?.(brain);
+      state.avatarStage?.reactToUser?.(brain?.behavior?.userReaction || []);
       await performThinkingMoment(brain);
     }
     void speakReply(reply, brain);
@@ -809,7 +911,7 @@ function resetSession() {
   cancelSpeechPlayback();
   state.conversationId = "";
   localStorage.removeItem(getConversationStorageKey());
-  state.messages = [{ role: "assistant", content: currentCharacter().greeting }];
+  state.messages = [];
   renderMessages();
   updateSignals();
   setStatus("New Your Emora session started.", "success");
@@ -831,6 +933,25 @@ function switchCharacter(characterId) {
   setStatus(`${currentCharacter().name} is ready.`, "success");
 }
 
+async function welcomeUser() {
+  const greeting = personalizedGreeting();
+  state.avatarStage?.greet?.("wave");
+  state.avatarStage?.setBrainBehavior?.({
+    behavior: { attentionState: "excited", eyeContact: 0.86, gestureIntensity: 0.32 },
+    emotion: { valence: 0.78, arousal: 0.52, engagement: 0.88 },
+  });
+  state.companionEmotion = "happy";
+  renderMessages();
+  updateSignals();
+
+  // We attempt the actual companion voice on entry. Browsers that require an
+  // explicit media gesture will fall back to the visible welcome and make the
+  // Start talking control available without blocking the room.
+  if (state.voiceReplies) {
+    await speakReply(greeting);
+  }
+}
+
 function bindEvents() {
   elements.characterSwitch.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("[data-emora-character]") : null;
@@ -842,6 +963,12 @@ function bindEvents() {
   elements.cameraButton.addEventListener("click", requestCamera);
   elements.micButton.addEventListener("click", requestMic);
   elements.newSessionButton.addEventListener("click", resetSession);
+  elements.interruptButton.addEventListener("click", () => {
+    cancelSpeechPlayback();
+    updateSignals();
+    setStatus("Companion interrupted.", "info");
+    elements.messageInput.focus();
+  });
 
   elements.listenButton.addEventListener("click", () => {
     if (state.listening) {
@@ -889,7 +1016,6 @@ function bindEvents() {
   renderMessages();
   updateSignals();
   bindEvents();
-
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.cameraButton.disabled = true;
     elements.micButton.disabled = true;

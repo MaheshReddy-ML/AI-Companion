@@ -22,6 +22,7 @@ def render_page(request: Request, template_name: str, title: str) -> HTMLRespons
             "request": request,
             "page_title": title,
             "google_client_id": settings.google_client_id,
+            "companion_debug": settings.companion_debug,
         },
     )
 

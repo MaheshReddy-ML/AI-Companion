@@ -15,67 +15,31 @@
 {% endblock %}
 
 {% block content %}
-<div class="app-layout your-emora-layout">
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <a class="logo" href="/">
-        <span class="logo-mark">AI</span>
-        <span class="logo-name">Emora</span>
-      </a>
-    </div>
+<main class="your-emora-main">
+  <section class="emora-immersive-room" aria-label="Your Emora companion room">
+    <header class="emora-orbit-nav">
+      <a class="emora-wordmark" href="/"><i>✦</i> Emora</a>
+      <div class="emora-orbit-center"><span class="emora-live-dot"></span><span id="emora-social-presence" data-state="idle">Present · calm</span></div>
+      <div class="emora-orbit-actions">
+        <a href="/insights" aria-label="Open insights">Insights</a>
+        <a href="/profile" aria-label="Open profile" data-session-avatar data-session-user-initial>M</a>
+      </div>
+    </header>
 
-    <div class="nav-group">
-      <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
-      <a class="nav-item active" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora <span class="nav-badge">Live</span></a>
-      <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion</a>
-      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
-      <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-label">Personal</div>
-      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="user-pill">
-        <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
-        <div class="user-pill-info">
-          <h6 data-session-user-name>Mahesh Reddy</h6>
-          <span data-session-user-email>Signed in workspace</span>
+    <section class="emora-stage-panel">
+      <div class="emora-stage-header">
+        <div class="emora-identity">
+          <span class="feature-badge" id="emora-character-badge">Emotionally aware</span>
+          <h1 id="emora-character-name">Yuna</h1>
+          <p id="emora-character-line">A quiet place to think out loud.</p>
+        </div>
+        <div class="emora-session-state" aria-label="Input status">
+          <span id="emora-camera-chip">Camera off</span>
+          <span id="emora-mic-chip">Mic off</span>
         </div>
       </div>
-    </div>
-  </aside>
 
-  <main class="main-content your-emora-main">
-    <div class="your-emora-topbar">
-      <div>
-        <p class="mono sidebar-mini-label">YOUR EMORA</p>
-        <h1 class="serif">A companion room built for voice, camera, and presence</h1>
-      </div>
-      <div class="your-emora-top-actions">
-        <button class="btn btn-outline btn-sm" id="emora-new-session" type="button">New session</button>
-        <a class="btn btn-primary btn-sm" href="/chat">Text workspace</a>
-      </div>
-    </div>
-
-    <div class="your-emora-grid">
-      <section class="emora-stage-panel">
-        <div class="emora-stage-header">
-          <div>
-            <span class="feature-badge" id="emora-character-badge">Emotionally aware</span>
-            <h2 id="emora-character-name">Yuna</h2>
-            <p id="emora-character-line">Cute, sweet, gentle, and bright.</p>
-          </div>
-          <div class="emora-session-state">
-            <span id="emora-camera-chip">Camera off</span>
-            <span id="emora-mic-chip">Mic off</span>
-          </div>
-        </div>
-
-        <div class="emora-live-stage" id="emora-live-stage">
+      <div class="emora-live-stage" id="emora-live-stage">
           <div class="atmosphere-sky" aria-hidden="true">
             <div class="atmosphere-orb"></div>
             <div class="atmosphere-cloud atmosphere-cloud-one"></div>
@@ -100,77 +64,45 @@
           </div>
         </div>
 
-        <div class="emora-character-switch" id="emora-character-switch" aria-label="Choose your Emora character">
-          <button class="emora-character-option active" type="button" data-emora-character="Yuna" aria-pressed="true">
-            <span>Female</span>
-            <strong>Yuna</strong>
-          </button>
-          <button class="emora-character-option" type="button" data-emora-character="rose" aria-pressed="false">
-            <span>Female</span>
-            <strong>Vivi</strong>
-          </button>
-          <button class="emora-character-option" type="button" data-emora-character="robert" aria-pressed="false">
-            <span>Male</span>
-            <strong>Sakurada</strong>
-          </button>
-          <button class="emora-character-option" type="button" data-emora-character="haru" aria-pressed="false">
-            <span>Male</span>
-            <strong>haru</strong>
-          </button>
+        <aside class="emora-utility-rail" aria-label="Companion controls">
+          <button id="emora-camera-button" type="button"><i>◉</i><span>View</span><strong>Allow view</strong></button>
+          <button id="emora-mic-button" type="button"><i>⌁</i><span>Voice</span><strong>Allow voice</strong></button>
+          <button id="emora-new-session" type="button"><i>＋</i><span>Reset</span><strong>New session</strong></button>
+        </aside>
+
+        <div class="emora-dialogue-layer" aria-live="polite">
+          <div class="emora-transcript" id="emora-transcript"></div>
         </div>
-      </section>
 
-      <aside class="emora-control-panel">
-        <section class="card emora-permission-card">
-          <div class="card-header">
-            <h3>Live inputs</h3>
-            <span class="text-sm muted" id="emora-permission-summary">Ready</span>
-          </div>
-          <div class="card-body">
-            <div class="emora-permission-grid">
-              <button class="emora-permission-button" id="emora-camera-button" type="button">
-                <span>Camera</span>
-                <strong>Allow view</strong>
-              </button>
-              <button class="emora-permission-button" id="emora-mic-button" type="button">
-                <span>Microphone</span>
-                <strong>Allow voice</strong>
-              </button>
-            </div>
-            <div id="emora-status" class="status" hidden></div>
-          </div>
-        </section>
+        <div class="emora-character-switch" id="emora-character-switch" aria-label="Choose your Emora character">
+          <button class="emora-character-option active" type="button" data-emora-character="Yuna" aria-pressed="true"><span>01</span><strong>Yuna</strong></button>
+          <button class="emora-character-option" type="button" data-emora-character="rose" aria-pressed="false"><span>02</span><strong>Vivi</strong></button>
+          <button class="emora-character-option" type="button" data-emora-character="robert" aria-pressed="false"><span>03</span><strong>Sakurada</strong></button>
+          <button class="emora-character-option" type="button" data-emora-character="haru" aria-pressed="false"><span>04</span><strong>haru</strong></button>
+        </div>
 
-        <section class="card emora-conversation-card">
-          <div class="card-header">
-            <h3>Conversation</h3>
-            <button class="btn btn-ghost btn-sm" id="emora-listen-button" type="button">Start talking</button>
-          </div>
-          <div class="card-body">
-            <div class="emora-transcript" id="emora-transcript" aria-live="polite"></div>
-            <form class="emora-compose" id="emora-compose-form">
-              <label class="sr-only" for="emora-message-input">Message Your Emora</label>
-              <textarea id="emora-message-input" rows="2" placeholder="Type or speak to Your Emora"></textarea>
-              <button class="btn btn-primary btn-sm" id="emora-send-button" type="submit">Send</button>
-            </form>
-          </div>
-        </section>
-
-        <section class="card emora-signal-card">
-          <div class="card-header"><h3>Response signals</h3></div>
-          <div class="card-body">
-            <div class="emora-signal-row"><span>Listening</span><strong id="emora-listening-signal">Idle</strong></div>
-            <div class="emora-signal-row"><span>Vision</span><strong id="emora-vision-signal">Off</strong></div>
-            <div class="emora-signal-row"><span>Voice reply</span><strong id="emora-voice-signal">On</strong></div>
-          </div>
-        </section>
-      </aside>
-    </div>
-  </main>
-</div>
+        <div class="emora-composer-dock">
+          <form class="emora-compose" id="emora-compose-form">
+            <label class="sr-only" for="emora-message-input">Message Your Emora</label>
+            <button class="emora-listen-orb" id="emora-listen-button" type="button" aria-label="Start talking"><i></i><span>Talk</span></button>
+            <textarea id="emora-message-input" rows="1" placeholder="Speak freely, or leave a thought…"></textarea>
+            <span class="emora-composer-actions">
+              <button class="emora-send-orb" id="emora-send-button" type="submit" aria-label="Send message">↗</button>
+              <button class="emora-interrupt-orb" id="emora-interrupt-button" type="button" aria-label="Interrupt companion" hidden>■</button>
+            </span>
+          </form>
+          <div class="emora-composer-meta"><span id="emora-listening-signal">Idle</span><span>⌘ Enter to send</span><span id="emora-permission-summary">Ready</span></div>
+          <div id="emora-status" class="status" hidden></div>
+        </div>
+        <div class="emora-sr-signals" aria-hidden="true"><span id="emora-vision-signal">Off</span><span id="emora-voice-signal">On</span></div>
+      </div>
+    </section>
+    {% if companion_debug %}<section class="emora-debug-output"><span>Developer telemetry</span><pre id="emora-debug-output">Waiting for a companion response…</pre></section>{% endif %}
+  </section>
+</main>
 {% endblock %}
 
 {% block scripts %}
   <script type="module" src="/static/js/atmosphere.js?v=20260713"></script>
-  <script type="module" src="/static/js/your-emora.js?v=20260606-vrm-fidelity"></script>
+  <script type="module" src="/static/js/your-emora.js?v=20260811-living-companion"></script>
 {% endblock %}

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.config import settings
 from app.database import check_database_connection, conversations_collection, posts_collection, users_collection
+from app.services.local_mlx_chat import local_mlx_chat
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -38,6 +39,7 @@ def diagnostics(_: None = Depends(require_admin_key)) -> dict:
             "emailConfigured": settings.email_configured,
             "googleConfigured": bool(settings.google_client_id),
         },
+        "localRuntime": {"chat": local_mlx_chat.runtime_stats()},
         "features": {
             "rateLimitEnabled": settings.rate_limit_enabled,
             "sessionRevocation": True,

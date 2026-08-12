@@ -265,7 +265,7 @@ function normalizeErrorMessage(data) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, auth = false, headers = {} } = options;
+  const { method = "GET", body, auth = false, headers = {}, signal } = options;
   const requestHeaders = { ...headers };
 
   if (body !== undefined) {
@@ -280,6 +280,7 @@ export async function apiRequest(path, options = {}) {
     method,
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
   });
 
   const contentType = response.headers.get("content-type") || "";

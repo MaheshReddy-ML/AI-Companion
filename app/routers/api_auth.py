@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
+from pymongo.errors import DuplicateKeyError
 
 from app.audit import audit_event
 from app.avatar_catalog import (
@@ -187,10 +188,6 @@ def register_user(payload: RegisterRequest) -> dict:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
 
     users = users_collection()
-    if users.find_one({"email": email}):
-        audit_event("auth.register.duplicate", email=email)
-        raise HTTPException(status_code=400, detail="User already exists")
-
     now = utc_now()
     document = {
         "name": name,
@@ -208,7 +205,22 @@ def register_user(payload: RegisterRequest) -> dict:
         "created_at": now,
         "updated_at": now,
     }
-    inserted = users.insert_one(document)
+    try:
+        inserted = users.insert_one(document)
+    except DuplicateKeyError as exc:
+        details = getattr(exc, "details", None) or {}
+        key_pattern = details.get("keyPattern") or {}
+        # Let MongoDB's unique index make the authoritative decision. This is
+        # race-safe and must only call out an existing account when the email
+        # index was the key that actually rejected the insert.
+        if key_pattern and "email" not in key_pattern:
+            logger.exception("Registration failed because of a non-email unique index: %s", key_pattern)
+            raise HTTPException(status_code=500, detail="Account creation could not be completed. Please try again.") from exc
+        audit_event("auth.register.duplicate", email=email)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Please sign in or use another email.",
+        ) from exc
     document["_id"] = inserted.inserted_id
     audit_event("auth.register.success", user_id=document["_id"], email=email)
     return build_auth_payload(document)
@@ -235,8 +247,16 @@ def login_user(payload: LoginRequest) -> dict:
         audit_event("auth.login.failed", user_id=user["_id"], email=email, reason="bad_password")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    users.update_one({"_id": user["_id"]}, {"$set": {"updated_at": utc_now()}})
-    user["updated_at"] = utc_now()
+    now = utc_now()
+    updates: dict = {"updated_at": now}
+    # Existing local users may have a bcrypt hash created before the
+    # SHA-256 pre-hash scheme. Upgrade it only after successful verification,
+    # keeping old accounts usable without weakening password handling.
+    if not user["password_hash"].startswith("bcrypt_sha256$"):
+        updates["password_hash"] = hash_password(password)
+        user["password_hash"] = updates["password_hash"]
+    users.update_one({"_id": user["_id"]}, {"$set": updates})
+    user["updated_at"] = now
     audit_event("auth.login.success", user_id=user["_id"], email=email)
     return build_auth_payload(user)
 

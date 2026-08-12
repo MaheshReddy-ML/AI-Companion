@@ -32,14 +32,16 @@ const elements = {
   statMessages: document.getElementById("stat-messages"),
   dashboardTitle: document.getElementById("dashboard-title"),
   dashboardSubtitle: document.getElementById("dashboard-subtitle"),
-  companionShelf: document.getElementById("companion-shelf"),
-  companionGrid: document.getElementById("companion-grid"),
+  chatStage: document.getElementById("chat-stage"),
+  chatEmptyCopy: document.getElementById("chat-empty-copy"),
   activeChatTitle: document.getElementById("active-chat-title"),
   activeChatMeta: document.getElementById("active-chat-meta"),
   chatMessages: document.getElementById("chat-messages"),
   chatToast: document.getElementById("chat-toast"),
   messageInput: document.getElementById("message-input"),
   sendButton: document.getElementById("send-button"),
+  micButton: document.getElementById("mic-button"),
+  stopButton: document.getElementById("stop-button"),
   fileInput: document.getElementById("file-input"),
   cameraButton: document.getElementById("camera-button"),
   cameraRow: document.getElementById("camera-row"),
@@ -78,7 +80,12 @@ const state = {
   toastTimerId: null,
   activeModal: null,
   cameraStream: null,
+  listening: false,
+  recognition: null,
+  requestController: null,
 };
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 async function startCameraCheckIn() {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -115,33 +122,16 @@ function captureCameraFrame() {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
-const QUICK_PROMPTS = [
-  {
-    title: "Plan my day",
-    description: "Turn a messy list into a realistic schedule.",
-    prompt: "Build me a realistic plan for today with priorities, time blocks, and breaks.",
-  },
-  {
-    title: "Break down a feature",
-    description: "Turn an idea into build-ready tasks.",
-    prompt: "Help me break a feature idea into implementation tasks, edge cases, and a delivery order.",
-  },
-  {
-    title: "Summarize priorities",
-    description: "Reduce noise into a short action list.",
-    prompt: "Summarize my priorities for this week in five concise bullets with the highest-leverage actions first.",
-  },
-  {
-    title: "Calm check-in",
-    description: "Reset stress into actionable next steps.",
-    prompt: "Give me a calm mental reset and a practical next-step plan for when I feel overwhelmed.",
-  },
-];
-
 initChrome();
 
 function getDraftStorageKey() {
   return getConversationDraftKey(state.user);
+}
+
+function displayCompanionMessage(content) {
+  // Hide the old model prefix in historic messages saved before the server
+  // response guard was introduced.
+  return String(content || "").replace(/^\s*(?:(?::|;|=)-?\(|:'\(|D:|☹️?|🙁|😞)\s*/i, "").trim();
 }
 
 function loadDrafts() {
@@ -339,75 +329,18 @@ function renderConversationLists() {
     : '<p class="empty-list">No conversations yet.</p>';
 }
 
-function renderCompanionGrid() {
-  elements.companionGrid.innerHTML = COMPANION_PROFILES.map(
-    (profile) => `
-      <article class="companion-card panel glass">
-        <div class="companion-card-head">
-          <span class="feature-badge">${escapeHtml(profile.badge)}</span>
-          <span class="companion-card-kicker">Focused mode</span>
-        </div>
-        <h3>${escapeHtml(profile.name)}</h3>
-        <p>${escapeHtml(profile.description)}</p>
-        <button class="button secondary compact btn-icon" type="button" data-start-companion="${profile.id}" aria-label="Open ${escapeHtml(profile.name)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Open mode
-        </button>
-      </article>
-    `,
-  ).join("");
-}
-
-function renderEmptyState(activeConversation) {
-  const heading = activeConversation
-    ? `Continue ${escapeHtml(activeConversation.title)}`
-    : `How can I help, ${escapeHtml(displayNameForUser(state.user))}?`;
-  const subtitle = activeConversation
-    ? "Use a quick prompt below or write your own message to start this conversation."
-    : "Start with a suggested prompt or open one of the focused companion modes to begin in the cleaner workspace.";
-
-  return `
-    <div class="empty-chat chatgpt-empty-state">
-      <div class="empty-orb-mark">AI</div>
-      <h3>${heading}</h3>
-      <p>${subtitle}</p>
-      <div class="suggestion-grid">
-        ${QUICK_PROMPTS.map(
-          (item, index) => `
-            <button class="suggestion-card" type="button" data-quick-prompt="${index}">
-              <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(item.description)}</span>
-            </button>
-          `,
-        ).join("")}
-      </div>
-      <div class="suggestion-companions">
-        ${COMPANION_PROFILES.map(
-          (profile) => `
-            <button class="suggestion-chip" type="button" data-empty-companion="${profile.id}">
-              <span>${escapeHtml(profile.name)}</span>
-              <small>${escapeHtml(profile.badge)}</small>
-            </button>
-          `,
-        ).join("")}
-      </div>
-    </div>
-  `;
-}
-
 function renderChatHeader() {
   const activeConversation = getActiveConversation();
 
   if (!activeConversation) {
-    elements.activeChatTitle.textContent = "New chat";
-    elements.activeChatMeta.textContent = "Pick a prompt, launch a mode, or start typing below.";
+    elements.activeChatTitle.textContent = "Emora";
+    elements.activeChatMeta.textContent = "Present and ready to listen.";
     elements.pinChatButton.disabled = true;
     elements.pinChatButton.textContent = "Pin";
     elements.shareChatButton.disabled = true;
     elements.exportChatButton.disabled = true;
     elements.postcardButton.disabled = true;
     elements.deleteChatButton.disabled = true;
-    elements.companionShelf.hidden = false;
     return;
   }
 
@@ -420,7 +353,6 @@ function renderChatHeader() {
   elements.exportChatButton.disabled = false;
   elements.postcardButton.disabled = false;
   elements.deleteChatButton.disabled = false;
-  elements.companionShelf.hidden = Boolean(activeConversation.messages?.length);
 }
 
 function renderMessages() {
@@ -428,17 +360,20 @@ function renderMessages() {
 
   if (!activeConversation) {
     elements.chatMessages.classList.add("is-empty");
-    elements.chatMessages.innerHTML = renderEmptyState(null);
+    elements.chatMessages.innerHTML = "";
+    elements.chatEmptyCopy.hidden = false;
     return;
   }
 
   if (!(activeConversation.messages || []).length) {
     elements.chatMessages.classList.add("is-empty");
-    elements.chatMessages.innerHTML = renderEmptyState(activeConversation);
+    elements.chatMessages.innerHTML = "";
+    elements.chatEmptyCopy.hidden = false;
     return;
   }
 
   elements.chatMessages.classList.remove("is-empty");
+  elements.chatEmptyCopy.hidden = true;
   const userInitials = getInitials(displayNameForUser(state.user));
   const assistantInitials = getInitials(activeConversation.characterName || "AI Companion");
 
@@ -454,7 +389,7 @@ function renderMessages() {
               ${escapeHtml(message.role === "assistant" ? activeConversation.characterName || "AI Companion" : displayNameForUser(state.user))}
               <span>${escapeHtml(formatMessageTime(message.timestamp))}</span>
             </div>
-            <p>${escapeHtml(message.content)}</p>
+            <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
           </div>
         </article>
@@ -466,7 +401,7 @@ function renderMessages() {
     ? `
       <article class="message-row assistant" data-avatar="${escapeHtml(assistantInitials)}">
         <div class="bubble assistant typing-bubble">
-          <div class="typing-dots">
+          <div class="typing-dots" aria-label="Emora is thinking">
             <span></span><span></span><span></span>
           </div>
         </div>
@@ -507,6 +442,10 @@ function render() {
   renderMessages();
   renderAttachment();
   renderDashboardSummary();
+  const companionState = state.isThinking ? "thinking" : state.listening ? "listening" : "idle";
+  elements.chatStage.dataset.companionState = companionState;
+  elements.stopButton.hidden = !state.isThinking;
+  elements.micButton.dataset.active = state.listening ? "true" : "false";
 }
 
 async function fetchConversations() {
@@ -765,6 +704,7 @@ async function handleSend(promptOverride = null) {
   resizeComposer();
   state.selectedFile = null;
   state.isThinking = true;
+  state.requestController = new AbortController();
   render();
 
   try {
@@ -782,6 +722,7 @@ async function handleSend(promptOverride = null) {
         cameraOptIn: Boolean(cameraFrame),
         cameraFrame,
       },
+      signal: state.requestController.signal,
     });
 
     replaceConversation(response.conversation);
@@ -789,6 +730,10 @@ async function handleSend(promptOverride = null) {
       showToast(response.warning, "warning");
     }
   } catch (error) {
+    if (error?.name === "AbortError") {
+      replaceConversation(snapshot);
+      return;
+    }
     replaceConversation(snapshot);
     state.drafts[activeConversation.id] = draft;
     saveDrafts();
@@ -797,6 +742,7 @@ async function handleSend(promptOverride = null) {
     showToast(error.message || "Failed to get a response.", "error");
   } finally {
     state.isThinking = false;
+    state.requestController = null;
     render();
   }
 }
@@ -825,6 +771,29 @@ function bindStaticEvents() {
   });
 
   elements.sendButton.addEventListener("click", () => handleSend());
+  elements.stopButton.addEventListener("click", () => {
+    state.requestController?.abort();
+    state.isThinking = false;
+    render();
+    showToast("Companion interrupted.", "info");
+  });
+  elements.micButton.addEventListener("click", () => {
+    if (!SpeechRecognition) { showToast("Voice input is not supported in this browser.", "warning"); return; }
+    if (!state.recognition) {
+      state.recognition = new SpeechRecognition();
+      state.recognition.interimResults = true;
+      state.recognition.addEventListener("result", (event) => {
+        elements.messageInput.value = Array.from(event.results).map((item) => item[0].transcript).join("").trim();
+        resizeComposer();
+      });
+      state.recognition.addEventListener("end", () => { state.listening = false; render(); });
+      state.recognition.addEventListener("error", () => { state.listening = false; render(); });
+    }
+    if (state.listening) { state.recognition.stop(); return; }
+    state.listening = true;
+    state.recognition.start();
+    render();
+  });
   elements.cameraButton?.addEventListener("click", () => {
     if (state.cameraStream) stopCameraCheckIn();
     else startCameraCheckIn();
@@ -942,29 +911,6 @@ function bindStaticEvents() {
     }
   });
 
-  elements.companionGrid.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-start-companion]");
-    if (!button) {
-      return;
-    }
-    await startCompanion(button.dataset.startCompanion);
-  });
-
-  elements.chatMessages.addEventListener("click", async (event) => {
-    const quickPromptButton = event.target.closest("[data-quick-prompt]");
-    if (quickPromptButton) {
-      const prompt = QUICK_PROMPTS[Number(quickPromptButton.dataset.quickPrompt)]?.prompt;
-      if (prompt) {
-        await handleSend(prompt);
-      }
-      return;
-    }
-
-    const companionButton = event.target.closest("[data-empty-companion]");
-    if (companionButton) {
-      await startCompanion(companionButton.dataset.emptyCompanion);
-    }
-  });
 
   [elements.pinnedList, elements.recentList].forEach((container) => {
     container.addEventListener("click", async (event) => {
@@ -1018,7 +964,6 @@ function bindStaticEvents() {
   state.user = getStoredUser();
   state.drafts = loadDrafts();
 
-  renderCompanionGrid();
   bindStaticEvents();
 
   await fetchConversations();

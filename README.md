@@ -26,7 +26,7 @@
     <a href="#architecture">Architecture</a> ·
     <a href="#quick-start">Quick start</a> ·
     <a href="#api-map">API map</a> ·
-    <a href="#trust--privacy">Trust & privacy</a>
+  <a href="#trust--privacy">Trust & privacy</a>
   </p>
 </div>
 
@@ -169,7 +169,7 @@ Set these first:
 ```env
 JWT_SECRET=replace-with-a-long-random-secret
 MONGO_URI=mongodb://127.0.0.1:27017/ai-companion-fastapi
-CHAT_MLX_MODEL=Qwen/Qwen3-1.7B-MLX-4bit
+CHAT_MLX_MODEL=Qwen/Qwen3-4B-MLX-4bit
 ```
 
 ### 4. Start MongoDB
@@ -195,15 +195,35 @@ python3 scripts/tts_setup.py --warmup
 python3 scripts/benchmark_tts.py
 ```
 
+### Benchmark a local chat candidate
+
+Run the configured model first, then explicitly compare another compatible MLX
+checkpoint only when you are ready for its download and memory cost:
+
+```bash
+../.venv/bin/python scripts/benchmark_chat.py
+../.venv/bin/python scripts/benchmark_chat.py --model <mlx-model-id> --output CHAT_BENCHMARK_candidate.json
+```
+
+The report separates the first request (which includes model loading) from
+warm requests and records peak process RSS, visible response throughput, and
+behavior outputs for casual, celebratory, explanatory, and goodbye scenarios.
+It does not claim tokenizer-level tokens/sec because that MLX-LM API does not
+provide those timings.
+
+See [the security and runtime audit](docs/SECURITY_AND_RUNTIME_AUDIT.md) for
+the dependency-install policy, shared-environment isolation finding, and the
+full model-selection protocol.
+
 Qwen3-TTS through MLX-Audio is the primary local runtime on Apple Silicon. Kokoro remains an automatic fallback. See [VOICE_PIPELINE_README.md](VOICE_PIPELINE_README.md) for streaming behavior, voices, pronunciation controls, and benchmarks.
 
 ### Local Qwen chat (Apple Silicon)
 
-Chat runs locally through `Qwen/Qwen3-1.7B-MLX-4bit` on Apple Silicon and never needs an API key. The first request downloads the model into the Hugging Face cache (if needed) and loads it once; later requests reuse the in-memory model. After a server restart, MLX reloads from that local cache rather than downloading again.
+Chat runs locally through `Qwen/Qwen3-4B-MLX-4bit` on Apple Silicon and never needs an API key. The first request downloads the model into the Hugging Face cache (if needed) and loads it once; later requests reuse the in-memory model. After a server restart, MLX reloads from that local cache rather than downloading again. See [the model-selection record](docs/MODEL_SELECTION.md) for the measured 1.7B-to-4B decision.
 
 ### Optional local camera check-ins
 
-In Companion, select the camera button and grant browser permission only when comfortable. Emora captures one reduced-size frame when you send a message, analyzes it locally with the 4-bit MLX `Qwen2-VL-2B` model, and uses only coarse momentary expression/attention cues to adapt its reply. It never stores camera frames, video, identity data, demographic guesses, medical conclusions, or diagnoses. Each chat saves a short behavior report based on the words shared and, when enabled, that optional visual check-in; the aggregate appears in Insights.
+In Companion or Your Emora, select the camera button and grant browser permission only when comfortable. Emora captures one reduced-size frame only when you send a message, analyzes it locally with the 4-bit MLX `Qwen2-VL-2B` model, and uses only coarse momentary expression/attention cues to adapt its reply. It never stores camera frames, video, identity data, demographic guesses, medical conclusions, or diagnoses. Each chat saves a short behavior report based on the words shared and, when enabled, that optional visual check-in; the aggregate appears in Insights.
 
 The vision model downloads on the first camera check-in and is kept in the Hugging Face cache. Set `VISION_MLX_MODEL` to use another compatible MLX-VLM checkpoint.
 
@@ -216,7 +236,8 @@ Copy `.env.example`; it documents every available setting. These are the setting
 | **Core** | `APP_NAME`, `APP_ENV`, `HOST`, `PORT` | Keep `APP_ENV=production` in deployed environments. |
 | **Security** | `JWT_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_DAYS`, `ADMIN_API_KEY` | Use a strong unique secret; only enable diagnostics deliberately. |
 | **Database** | `MONGO_URI`, `MONGO_SERVER_SELECTION_TIMEOUT_MS` | A Mongo database is required for accounts, chat, memory, and community data. |
-| **Chat** | `CHAT_MLX_MODEL`, `CHAT_MLX_MAX_TOKENS`, `CHAT_MLX_TEMPERATURE` | Local Qwen3 MLX chat on Apple Silicon; no cloud API key or provider fallback. |
+| **Chat** | `CHAT_MLX_MODEL`, `CHAT_MLX_MAX_TOKENS`, `CHAT_MLX_TEMPERATURE`, `CHAT_MLX_THINKING_MODE` | Local Qwen3 MLX chat on Apple Silicon; `auto` keeps casual turns direct and reserves private reasoning for complex requests. |
+| **Developer telemetry** | `COMPANION_DEBUG` | Opt-in local Brain/render/request telemetry; always disabled in production. |
 | **Optional camera** | `VISION_MLX_MODEL`, `VISION_MLX_MAX_TOKENS` | Local-only MLX-VLM check-ins; image pixels are never persisted. |
 | **Voice** | `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING`, `TTS_PRONUNCIATION_DICTIONARY` | The default engine is `qwen3-mlx`; set `kokoro` to force the fallback. |
 | **Google OAuth** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Configure the same callback URL with Google. |

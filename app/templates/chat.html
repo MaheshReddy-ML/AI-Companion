@@ -81,8 +81,8 @@
               <div class="online-dot"></div>
             </div>
             <div>
-              <div class="companion-name" id="active-chat-title">New conversation</div>
-              <div class="companion-status" id="active-chat-meta">Pick a prompt, launch a mode, or start typing below.</div>
+              <div class="companion-name" id="active-chat-title">Emora</div>
+              <div class="companion-status" id="active-chat-meta">Present and ready to listen.</div>
             </div>
           </div>
           <div class="chat-header-actions">
@@ -94,22 +94,12 @@
           </div>
         </div>
 
-        <section class="card companion-launcher" id="companion-shelf">
-          <div class="card-header">
-            <div>
-              <h3>Focused companion modes</h3>
-              <p class="card-sub">Choose a preset to start with a stronger tone and clearer direction.</p>
-            </div>
-          </div>
-          <div class="card-body">
-            <div id="companion-grid" class="companion-grid"></div>
-          </div>
-        </section>
-
-        <div class="chat-stage">
+        <section class="chat-stage" id="chat-stage" data-companion-state="idle" aria-label="Conversation with Emora">
+          <div class="chat-atmosphere" aria-hidden="true"><i></i><i></i></div>
+          <div class="chat-empty-copy" id="chat-empty-copy"><span>A quiet place to talk</span><h1>What’s on your mind?</h1><p>There’s no need to have it all figured out.</p></div>
           <div id="chat-toast" class="toast status" hidden></div>
           <div id="chat-messages" class="messages-list"></div>
-        </div>
+        </section>
 
         <div class="chat-input-area">
           <div class="attachment-row" id="attachment-row" hidden>
@@ -132,7 +122,9 @@
               </svg>
             </label>
             <input id="file-input" type="file" accept="application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/webp" hidden />
+            <button id="mic-button" class="file-btn" type="button" aria-label="Start voice input" title="Talk to Emora">⌁</button>
             <button id="camera-button" class="file-btn" type="button" aria-label="Turn on optional camera check-in" title="Optional camera check-in">◉</button>
+            <button id="stop-button" class="stop-btn" type="button" aria-label="Stop companion" hidden>■</button>
             <button id="send-button" class="send-btn" type="button" aria-label="Send message">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -149,42 +141,6 @@
         </div>
       </div>
 
-      <aside class="chat-sidebar">
-        <div class="cs-header">
-          <h3>Session insights</h3>
-          <p>Real-time emotional tracking</p>
-        </div>
-        <div class="cs-body">
-          <div class="emotion-gauge-wrap">
-            <div class="emotion-gauge-label"><span>Detected state</span><span class="metric-rose">Anxious</span></div>
-            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-anxious" style="width:68%"></div></div>
-            <div class="emotion-gauge-label"><span>Calm</span><span class="metric-teal">32%</span></div>
-            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-calm" style="width:32%"></div></div>
-            <div class="emotion-gauge-label"><span>Stability score</span><span class="metric-gold">d = 0.08</span></div>
-            <div class="emotion-gauge"><div class="emotion-gauge-fill emo-gold" style="width:92%"></div></div>
-          </div>
-
-          <p class="mono sidebar-mini-label">REAL-TIME INSIGHTS</p>
-          <div class="insights-list">
-            <div class="insight-item">
-              <h5>Pre-event anxiety pattern</h5>
-              <p>This matches your profile from prior sessions before high-stakes events. It typically resolves after the event itself.</p>
-            </div>
-            <div class="insight-item">
-              <h5>Catastrophizing detected</h5>
-              <p>Emora is applying de-escalation framing rather than mirroring the anxiety.</p>
-            </div>
-            <div class="insight-item">
-              <h5>Stability maintained</h5>
-              <p>Responses are staying grounded within the active threshold.</p>
-            </div>
-          </div>
-        </div>
-        <div class="cs-safety">
-          <h5>Ethical boundary active</h5>
-          <p>If anxiety is affecting daily functioning, talking with a counselor or trusted person is always a good next option alongside Emora.</p>
-        </div>
-      </aside>
     </div>
 
     <div hidden>
@@ -293,5 +249,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/dashboard.js"></script>
+  <script type="module" src="/static/js/dashboard.js?v=20260811-companion-stage"></script>
 {% endblock %}

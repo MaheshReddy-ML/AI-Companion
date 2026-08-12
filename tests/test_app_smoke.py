@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.config import settings
 
 
 def test_public_pages_render_successfully():
@@ -53,3 +54,11 @@ def test_voice_generation_requires_an_authenticated_session():
     response = client.post("/api/voices/speak", json={"text": "Hello"})
 
     assert response.status_code == 401
+
+
+def test_companion_telemetry_panel_is_opt_in(monkeypatch):
+    client = TestClient(app)
+
+    assert "Developer telemetry" not in client.get("/your-emora").text
+    monkeypatch.setattr(settings, "companion_debug", True)
+    assert "Developer telemetry" in client.get("/your-emora").text

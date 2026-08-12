@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.audit import audit_event
-from app.companion import analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
+from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
 from app.config import settings
 from app.companion_brain import build_companion_brain
 from app.database import attachments_collection, conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
@@ -18,6 +18,7 @@ from app.models.schemas import AttachmentUploadRequest, ChatSendRequest, Convers
 from app.rate_limit import rate_limit
 from app.security import get_current_user
 from app.services.companion_chat import get_companion_reply
+from app.services.local_mlx_chat import local_mlx_chat
 from app.services.companion_memory import retrieve_memories, save_memory_candidates
 from app.services.attachments import create_attachment, delete_attachments_for_conversations, get_attachment_or_404
 from app.services.local_mlx_vision import VisionAnalysisError, local_mlx_vision
@@ -298,6 +299,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             persona_prompt=conversation.get("persona_prompt"),
             character_id=conversation.get("character_id") or payload.character_id,
             companion_context="\n\n".join(filter(None, [
+                account_profile_prompt_context(current_user),
                 memory_prompt_context(relevant_memories, user_analysis),
                 vision_prompt_context(vision),
             ])),
@@ -342,7 +344,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         )
 
     audit_event("chat.message.saved", user_id=current_user["_id"], conversation_id=conversation["_id"], warning=warning)
-    return {
+    response_payload = {
         "conversation": serialize_conversation(conversation),
         "userMessage": serialize_message(user_message),
         "aiMessage": {
@@ -356,3 +358,6 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         "behaviorReport": user_message["behavior_report"],
         "memoriesSaved": len(saved_memories),
     }
+    if settings.companion_debug:
+        response_payload["generationStats"] = local_mlx_chat.runtime_stats()
+    return response_payload

@@ -22,6 +22,13 @@ def _derive_database_name(mongo_uri: str) -> str:
 class Settings:
     app_name: str = os.getenv("APP_NAME", "AI Companion FastAPI")
     environment: str = os.getenv("APP_ENV", "development")
+    # This is deliberately opt-in and is always disabled in production. It
+    # exposes only transient behavior telemetry already delivered to the
+    # signed-in browser; it must never become a production diagnostics panel.
+    companion_debug: bool = (
+        os.getenv("COMPANION_DEBUG", "false").lower() in {"1", "true", "yes", "on"}
+        and os.getenv("APP_ENV", "development").lower() != "production"
+    )
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(os.getenv("PORT", "8000"))
 
@@ -62,9 +69,16 @@ class Settings:
 
     # Local chat model weights download once into the Hugging Face cache and
     # remain loaded for the lifetime of the running server process.
-    chat_mlx_model: str = os.getenv("CHAT_MLX_MODEL", "Qwen/Qwen3-1.7B-MLX-4bit")
+    chat_mlx_model: str = os.getenv("CHAT_MLX_MODEL", "Qwen/Qwen3-4B-MLX-4bit")
     chat_mlx_max_tokens: int = int(os.getenv("CHAT_MLX_MAX_TOKENS", "1024"))
     chat_mlx_temperature: float = float(os.getenv("CHAT_MLX_TEMPERATURE", "0.7"))
+    # Companion chat favors a direct, spoken-quality response. Qwen's optional
+    # reasoning mode adds latency and is more prone to surfacing its internal
+    # structure on small local models.
+    chat_mlx_enable_thinking: bool = os.getenv("CHAT_MLX_ENABLE_THINKING", "false").lower() in {"1", "true", "yes", "on"}
+    # auto enables Qwen reasoning only for explicitly complex turns. The
+    # legacy boolean remains supported as an explicit always-on override.
+    chat_mlx_thinking_mode: str = os.getenv("CHAT_MLX_THINKING_MODE", "auto").strip().lower()
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
 

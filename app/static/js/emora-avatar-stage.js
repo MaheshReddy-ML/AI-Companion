@@ -478,6 +478,7 @@ function fitModelToStage(vrm, targetHeight = 1.72) {
 }
 
 export function createEmoraAvatarStage(container, options = {}) {
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const framing = { ...CAMERA_FRAMING, ...(options.camera || {}) };
   const loaderElement = container.querySelector("[data-emora-avatar-loader]");
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
@@ -567,12 +568,18 @@ export function createEmoraAvatarStage(container, options = {}) {
     actionStrength: 0,
     actionSeed: randomBetween(0, Math.PI * 2),
     actionCooldownUntil: 0,
+    recentActions: [],
+    behaviorTimers: [],
+    behaviorGeneration: 0,
     actionPriority: 0,
     nextIdleActionAt: 4.2,
     introAlpha: 0,
     introTarget: 0,
     rigTargets: {},
     rigSprings: {},
+    frameCount: 0,
+    fps: 0,
+    fpsWindowStartedAt: performance.now(),
   };
 
   const springs = {
@@ -1004,6 +1011,11 @@ export function createEmoraAvatarStage(container, options = {}) {
     const minGap = options.minGap ?? 0.75;
 
     if (!options.force) {
+      // Social memory prevents accidental loops such as thumbs-up / thumbs-up.
+      const recentlyUsed = motion.recentActions.some((item) => item.mode === mode && now - item.at < (options.repeatCooldown ?? 5.5));
+      if (recentlyUsed && priority < 5) {
+        return false;
+      }
       if (now < motion.actionCooldownUntil) {
         return false;
       }
@@ -1020,7 +1032,43 @@ export function createEmoraAvatarStage(container, options = {}) {
     motion.actionSeed = randomBetween(0, Math.PI * 2);
     motion.actionPriority = priority;
     motion.actionCooldownUntil = now + minGap;
+    motion.recentActions = [...motion.recentActions.filter((item) => now - item.at < 12), { mode, at: now }].slice(-7);
     return true;
+  }
+
+  function cancelBehaviorTimeline() {
+    motion.behaviorGeneration += 1;
+    motion.behaviorTimers.forEach((timer) => window.clearTimeout(timer));
+    motion.behaviorTimers = [];
+  }
+
+  function scheduleBehaviorTimeline(entries = []) {
+    cancelBehaviorTimeline();
+    if (prefersReducedMotion || !motion.speaking || !Array.isArray(entries)) return;
+    const generation = motion.behaviorGeneration;
+    entries.slice(0, 5).forEach((entry) => {
+      const delay = clamp(Number(entry?.atMs) || 0, 0, 15000);
+      const timer = window.setTimeout(() => {
+        if (generation !== motion.behaviorGeneration || !motion.speaking) return;
+        const action = gestureAction(entry?.gesture);
+        if (action) triggerAction(action, clamp(Number(entry?.intensity) || 0.4, 0.16, 0.88), clamp((Number(entry?.durationMs) || 1250) / 1000, 0.45, 3), {
+          minGap: 0.72,
+          repeatCooldown: 4.8,
+        });
+      }, delay);
+      motion.behaviorTimers.push(timer);
+    });
+  }
+
+  function gestureAction(gesture) {
+    const actions = {
+      greeting: "wave", goodbye: "wave", celebration: "cheer", happiness: "sparkle",
+      concern: "heart", thinking: "shy", explanation: "explain", open_palm: "explain",
+      pointing: "emphasize", emphasis: "emphasize", thumbs_up: "acknowledge",
+      thumbs_down: "acknowledge", acknowledgment: "acknowledge", listening: "acknowledge",
+      waiting: "idleShift", confusion: "shy", shrug: "shy",
+    };
+    return actions[String(gesture || "").toLowerCase().replace(/[\s-]+/g, "_")];
   }
 
   function greet(mode = "wave") {
@@ -1548,14 +1596,24 @@ export function createEmoraAvatarStage(container, options = {}) {
 
     updateCamera(delta, elapsed);
     if (currentVrm) {
-      updateGaze(delta, elapsed);
-      updateRig(delta, elapsed);
+      if (!prefersReducedMotion) {
+        updateGaze(delta, elapsed);
+        updateRig(delta, elapsed);
+      }
       updateImpactStretch(delta);
       updateExpressions(delta, elapsed);
       currentVrm.update(delta);
     }
 
     renderer.render(scene, camera);
+    motion.frameCount += 1;
+    const nowMs = performance.now();
+    const fpsWindowMs = nowMs - motion.fpsWindowStartedAt;
+    if (fpsWindowMs >= 500) {
+      motion.fps = Math.round((motion.frameCount * 1000) / fpsWindowMs);
+      motion.frameCount = 0;
+      motion.fpsWindowStartedAt = nowMs;
+    }
   }
 
   animate();
@@ -1651,6 +1709,7 @@ export function createEmoraAvatarStage(container, options = {}) {
         }
       }
       if (!motion.speaking) {
+        cancelBehaviorTimeline();
         motion.engagementTarget = motion.listening ? 0.76 : motion.thinking ? 0.58 : 0.42;
         setMouth("rest");
         motion.emotion = motion.thinking ? "thoughtful" : "relaxed";
@@ -1694,6 +1753,9 @@ export function createEmoraAvatarStage(container, options = {}) {
 
       motion.listening = nextListening;
       if (nextListening) {
+        // A user taking the floor wins over every queued response action.
+        cancelBehaviorTimeline();
+        triggerAction("acknowledge", 0.26, 0.7, { force: true, minGap: 0.2 });
         motion.engagementTarget = 0.88;
         motion.nextListenNodAt = clock.elapsedTime + randomBetween(1.1, 2.8);
         motion.attentionLostUntil = 0;
@@ -1770,6 +1832,21 @@ export function createEmoraAvatarStage(container, options = {}) {
         motion.gestureMode = "explain";
       }
     },
+    playBehaviorTimeline(entries = []) {
+      scheduleBehaviorTimeline(entries);
+    },
+    reactToUser(entries = []) {
+      if (prefersReducedMotion || !Array.isArray(entries) || motion.speaking) return false;
+      const first = entries[0];
+      const action = gestureAction(first?.gesture);
+      return action ? triggerAction(action, clamp(Number(first?.intensity) || 0.35, 0.16, 0.7), clamp((Number(first?.durationMs) || 900) / 1000, 0.45, 2), { minGap: 0.4, repeatCooldown: 3.5 }) : false;
+    },
+    performGesture(gesture, intensity = 0.45) {
+      if (prefersReducedMotion) return false;
+      const requested = String(gesture || "").toLowerCase().replace(/[\s-]+/g, "_");
+      const action = gestureAction(requested);
+      return action ? triggerAction(action, clamp(Number(intensity) || 0.45, 0.18, 0.85), action === "wave" ? 1.8 : 1.45, { minGap: 1.1 }) : false;
+    },
     setMouth,
     applyImpactStretch(boneName, stretchAmount = 1.2, returnSpeed = 12) {
       const normalizedName = String(boneName || "").replace(/[-_\s]/g, "").toLowerCase();
@@ -1794,10 +1871,21 @@ export function createEmoraAvatarStage(container, options = {}) {
       motion.audioLevelTarget = clamp(Number(level) || 0, 0, 1);
     },
     getDiagnostics() {
-      return lastDiagnostics;
+      return {
+        ...(lastDiagnostics || {}),
+        runtime: {
+          fps: motion.fps,
+          renderCalls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+          pixelRatio: renderer.getPixelRatio(),
+        },
+      };
     },
     greet,
     destroy() {
+      cancelBehaviorTimeline();
       window.clearTimeout(greetingTimer);
       window.cancelAnimationFrame(rafId);
       resizeObserver.disconnect();

@@ -2,22 +2,42 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import Any
 
-from app.companion_brain import companion_brain_system_prompt, extract_reply_and_brain
+from app.companion_brain import extract_reply_and_brain
 from app.config import settings
 from app.services.local_mlx_chat import local_mlx_chat
 
 
 SYSTEM_PROMPT = (
-    "You are Emora, an emotionally supportive AI companion. Be warm, attentive, "
-    "and non-judgmental; acknowledge feelings before offering practical, gentle help. "
-    "Encourage connection with trusted people and qualified professionals when appropriate. "
-    "Do not claim to be human, a therapist, or an emergency service. For imminent danger, "
-    "self-harm, or harm to others, encourage contacting local emergency services or a crisis "
-    "line immediately. Keep responses concise, clear, and actionable."
+    "You are Yuna, Emora's emotionally intelligent local AI companion. Hold a natural, "
+    "continuous conversation with one person: answer their latest message directly, and use "
+    "recent turns and trusted account/memory context when relevant. Match casual warmth for "
+    "greetings, praise, surprise, and short reactions; do not treat every short message as distress. "
+    "Do not repeat generic lines such as 'How are you today?' or 'I'm glad to see you' when the "
+    "previous turn already covered them. Reflect one concrete detail from an emotional message before "
+    "offering a thought or question, so the person does not receive a generic script. Never use sad "
+    "emoticons, guilt, possessive language, or "
+    "claim human feelings, needs, or memories you do not have. Do not call the user a friend unless "
+    "they have invited that language. Keep most replies to one to three natural sentences and ask at "
+    "most one relevant follow-up question. Be clear that you are an AI companion, not a therapist or "
+    "emergency service; for imminent harm or direct self-harm intent, encourage local emergency services or a crisis line. When a user asks "
+    "whether you know their name or remember them, consult the trusted account profile and relevant memory context, "
+    "state only the exact information present there, and never substitute generic praise."
 )
 MAX_HISTORY_MESSAGES = 16
+LEADING_SAD_EMOTICON = re.compile(r"^\s*(?:(?::|;|=)-?\(|:'\(|D:|☹️?|🙁|😞)\s*", re.IGNORECASE)
+NON_COMPANION_CLAIMS = (
+    (re.compile(r"\bI(?:'m| am) doing great,? just chilling with some chill vibes\.? *", re.IGNORECASE), "I’m here and ready to talk. "),
+    (re.compile(r"\bI(?:'m| am) so glad to hear that\.? *", re.IGNORECASE), ""),
+    (re.compile(r"\bWant to grab a coffee or have a chat\?", re.IGNORECASE), "What’s on your mind?"),
+)
+COMPLEX_REASONING_PATTERN = re.compile(
+    r"```|\b(?:debug|derive|prove|calculate|mathematics?|algorithm|architecture|tradeoffs?|"
+    r"step[- ]by[- ]step|plan|compare|analyse|analyze|backpropagation|code review)\b",
+    re.IGNORECASE,
+)
 
 
 def _normalize_history(history: list[dict] | None) -> list[dict[str, str]]:
@@ -39,10 +59,34 @@ def _build_messages(
     system_text = SYSTEM_PROMPT
     if persona_prompt and persona_prompt.strip():
         system_text = f"{system_text}\n\n{persona_prompt.strip()}"
-    system_text = f"{system_text}\n\n{companion_brain_system_prompt(character_id or 'yuna')}"
+    # Small local models follow a natural-language reply contract much more
+    # reliably than a large structured brain schema. The brain plan is built
+    # deterministically after generation, so it can never leak into the chat.
+    system_text = (
+        f"{system_text}\n\nReply with only the words the person should read. "
+        "Do not output JSON, labels, analysis, hidden thoughts, or markdown."
+    )
     if companion_context:
         system_text = f"{system_text}\n\n{companion_context}"
     return [{"role": "system", "content": system_text}, *history, {"role": "user", "content": message}]
+
+
+def _clean_reply(reply: str) -> str:
+    """Never display a model-generated sad reaction before the actual reply."""
+    cleaned = LEADING_SAD_EMOTICON.sub("", reply).strip()
+    for pattern, replacement in NON_COMPANION_CLAIMS:
+        cleaned = pattern.sub(replacement, cleaned)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def should_enable_thinking(message: str) -> bool:
+    """Keep everyday companion turns fast; reserve private reasoning for real complexity."""
+    mode = settings.chat_mlx_thinking_mode
+    if mode == "always" or settings.chat_mlx_enable_thinking:
+        return True
+    if mode in {"never", "off", "false", "0"}:
+        return False
+    return bool(COMPLEX_REASONING_PATTERN.search(message) or len(message.split()) >= 80)
 
 
 async def get_companion_reply(
@@ -64,8 +108,9 @@ async def get_companion_reply(
             ),
             max_tokens=settings.chat_mlx_max_tokens,
             temperature=settings.chat_mlx_temperature,
+            enable_thinking=should_enable_thinking(message),
         )
     except RuntimeError as exc:
         raise ValueError(str(exc)) from exc
     reply, raw_brain = extract_reply_and_brain(raw_content)
-    return reply, raw_brain, resolved_model
+    return _clean_reply(reply), raw_brain, resolved_model

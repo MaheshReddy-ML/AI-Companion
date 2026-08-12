@@ -141,11 +141,9 @@ form.addEventListener("submit", submitLogin);
     return;
   }
 
-  const existingSession = await ensureSession({ redirectTo: null });
-  if (existingSession?.verified) {
-    redirect("/dashboard");
-    return;
-  }
+  // A shared device may intentionally switch accounts; do not force an
+  // existing local session back to the dashboard from the sign-in page.
+  await ensureSession({ redirectTo: null });
 
   if (document.readyState === "complete") {
     initializeGoogleButton();
