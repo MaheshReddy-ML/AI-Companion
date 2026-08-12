@@ -1,5 +1,9 @@
+from datetime import datetime, timezone
+
 from pydantic import ValidationError
 
+from app.database import as_utc
+from app.email_templates import build_otp_verification_email
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
 from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, build_memory_context, dashboard_from_messages, extract_memory_candidates, vision_prompt_context
@@ -206,6 +210,21 @@ def test_otp_hash_does_not_store_plain_code_and_verifies():
     assert "123456" not in stored
     assert verify_otp_hash("123456", stored)
     assert not verify_otp_hash("654321", stored)
+
+
+def test_otp_email_template_renders_the_dynamic_code_in_html_and_plain_text():
+    html, plain_text = build_otp_verification_email("123456")
+
+    assert "123456" in html
+    assert "123456" in plain_text
+    assert "AI Companion" in html
+    assert "10 minutes" in plain_text
+
+
+def test_as_utc_treats_naive_database_timestamps_as_utc():
+    stored_by_pymongo = datetime(2026, 8, 12, 10, 30)
+
+    assert as_utc(stored_by_pymongo) == datetime(2026, 8, 12, 10, 30, tzinfo=timezone.utc)
 
 
 def test_post_moderation_marks_blocked_content_for_review():

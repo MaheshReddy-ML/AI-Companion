@@ -21,10 +21,17 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc(value: datetime) -> datetime:
+    """Return a UTC-aware datetime, including PyMongo's naive UTC values."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def to_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return as_utc(value).isoformat().replace("+00:00", "Z")
 
 
 def get_client() -> MongoClient:

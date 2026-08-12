@@ -6,7 +6,7 @@ import logging
 import random
 import re
 from pathlib import Path
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -21,7 +21,8 @@ from app.avatar_catalog import (
     list_avatar_presets,
 )
 from app.config import settings
-from app.database import serialize_user, users_collection, utc_now
+from app.database import as_utc, serialize_user, users_collection, utc_now
+from app.email_templates import build_otp_verification_email
 from app.email_utils import send_email_html
 from app.models.schemas import (
     AvatarPresetUpdateRequest,
@@ -386,11 +387,8 @@ def send_otp(payload: SendOtpRequest) -> dict:
         },
     )
 
-    delivered = send_email_html(
-        email,
-        "Your Verification Code",
-        f"<h3>Your OTP is: <b style='color:#1b7eb1;'>{otp}</b></h3><p>Valid for 10 minutes.</p>",
-    )
+    otp_html, otp_text = build_otp_verification_email(otp)
+    delivered = send_email_html(email, "Your Verification Code", otp_html, otp_text)
 
     if not delivered:
         logger.warning("OTP for %s generated but email was not delivered because SMTP is not configured.", email)
@@ -411,7 +409,8 @@ def verify_otp(payload: VerifyOtpRequest) -> dict:
         raise HTTPException(status_code=404, detail="User not found")
 
     expiry = user.get("reset_otp_expiry")
-    if not verify_otp_hash(otp, user.get("reset_otp_hash") or user.get("reset_otp")) or not expiry or expiry < utc_now():
+    expiry_utc = as_utc(expiry) if isinstance(expiry, datetime) else None
+    if not verify_otp_hash(otp, user.get("reset_otp_hash") or user.get("reset_otp")) or not expiry_utc or expiry_utc < utc_now():
         audit_event("auth.otp.verify.failed", user_id=user["_id"], email=email, reason="invalid_or_expired")
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
