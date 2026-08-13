@@ -10,6 +10,7 @@
         <span class="logo-mark">AI</span>
         <span class="logo-name">Emora</span>
       </a>
+      <span class="chat-brand-tagline">A quiet place to talk</span>
     </div>
 
     <div class="nav-group">
@@ -75,28 +76,47 @@
     <div class="chat-route">
       <div class="chat-main">
         <div class="chat-header chat-route-header">
+          <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="m10 9-3 3 3 3"/></svg>
+          </button>
           <div class="chat-companion-info">
             <div class="companion-avatar">
               AI
               <div class="online-dot"></div>
             </div>
             <div>
-              <div class="companion-name" id="active-chat-title">Emora</div>
+              <div class="companion-name" id="active-chat-title">Emora <span class="companion-verified" aria-label="Verified companion">✓</span></div>
               <div class="companion-status" id="active-chat-meta">Present and ready to listen.</div>
             </div>
           </div>
           <div class="chat-header-actions">
-            <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button">Pin</button>
-            <button class="btn btn-outline btn-sm" id="share-chat-button" type="button">Share</button>
-            <button class="btn btn-outline btn-sm" id="export-chat-button" type="button">Export</button>
-            <button class="btn btn-outline btn-sm" id="postcard-button" type="button">Voice postcard</button>
-            <button class="btn btn-ghost btn-sm" id="delete-chat-button" type="button">Delete</button>
+            <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-4 1-3 3-1-4-4-1 3-3 1-4 2 2Z"/></svg>Pin</button>
+            <button class="btn btn-outline btn-sm" id="share-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg>Share</button>
+            <button class="btn btn-outline btn-sm" id="export-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>Export</button>
+            <button class="btn btn-outline btn-sm chat-postcard-action" id="postcard-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9v6m4-9v12m4-8v4m4-7v10"/></svg>Voice postcard</button>
+            <button class="btn btn-ghost btn-sm chat-delete-action" id="delete-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v5m4-5v5M9 7l1-3h4l1 3m-8 0 1 13h8l1-13"/></svg>Delete</button>
           </div>
         </div>
 
         <section class="chat-stage" id="chat-stage" data-companion-state="idle" aria-label="Conversation with Emora">
           <div class="chat-atmosphere" aria-hidden="true"><i></i><i></i></div>
-          <div class="chat-empty-copy" id="chat-empty-copy"><span>A quiet place to talk</span><h1>What’s on your mind?</h1><p>There’s no need to have it all figured out.</p></div>
+          <div class="chat-empty-copy" id="chat-empty-copy">
+            <div class="chat-companion-sprite" aria-hidden="true">
+              <span class="chat-companion-aura"></span>
+              <span class="chat-companion-body"><i></i><i></i><b></b></span>
+              <span class="chat-companion-spark spark-one">✦</span>
+              <span class="chat-companion-spark spark-two">✧</span>
+            </div>
+            <span>A quiet <em>place</em> to talk</span>
+            <h1>What’s on your <em>mind?</em></h1>
+            <p>There’s no need to have it all figured out.<br>I’m here, whenever you’re ready.</p>
+            <div class="chat-prompt-chips" aria-label="Suggested ways to begin">
+              <button type="button" data-chat-prompt="I want to talk about my day.">☀ <span>Talk about my day</span></button>
+              <button type="button" data-chat-prompt="Help me think this through.">◉ <span>Help me think</span></button>
+              <button type="button" data-chat-prompt="I’m feeling anxious and could use a calm check-in.">♡ <span>I’m feeling anxious</span></button>
+              <button type="button" data-chat-prompt="Let’s get real about what I’m feeling.">✦ <span>Let’s get real</span></button>
+            </div>
+          </div>
           <div id="chat-toast" class="toast status" hidden></div>
           <div id="chat-messages" class="messages-list"></div>
         </section>

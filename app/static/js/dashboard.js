@@ -18,8 +18,12 @@ import {
   showStatus,
 } from "./common.js";
 
+const SIDEBAR_STATE_KEY = "ai-companion:chat-sidebar-collapsed";
+
 const elements = {
+  chatLayout: document.querySelector(".chat-route-layout"),
   sidebar: document.getElementById("dashboard-sidebar"),
+  sidebarToggle: document.getElementById("sidebar-toggle"),
   pinnedList: document.getElementById("pinned-conversations"),
   recentList: document.getElementById("recent-conversations"),
   sidebarUserAvatar: document.getElementById("sidebar-user-avatar"),
@@ -748,6 +752,19 @@ async function handleSend(promptOverride = null) {
 }
 
 function bindStaticEvents() {
+  const setSidebarCollapsed = (collapsed, { persist = true } = {}) => {
+    elements.chatLayout?.classList.toggle("sidebar-collapsed", collapsed);
+    elements.sidebarToggle?.setAttribute("aria-expanded", String(!collapsed));
+    elements.sidebarToggle?.setAttribute("aria-label", collapsed ? "Open sidebar" : "Collapse sidebar");
+    elements.sidebarToggle?.setAttribute("title", collapsed ? "Open sidebar" : "Collapse sidebar");
+    if (persist) localStorage.setItem(SIDEBAR_STATE_KEY, String(collapsed));
+  };
+
+  setSidebarCollapsed(localStorage.getItem(SIDEBAR_STATE_KEY) === "true", { persist: false });
+  elements.sidebarToggle?.addEventListener("click", () => {
+    setSidebarCollapsed(!elements.chatLayout?.classList.contains("sidebar-collapsed"));
+  });
+
   elements.messageInput.addEventListener("input", () => {
     persistDraftForActiveConversation();
     resizeComposer();
@@ -768,6 +785,15 @@ function bindStaticEvents() {
       event.preventDefault();
       handleSend();
     }
+  });
+
+  document.querySelectorAll("[data-chat-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      elements.messageInput.value = button.dataset.chatPrompt || "";
+      persistDraftForActiveConversation();
+      resizeComposer();
+      elements.messageInput.focus();
+    });
   });
 
   elements.sendButton.addEventListener("click", () => handleSend());

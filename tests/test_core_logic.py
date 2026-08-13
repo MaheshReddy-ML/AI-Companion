@@ -185,6 +185,8 @@ def test_account_profile_context_is_data_and_does_not_invent_memory():
     context = account_profile_prompt_context({"name": "Mahesh"})
     assert '"display_name": "Mahesh"' in context
     assert "do not claim memories" in context
+    assert "created by Mahesh" in context
+    assert "Parul University" in context
 
 
 def test_visual_report_parser_limits_results_to_safe_momentary_categories():

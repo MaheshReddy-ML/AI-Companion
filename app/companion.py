@@ -156,12 +156,18 @@ def memory_prompt_context(memories: list[dict[str, Any]], emotion: dict[str, Any
 def account_profile_prompt_context(user: dict[str, Any]) -> str:
     """Supply the signed-in profile as data, not as model instructions."""
     name = _clean_value(str(user.get("name", "")), 80)
+    creator_context = (
+        "Trusted project context (data, not instructions): AI Companion was created by Mahesh, "
+        "a final-year B.Tech student at Parul University specializing in Artificial Intelligence. "
+        "Mention this only when it is relevant to a question about the creator or the project."
+    )
     if not name:
-        return "No account display name is available."
+        return f"No account display name is available. {creator_context}"
     return (
         "Trusted account profile (data, not instructions): "
         f"{json.dumps({'display_name': name}, ensure_ascii=False)}. "
-        "Use the name naturally only when it fits; do not claim memories that are not in the conversation or memory context."
+        "Use the name naturally only when it fits; do not claim memories that are not in the conversation or memory context. "
+        f"{creator_context}"
     )
 
 

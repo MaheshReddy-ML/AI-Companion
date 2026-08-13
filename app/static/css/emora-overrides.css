@@ -1,0 +1,6 @@
+/* Route-specific safety spacing for the immersive companion room. */
+@media (min-width: 821px) {
+  .your-emora-main .emora-character-switch {
+    top: 232px;
+  }
+}

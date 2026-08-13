@@ -20,7 +20,12 @@ const elements = {
   accountExportButton: document.getElementById("account-export-button"),
   clearHistoryButton: document.getElementById("clear-history-button"),
   deleteAccountButton: document.getElementById("delete-account-button"),
+  editButton: document.getElementById("profile-edit-button"),
+  avatarStudio: document.querySelector(".avatar-studio"),
+  preferenceButtons: Array.from(document.querySelectorAll("[data-profile-preference]")),
 };
+
+const PREFERENCE_PREFIX = "ai-companion:profile-preference:";
 
 const state = {
   presets: [],
@@ -215,6 +220,29 @@ async function handleUpload(file) {
 }
 
 function bindEvents() {
+  elements.editButton?.addEventListener("click", () => {
+    elements.avatarStudio?.scrollIntoView({ behavior: "smooth", block: "center" });
+    elements.avatarStudio?.classList.remove("profile-spotlight");
+    window.requestAnimationFrame(() => elements.avatarStudio?.classList.add("profile-spotlight"));
+    showStatus(elements.status, "Choose an avatar or upload a photo to personalise your profile.", "info");
+  });
+
+  elements.preferenceButtons.forEach((button) => {
+    const key = button.dataset.profilePreference;
+    const stored = key ? localStorage.getItem(`${PREFERENCE_PREFIX}${key}`) : null;
+    const enabled = stored === null ? button.classList.contains("on") : stored === "true";
+    button.classList.toggle("on", enabled);
+    button.setAttribute("aria-checked", String(enabled));
+    button.addEventListener("click", () => {
+      const nextValue = !button.classList.contains("on");
+      button.classList.toggle("on", nextValue);
+      button.setAttribute("aria-checked", String(nextValue));
+      if (key) localStorage.setItem(`${PREFERENCE_PREFIX}${key}`, String(nextValue));
+      button.animate([{ transform: "scale(.82)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 360, easing: "cubic-bezier(.2,.9,.25,1)" });
+      showStatus(elements.status, `${button.getAttribute("aria-label")?.replace("Toggle ", "") || "Preference"} ${nextValue ? "enabled" : "paused"} on this device.`, "success");
+    });
+  });
+
   elements.filterButtons.forEach((button) => {
     button.addEventListener("click", () => {
       if (state.busy) {

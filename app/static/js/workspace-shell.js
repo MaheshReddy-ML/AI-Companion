@@ -204,7 +204,19 @@ async function populateInsights(days = 30) {
       const button = event.target.closest("[data-insight-days]");
       if (!button) return;
       document.querySelectorAll("[data-insight-days]").forEach((item) => item.classList.toggle("active", item === button));
-      await populateInsights(Number(button.dataset.insightDays));
+      button.classList.add("is-loading");
+      try {
+        await populateInsights(Number(button.dataset.insightDays));
+      } finally {
+        button.classList.remove("is-loading");
+      }
+    });
+    document.querySelectorAll("[data-mood]").forEach((cell) => {
+      cell.addEventListener("click", () => {
+        document.querySelectorAll("[data-mood]").forEach((item) => item.classList.toggle("is-focused", item === cell));
+        const count = cell.querySelector(".mood-cell-count")?.textContent || "0";
+        document.getElementById("insights-notice")?.replaceChildren(`${cell.querySelector("p")?.textContent || "This"} appeared in ${count} saved check-in${count === "1" ? "" : "s"} for the selected range.`);
+      });
     });
   } catch {
     document.getElementById("insights-notice")?.replaceChildren("Insights will appear after you have a saved conversation.");
