@@ -46,10 +46,10 @@ PLAN_ENTITLEMENTS = {
 }
 
 PLAN_LIMITS = {
-    "free": {"chatMessageCharacters": 2_000, "chatHistoryMessages": 8, "chatConcurrentRequests": 1, "ttsCharacters": 0, "ttsConcurrentRequests": 0},
-    "plus": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2},
-    "pro": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2},
-    "complete": {"chatMessageCharacters": 12_000, "chatHistoryMessages": 24, "chatConcurrentRequests": 4, "ttsCharacters": 5_000, "ttsConcurrentRequests": 4},
+    "free": {"chatMessageCharacters": 2_000, "chatHistoryMessages": 8, "chatConcurrentRequests": 1, "ttsCharacters": 0, "ttsConcurrentRequests": 0, "webSearchesPerHour": 5},
+    "plus": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2, "webSearchesPerHour": 20},
+    "pro": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2, "webSearchesPerHour": 40},
+    "complete": {"chatMessageCharacters": 12_000, "chatHistoryMessages": 24, "chatConcurrentRequests": 4, "ttsCharacters": 5_000, "ttsConcurrentRequests": 4, "webSearchesPerHour": 80},
 }
 
 

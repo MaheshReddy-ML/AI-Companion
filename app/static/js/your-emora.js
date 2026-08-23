@@ -11,6 +11,7 @@ import {
   guardEntitlement,
   hasStoredEntitlement,
   initChrome,
+  publishEmoraPresence,
   renderUserAvatar,
   showStatus,
 } from "./common.js";
@@ -142,6 +143,7 @@ const state = {
   recognitionStarting: false,
   silenceTimer: null,
   thinking: false,
+  searching: false,
   speaking: false,
   speechLoading: false,
   voiceReplies: true,
@@ -159,6 +161,7 @@ const state = {
   bargeInSince: 0,
   audioLevelRaf: 0,
   speechAbortController: null,
+  chatAbortController: null,
   streamSources: new Set(),
   streamPlaybackTimer: null,
   streamGeneration: 0,
@@ -379,11 +382,15 @@ function monitorMicLevel() {
     sum += centered * centered;
   }
   const level = Math.sqrt(sum / state.micSamples.length);
-  if (state.speaking && state.voiceSessionActive && level > 0.11) {
+  if ((state.speaking || state.searching) && state.voiceSessionActive && level > 0.11) {
     state.bargeInSince ||= performance.now();
     if (performance.now() - state.bargeInSince > 300) {
       cancelSpeechPlayback();
+      state.chatAbortController?.abort?.();
+      state.chatAbortController = null;
       state.awaitingReply = false;
+      state.searching = false;
+      state.thinking = false;
       elements.stage.dataset.companionState = "INTERRUPTED";
       setStatus("Interrupted — listening to you.", "info");
       void startListening({ keepSession: true });
@@ -510,7 +517,7 @@ async function initializeAvatarStage() {
     await state.avatarStage.setCharacter(currentCharacter());
     updateSignals();
   } catch (error) {
-    console.error("Your Emora 3D stage could not start.", error);
+    console.error("Meet Emora 3D stage could not start.", error);
     const loader = elements.characterCrop.querySelector("[data-emora-avatar-loader]");
     if (loader) {
       loader.hidden = false;
@@ -535,6 +542,11 @@ function renderMessages() {
         <article class="emora-message ${message.role} ${index === state.messages.length - 1 ? "latest" : ""}">
           <span>${escapeHtml(message.role === "assistant" ? currentCharacter().name : displayNameForUser(state.user))}</span>
           <p>${escapeHtml(message.content)}</p>
+          ${message.role === "assistant" && message.webSearch?.sources?.length ? `
+            <details class="emora-web-sources">
+              <summary>⌕ Web sources · ${message.webSearch.sources.length}</summary>
+              ${message.webSearch.sources.map((source) => `<a href="${escapeHtml(source.url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || source.domain || "Source")}</a>`).join("")}
+            </details>` : ""}
         </article>`)
     .join("");
 
@@ -556,12 +568,12 @@ function updateSignals() {
   elements.cameraTile.dataset.active = cameraOn ? "true" : "false";
   elements.cameraPlaceholder.hidden = cameraOn;
   elements.permissionSummary.textContent = cameraOn && micOn ? "Live inputs on" : cameraOn || micOn ? "Partly enabled" : "Ready";
-  elements.listeningSignal.textContent = state.listening ? "Listening" : state.thinking ? "Thinking" : state.speechLoading ? "Voicing" : "Idle";
+  elements.listeningSignal.textContent = state.listening ? "Listening" : state.searching ? "Searching" : state.thinking ? "Thinking" : state.speechLoading ? "Voicing" : "Idle";
   elements.visionSignal.textContent = cameraOn ? "Ready" : "Off";
   elements.voiceSignal.textContent = state.voiceReplies ? currentCharacter().voiceLabel || `Soft ${currentCharacter().voiceGender || "voice"}` : "Off";
   elements.voiceSignal.title = state.voiceName ? `Using ${state.voiceName}` : "";
-  const socialState = state.speaking ? "speaking" : state.thinking || state.speechLoading ? "thinking" : state.listening ? "listening" : "idle";
-  const socialLabel = state.speaking ? `Present · ${state.companionEmotion}` : state.thinking || state.speechLoading ? "Reflecting · attentive" : state.listening ? "Listening · attentive" : "Present · calm";
+  const socialState = state.speaking ? "speaking" : state.searching ? "searching" : state.thinking || state.speechLoading ? "thinking" : state.listening ? "listening" : "idle";
+  const socialLabel = state.speaking ? `Present · ${state.companionEmotion}` : state.searching ? "Checking · current sources" : state.thinking || state.speechLoading ? "Reflecting · attentive" : state.listening ? "Listening · attentive" : "Present · calm";
   if (elements.socialPresence) {
     elements.socialPresence.dataset.state = socialState;
     elements.socialPresence.textContent = socialLabel;
@@ -577,10 +589,11 @@ function updateSignals() {
   elements.listenButton.disabled = state.thinking;
   elements.sendButton.disabled = state.thinking;
   elements.messageInput.disabled = state.thinking;
-  elements.interruptButton.hidden = !state.speaking && !state.speechLoading;
+  elements.interruptButton.hidden = !state.speaking && !state.speechLoading && !state.thinking;
   elements.stage.dataset.speaking = state.speaking ? "true" : "false";
   elements.stage.dataset.companionState = socialState;
   elements.stage.dataset.companionEmotion = state.companionEmotion;
+  publishEmoraPresence(state.speaking ? "SPEAKING" : state.searching ? "SEARCHING" : state.thinking || state.speechLoading ? "THINKING" : state.listening ? "LISTENING" : "WITH YOU");
   state.avatarStage?.setListening(state.listening);
   state.avatarStage?.setThinking((state.thinking || state.speechLoading) && !state.speaking);
 }
@@ -936,7 +949,7 @@ async function speakReply(text, brain = null) {
   }
 }
 
-async function requestCompanionReply(content) {
+async function requestCompanionReply(content, signal) {
   const character = currentCharacter();
   const cameraFrame = captureCameraCheckIn();
   return apiRequest("/api/chat", {
@@ -946,11 +959,12 @@ async function requestCompanionReply(content) {
       conversationId: state.conversationId || undefined,
       message: content,
       characterId: character.id,
-      characterName: `Your Emora - ${character.name}`,
+      characterName: `Meet Emora - ${character.name}`,
       personaPrompt: buildPersonaPrompt(),
       cameraOptIn: Boolean(cameraFrame),
       cameraFrame: cameraFrame || undefined,
     },
+    signal,
   });
 }
 
@@ -967,6 +981,8 @@ async function sendMessage(messageOverride = "") {
   const character = currentCharacter();
   const chatStartedAt = performance.now();
   state.thinking = true;
+  state.searching = false;
+  state.chatAbortController = new AbortController();
   elements.messageInput.value = "";
   state.messages.push({ role: "user", content });
   state.messages.push({ role: "assistant", content: `${character.name} is thinking...` });
@@ -974,16 +990,30 @@ async function sendMessage(messageOverride = "") {
   updateSignals();
 
   try {
+    try {
+      const decision = await apiRequest("/api/chat/search-decision", {
+        method: "POST", auth: true, body: { message: content }, signal: state.chatAbortController.signal,
+      });
+      state.searching = Boolean(decision?.needsWeb);
+      if (state.searching) {
+        state.messages[state.messages.length - 1] = { role: "assistant", content: `${character.name} is checking current sources…` };
+        setStatus("⌕ Looking that up…", "info");
+        renderMessages();
+        updateSignals();
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+    }
     let response;
     try {
-      response = await requestCompanionReply(content);
+      response = await requestCompanionReply(content, state.chatAbortController.signal);
     } catch (error) {
       if (error.status !== 404 || !state.conversationId) {
         throw error;
       }
       localStorage.removeItem(getConversationStorageKey());
       state.conversationId = "";
-      response = await requestCompanionReply(content);
+      response = await requestCompanionReply(content, state.chatAbortController.signal);
     }
 
     state.conversationId = response?.conversation?.id || state.conversationId;
@@ -1003,14 +1033,14 @@ async function sendMessage(messageOverride = "") {
       generationStats: response?.generationStats || null,
       renderStats: state.avatarStage?.getDiagnostics?.() || null,
     });
-    state.messages[state.messages.length - 1] = { role: "assistant", content: reply };
+    state.messages[state.messages.length - 1] = { role: "assistant", content: reply, webSearch: response?.aiMessage?.webSearch || null };
     renderMessages();
     if (brain) {
       state.avatarStage?.setBrainBehavior?.(brain);
       state.avatarStage?.reactToUser?.(brain?.behavior?.userReaction || []);
       await performThinkingMoment(brain);
     }
-    void speakReply(reply, brain);
+    void speakReply(response?.speechText || reply.replace(/https?:\/\/\S+/gi, "").trim(), brain);
     if (response?.warning) {
       setStatus(response.warning, "warning");
     } else if (!state.voiceReplies) {
@@ -1018,6 +1048,12 @@ async function sendMessage(messageOverride = "") {
     }
   } catch (error) {
     state.awaitingReply = false;
+    if (error?.name === "AbortError") {
+      state.messages.pop();
+      renderMessages();
+      setStatus("Search and response interrupted.", "info");
+      return;
+    }
     state.messages[state.messages.length - 1] = {
       role: "assistant",
       content: "I could not reach the companion model right now. Try again in a moment, or continue in the text workspace.",
@@ -1026,6 +1062,8 @@ async function sendMessage(messageOverride = "") {
     setStatus(error.message || "Could not send your message.");
   } finally {
     state.thinking = false;
+    state.searching = false;
+    state.chatAbortController = null;
     updateSignals();
     if (!state.voiceReplies) resumeContinuousListening();
     elements.messageInput.focus();
@@ -1039,7 +1077,7 @@ function resetSession() {
   state.messages = [];
   renderMessages();
   updateSignals();
-  setStatus("New Your Emora session started.", "success");
+  setStatus("New Meet Emora session started.", "success");
 }
 
 function switchCharacter(characterId) {
@@ -1090,7 +1128,11 @@ function bindEvents() {
   elements.newSessionButton.addEventListener("click", resetSession);
   elements.interruptButton.addEventListener("click", () => {
     cancelSpeechPlayback();
+    state.chatAbortController?.abort?.();
+    state.chatAbortController = null;
     state.awaitingReply = false;
+    state.searching = false;
+    state.thinking = false;
     updateSignals();
     setStatus("Companion interrupted.", "info");
     if (state.voiceSessionActive) void startListening({ keepSession: true });
@@ -1119,6 +1161,7 @@ function bindEvents() {
   });
 
   window.addEventListener("beforeunload", () => {
+    publishEmoraPresence("LIVE");
     cancelSpeechPlayback();
     stopStream(state.cameraStream);
     stopStream(state.micStream);

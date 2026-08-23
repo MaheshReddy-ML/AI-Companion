@@ -65,10 +65,11 @@ class LocalMLXChatProvider:
         self,
         *,
         model_id: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         max_tokens: int,
         temperature: float,
         enable_thinking: bool = True,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         model, tokenizer, generate, make_sampler = self._runtime_for(model_id)
         # The cached Qwen3 1.7B MLX tokenizer predates its
@@ -80,11 +81,15 @@ class LocalMLXChatProvider:
             directive = "/think" if enable_thinking else "/no_think"
             rendered_messages[-1]["content"] = f"{rendered_messages[-1].get('content', '').rstrip()}\n{directive}"
         try:
-            rendered = tokenizer.apply_chat_template(
-                rendered_messages, add_generation_prompt=True, enable_thinking=enable_thinking
-            )
+            template_kwargs: dict[str, Any] = {"add_generation_prompt": True, "enable_thinking": enable_thinking}
+            if tools:
+                template_kwargs["tools"] = tools
+            rendered = tokenizer.apply_chat_template(rendered_messages, **template_kwargs)
         except TypeError:
-            rendered = tokenizer.apply_chat_template(rendered_messages, add_generation_prompt=True)
+            fallback_kwargs: dict[str, Any] = {"add_generation_prompt": True}
+            if tools:
+                fallback_kwargs["tools"] = tools
+            rendered = tokenizer.apply_chat_template(rendered_messages, **fallback_kwargs)
         except Exception as exc:
             raise RuntimeError(f"Could not format the local Qwen chat prompt: {exc}") from exc
 

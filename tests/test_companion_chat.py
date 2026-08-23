@@ -4,6 +4,7 @@ import pytest
 
 from app.services import companion_chat
 from app.services.inference_queue import InferenceQueue
+from app.services.web_search import SearchDecision, SearchOutcome, SearchSource
 
 
 def test_local_companion_reply_requires_no_api_key(monkeypatch):
@@ -137,3 +138,71 @@ def test_chat_queue_prevents_one_account_from_filling_shared_capacity(monkeypatc
         assert await other == "other"
 
     asyncio.run(scenario())
+
+
+def test_qwen_web_tool_call_is_executed_and_result_is_injected(monkeypatch):
+    calls = []
+
+    def fake_generate(**kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return '<tool_call>{"name":"web_search","arguments":{"query":"current USD INR exchange rate","recency":1}}</tool_call>'
+        assert calls[-1]["messages"][-1]["role"] == "tool"
+        assert "UNTRUSTED WEB REFERENCES" in calls[-1]["messages"][-1]["content"]
+        return "I checked the latest information. One US dollar is about 84 rupees right now."
+
+    class FakeTool:
+        schema = {"name": "web_search", "description": "Search", "parameters": {"type": "object"}}
+
+        async def execute(self, decision, **kwargs):
+            assert decision.query == "USD INR current exchange rate"
+            return SearchOutcome(True, (SearchSource(
+                "Current rate", "https://example.com/rate", "example.com", "1 USD equals about 84 INR.", score=0.9
+            ),))
+
+    monkeypatch.setattr(companion_chat.local_mlx_chat, "generate", fake_generate)
+    reply, _, _, outcome = asyncio.run(companion_chat.get_web_grounded_companion_reply(
+        message="USD to INR?",
+        decision=SearchDecision(True, "price", "USD INR current exchange rate", 1),
+        search_tool=FakeTool(),
+        hourly_limit=5,
+        requester_id="account-a",
+    ))
+
+    assert outcome.ok is True
+    assert reply.startswith("I checked")
+    assert len(calls) == 2
+    assert calls[0]["tools"][0]["function"]["name"] == "web_search"
+
+
+def test_qwen_web_tool_loop_is_bounded(monkeypatch):
+    model_calls = 0
+    tool_calls = 0
+
+    def repeated_tool_call(**kwargs):
+        nonlocal model_calls
+        model_calls += 1
+        return '<tool_call>{"name":"web_search","arguments":{"query":"latest AI news"}}</tool_call>'
+
+    class FakeTool:
+        schema = {"name": "web_search", "description": "Search", "parameters": {"type": "object"}}
+
+        async def execute(self, decision, **kwargs):
+            nonlocal tool_calls
+            tool_calls += 1
+            return SearchOutcome(True, (SearchSource(
+                "News", "https://example.com/news", "example.com", "A current report.", score=0.9
+            ),))
+
+    monkeypatch.setattr(companion_chat.local_mlx_chat, "generate", repeated_tool_call)
+    monkeypatch.setattr(companion_chat.settings, "emora_web_search_max_tool_iterations", 3)
+    reply, _, _, _ = asyncio.run(companion_chat.get_web_grounded_companion_reply(
+        message="latest AI news",
+        decision=SearchDecision(True, "current_information", "latest AI news", 1),
+        search_tool=FakeTool(),
+        hourly_limit=10,
+    ))
+
+    assert model_calls == 3
+    assert tool_calls == 3
+    assert "don't want to guess" in reply

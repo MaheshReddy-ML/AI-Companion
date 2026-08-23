@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -32,6 +32,38 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+@app.middleware("http")
+async def disable_development_browser_cache(request: Request, call_next):
+    """Keep localhost development from serving stale HTML, CSS, or JS.
+
+    Production retains normal browser and CDN caching. In development we also
+    remove conditional validators before StaticFiles runs, ensuring a cached
+    localhost request receives a fresh 200 response instead of a stale 304.
+    """
+    development = settings.environment.lower() != "production"
+    static_request = request.url.path.startswith("/static/")
+    if development and static_request:
+        request.scope["headers"] = [
+            (name, value)
+            for name, value in request.scope.get("headers", [])
+            if name.lower() not in {b"if-none-match", b"if-modified-since"}
+        ]
+
+    response = await call_next(request)
+    content_type = response.headers.get("content-type", "").lower()
+    if development and (static_request or "text/html" in content_type):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        if "etag" in response.headers:
+            del response.headers["etag"]
+        if "last-modified" in response.headers:
+            del response.headers["last-modified"]
+        if "text/html" in content_type:
+            response.headers["Clear-Site-Data"] = '"cache"'
+    return response
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -72,6 +104,9 @@ def readiness_check() -> dict:
         "database": database,
         "chatConfigured": True,
         "chatProvider": "local-mlx",
+        "webSearchEnabled": settings.emora_web_search_enabled,
+        "webSearchProvider": settings.emora_web_search_provider,
+        "webSearchConfigured": settings.emora_web_search_provider in {"duckduckgo", "ddg"} or bool(settings.emora_web_search_api_key),
         "emailConfigured": settings.email_configured,
         "googleConfigured": bool(settings.google_client_id),
     }

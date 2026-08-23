@@ -15,10 +15,12 @@ from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
 from app.access import has_entitlement, usage_limits_for_user
+from app.config import settings
 from app.database import conversations_collection, feature_collection, parse_object_id, to_iso, utc_now
 from app.rate_limit import rate_limit
 from app.security import get_current_user, require_entitlement
-from app.services.companion_chat import get_companion_reply
+from app.services.companion_chat import get_companion_reply, get_web_grounded_companion_reply
+from app.services.web_search import SearchOutcome, decide_web_search, web_search_tool
 from app.voice_manager import get_manager
 from app.tts_queue import generate_audio
 
@@ -26,10 +28,106 @@ from app.tts_queue import generate_audio
 router = APIRouter(prefix="/api/play", tags=["play"])
 
 QUESTS = [
-    {"id": "focus-sprint", "title": "Focus sprint", "description": "Spend 10 distraction-free minutes on one meaningful task."},
-    {"id": "gratitude-hunt", "title": "Gratitude hunt", "description": "Notice and write down three small things that helped today."},
-    {"id": "build-challenge", "title": "Build challenge", "description": "Take one small step toward an idea you want to make real."},
+    {"id": "one-quiet-minute", "title": "One quiet minute", "description": "Let one minute be unclaimed. Breathe normally and notice where you are.", "category": "CALM", "minutes": 1, "unlockAt": 0, "nextId": "carrying-thought", "reaction": "A little room can be enough."},
+    {"id": "carrying-thought", "title": "Something you’re carrying", "description": "Write one thought you would like to set down here for a moment.", "category": "REFLECT", "minutes": 3, "unlockAt": 0, "nextId": "gratitude-hunt", "reaction": "You gave that some thought."},
+    {"id": "gratitude-hunt", "title": "Three small supports", "description": "Notice three ordinary things that made today a little easier.", "category": "AWARENESS", "minutes": 3, "unlockAt": 0, "nextId": "build-challenge", "reaction": "You noticed what was holding you up."},
+    {"id": "focus-sprint", "title": "One visible step", "description": "Spend ten pressure-free minutes on the smallest useful part of something.", "category": "GROWTH", "minutes": 10, "unlockAt": 1, "reaction": "One real step moved."},
+    {"id": "build-challenge", "title": "Make one small thing", "description": "Move an idea forward through one tiny, visible act of making.", "category": "PLAY", "minutes": 5, "unlockAt": 0, "reaction": "Something exists now that did not before."},
+    {"id": "gentle-reach-out", "title": "A quiet connection", "description": "Think of one person you may want to check in with. Reaching out is optional.", "category": "CONNECTION", "minutes": 2, "unlockAt": 2, "reaction": "Connection can begin with simply remembering."},
+    {"id": "playful-detail", "title": "Find the playful detail", "description": "Notice one color, sound, shape, or tiny surprise you would normally pass by.", "category": "PLAY", "minutes": 2, "unlockAt": 4, "reaction": "The day had one more detail in it."},
+    {"id": "deeper-pattern", "title": "A pattern worth meeting", "description": "Name something that has been repeating, without trying to solve it yet.", "category": "REFLECT", "minutes": 6, "unlockAt": 3, "entitlement": "look_back", "plan": "Plus", "reaction": "You stayed with something that mattered."},
+    {"id": "shape-the-next-step", "title": "Shape what comes next", "description": "Turn one recurring thought into a gentle direction you can choose or leave.", "category": "GROWTH", "minutes": 7, "unlockAt": 6, "entitlement": "conversation_remix", "plan": "Pro", "reaction": "You made the next edge a little clearer."},
 ]
+
+PLAY_MILESTONES = (
+    (1, "you-started", "You started.", "One small moment made this space a little more alive."),
+    (5, "showing-up", "You’ve been showing up.", "Five private moments, kept without pressure."),
+    (10, "ten-moments", "Ten small moments.", "They add up, even when the days between them are quiet."),
+    (25, "space-growing", "Your space is growing.", "You have returned in your own time, and the room remembers that rhythm."),
+)
+
+PLAY_CATEGORY_FOR_MOOD = {
+    "quiet": "CALM", "heavy": "CALM", "scattered": "AWARENESS", "okay": "PLAY",
+    "energized": "GROWTH", "unsure": "REFLECT", "calm": "AWARENESS", "hopeful": "GROWTH",
+    "tired": "CALM", "anxious": "CALM", "low": "CONNECTION",
+}
+
+
+def _play_catalog_by_id() -> dict[str, dict]:
+    return {item["id"]: item for item in QUESTS}
+
+
+def _play_history(documents: list[dict]) -> dict:
+    completions: list[dict] = []
+    active_dates: list[str] = []
+    completed_ids: set[str] = set()
+    for document in documents:
+        day_items = [item for item in document.get("quests", []) if item.get("completed")]
+        if day_items:
+            active_dates.append(str(document.get("date") or ""))
+        for item in day_items:
+            completions.append(item)
+            completed_ids.add(str(item.get("id") or ""))
+    return {"total": len(completions), "activeDates": active_dates, "completedIds": completed_ids}
+
+
+def _play_stage(total: int) -> tuple[str, list[str], str]:
+    if total <= 0:
+        return "quiet", [], "Your space is waiting without expectation."
+    if total < 5:
+        return "glimmer", ["first-light"], "A small light has appeared because you began."
+    if total < 10:
+        return "waking", ["first-light", "soft-stars"], "The room is beginning to hold your rhythm."
+    if total < 25:
+        return "alive", ["first-light", "soft-stars", "growing-branch"], "Your private world is becoming more alive."
+    return "constellation", ["first-light", "soft-stars", "growing-branch", "constellation"], "A constellation of small moments has gathered here."
+
+
+def _play_accessible(quest: dict, user: dict, total: int) -> bool:
+    return total >= int(quest.get("unlockAt", 0)) and (not quest.get("entitlement") or has_entitlement(user, quest["entitlement"]))
+
+
+def _daily_play_selection(user: dict, total: int, mood: str = "", day: date | None = None) -> list[dict]:
+    accessible = [item for item in QUESTS if _play_accessible(item, user, total)]
+    preferred = PLAY_CATEGORY_FOR_MOOD.get(mood)
+    rotation = (day or utc_now().date()).toordinal() + sum(ord(char) for char in str(user.get("_id", ""))[-6:])
+    accessible.sort(key=lambda item: (0 if preferred and item["category"] == preferred else 1, (QUESTS.index(item) - rotation) % len(QUESTS)))
+    limit = 4 if has_entitlement(user, "look_back") else 3
+    return accessible[:limit]
+
+
+def _serialize_play_quest(quest: dict, stored: dict | None, history: dict, user: dict) -> dict:
+    stored = stored or {}
+    accessible = _play_accessible(quest, user, history["total"])
+    if not accessible:
+        state = "LOCKED"
+    elif stored.get("completed"):
+        state = "COMPLETED"
+    elif stored.get("started_at"):
+        state = "IN_PROGRESS"
+    elif quest["id"] in history["completedIds"]:
+        state = "REVISIT"
+    else:
+        state = "AVAILABLE"
+    reason = None
+    if state == "LOCKED":
+        if quest.get("entitlement") and not has_entitlement(user, quest["entitlement"]):
+            reason = f"A richer {quest.get('plan', 'Emora')} experience"
+        else:
+            remaining = max(1, int(quest.get("unlockAt", 0)) - history["total"])
+            reason = f"Keep {remaining} more meaningful moment{'s' if remaining != 1 else ''}"
+    return {
+        **quest,
+        "state": state,
+        "completed": state == "COMPLETED",
+        "startedAt": to_iso(stored.get("started_at")),
+        "completedAt": to_iso(stored.get("completed_at")),
+        "lockReason": reason,
+    }
+
+
+def _play_milestones(total: int) -> list[dict]:
+    return [{"id": item_id, "at": at, "title": title, "message": message} for at, item_id, title, message in PLAY_MILESTONES if total >= at]
 
 
 class MemoryRequest(BaseModel):
@@ -200,7 +298,7 @@ def _serialize_focus_message(message: dict, current_user_id) -> dict:
     sender_type = message.get("sender_type") or ("EMORA" if message.get("role") == "assistant" else "USER")
     is_assistant = sender_type == "EMORA"
     mine = not is_assistant and message.get("author_id") == current_user_id
-    return {
+    payload = {
         "id": str(message.get("id", "")),
         "role": "assistant" if is_assistant else "user",
         "senderType": sender_type,
@@ -209,6 +307,9 @@ def _serialize_focus_message(message: dict, current_user_id) -> dict:
         "createdAt": to_iso(message.get("created_at")),
         "mine": mine,
     }
+    if message.get("web_search"):
+        payload["webSearch"] = message["web_search"]
+    return payload
 
 
 def _serialize_focus_room(room: dict, current_user_id, participants: list[dict] | None = None) -> dict:
@@ -279,36 +380,133 @@ def _focus_room_for_member(code: str, current_user: dict, *, active_only: bool =
 
 @router.get("/quests")
 def get_quests(current_user: dict = Depends(get_current_user)) -> dict:
-    date = utc_now().date().isoformat()
+    today = utc_now().date()
+    day_key = today.isoformat()
     collection = feature_collection("quests")
+    documents = list(collection.find({"user_id": current_user["_id"]}))
+    history = _play_history(documents)
+    latest_check_in = feature_collection("daily_check_ins").find_one({"user_id": current_user["_id"]}, sort=[("date", -1)])
+    selected = _daily_play_selection(current_user, history["total"], str((latest_check_in or {}).get("mood") or ""), today)
     document = collection.find_one_and_update(
-        {"user_id": current_user["_id"], "date": date},
-        {"$setOnInsert": {"user_id": current_user["_id"], "date": date, "quests": [{**quest, "completed": False} for quest in QUESTS]}},
+        {"user_id": current_user["_id"], "date": day_key},
+        {"$setOnInsert": {
+            "user_id": current_user["_id"], "date": day_key, "created_at": utc_now(),
+            "quests": [{"id": quest["id"], "completed": False} for quest in selected],
+        }},
         upsert=True,
-        return_document=True,
+        return_document=ReturnDocument.AFTER,
     )
-    return {"date": date, "quests": document["quests"]}
+    stored_by_id = {str(item.get("id")): item for item in document.get("quests", [])}
+    catalog = _play_catalog_by_id()
+    visible_ids = [quest["id"] for quest in selected]
+    # Keep a legacy same-day choice visible after deployment instead of
+    # silently replacing something the user may already have started.
+    visible_ids.extend(item_id for item_id in stored_by_id if item_id in catalog and item_id not in visible_ids)
+    quests = [_serialize_play_quest(catalog[item_id], stored_by_id.get(item_id), history, current_user) for item_id in visible_ids]
+    locked = [_serialize_play_quest(quest, None, history, current_user) for quest in QUESTS if not _play_accessible(quest, current_user, history["total"])]
+    stage, elements, stage_message = _play_stage(history["total"])
+    return {
+        "date": day_key,
+        "quests": quests,
+        "nextLocked": locked[0] if locked else None,
+        "personalizedBy": "latest-check-in" if latest_check_in and PLAY_CATEGORY_FOR_MOOD.get(str(latest_check_in.get("mood") or "")) else None,
+        "progress": {
+            "totalMoments": history["total"], "activeDays": len(set(history["activeDates"])),
+            "milestones": _play_milestones(history["total"]), "stage": stage,
+            "environmentElements": elements, "message": stage_message,
+            "availableToday": sum(1 for quest in quests if quest["state"] in {"AVAILABLE", "REVISIT", "IN_PROGRESS"}),
+        },
+    }
+
+
+@router.post("/quests/{quest_id}/start")
+def start_quest(quest_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    today = utc_now().date().isoformat()
+    collection = feature_collection("quests")
+    history = _play_history(list(collection.find({"user_id": current_user["_id"]})))
+    quest = _play_catalog_by_id().get(quest_id)
+    if not quest or not _play_accessible(quest, current_user, history["total"]):
+        raise HTTPException(status_code=403, detail="This experience is still locked.")
+    if not collection.find_one({"user_id": current_user["_id"], "date": today}):
+        get_quests(current_user)
+    now = utc_now()
+    document = collection.find_one_and_update(
+        {"user_id": current_user["_id"], "date": today, "quests": {"$elemMatch": {"id": quest_id, "completed": {"$ne": True}}}},
+        {"$set": {"quests.$.started_at": now, "quests.$.state": "IN_PROGRESS"}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if not document:
+        existing = collection.find_one({"user_id": current_user["_id"], "date": today, "quests.id": quest_id})
+        if existing:
+            return {"state": "COMPLETED", "message": "This moment is already complete. You can revisit it tomorrow."}
+        raise HTTPException(status_code=404, detail="Today's experience was not found or is still locked.")
+    event_type = "TASK_REVISITED" if quest_id in history["completedIds"] else "TASK_STARTED"
+    feature_collection("play_events").insert_one({
+        "user_id": current_user["_id"], "type": event_type, "quest_id": quest_id,
+        "date": today, "created_at": now,
+    })
+    return {"state": "IN_PROGRESS", "startedAt": to_iso(now), "event": event_type}
 
 
 @router.post("/quests/{quest_id}/complete")
 def complete_quest(quest_id: str, current_user: dict = Depends(get_current_user)) -> dict:
-    date = utc_now().date().isoformat()
-    result = feature_collection("quests").update_one(
-        {"user_id": current_user["_id"], "date": date, "quests.id": quest_id},
-        {"$set": {"quests.$.completed": True}},
+    day_key = utc_now().date().isoformat()
+    now = utc_now()
+    collection = feature_collection("quests")
+    before_documents = list(collection.find({"user_id": current_user["_id"]}))
+    before_history = _play_history(before_documents)
+    quest = _play_catalog_by_id().get(quest_id)
+    if not quest or not _play_accessible(quest, current_user, before_history["total"]):
+        raise HTTPException(status_code=403, detail="This experience is still locked.")
+    result = collection.update_one(
+        {"user_id": current_user["_id"], "date": day_key, "quests": {"$elemMatch": {"id": quest_id, "completed": {"$ne": True}}}},
+        {"$set": {"quests.$.completed": True, "quests.$.state": "COMPLETED", "quests.$.completed_at": now}},
     )
     if not result.matched_count:
-        raise HTTPException(status_code=404, detail="Today's quest was not found.")
-    completed = feature_collection("quests").find_one({"user_id": current_user["_id"], "date": date})["quests"]
-    count = sum(1 for item in completed if item.get("completed"))
-    return {"message": "Quest completed — your garden grew.", "completed": count}
+        existing = collection.find_one({"user_id": current_user["_id"], "date": day_key, "quests.id": quest_id})
+        if existing and any(item.get("id") == quest_id and item.get("completed") for item in existing.get("quests", [])):
+            return {"message": "Already complete.", "completed": before_history["total"], "events": [], "state": "COMPLETED"}
+        raise HTTPException(status_code=404, detail="Today's experience was not found.")
+    after_documents = list(collection.find({"user_id": current_user["_id"]}))
+    history = _play_history(after_documents)
+    events = [{"type": "TASK_COMPLETED", "questId": quest_id}]
+    milestone = next(({"id": item_id, "title": title, "message": message} for at, item_id, title, message in PLAY_MILESTONES if before_history["total"] < at <= history["total"]), None)
+    if milestone:
+        events.append({"type": "MILESTONE_REACHED", "milestone": milestone})
+    unlocked = [item for item in QUESTS if before_history["total"] < int(item.get("unlockAt", 0)) <= history["total"] and _play_accessible(item, current_user, history["total"])]
+    events.extend({"type": "NEW_EXPERIENCE_UNLOCKED", "experience": {"id": item["id"], "title": item["title"], "category": item["category"]}} for item in unlocked)
+    event_collection = feature_collection("play_events")
+    for event in events:
+        event_collection.insert_one({**event, "user_id": current_user["_id"], "date": day_key, "created_at": now})
+    stage, elements, stage_message = _play_stage(history["total"])
+    next_candidates = [item for item in QUESTS if item["id"] != quest_id and _play_accessible(item, current_user, history["total"])]
+    chained = next((item for item in next_candidates if item["id"] == quest.get("nextId")), None)
+    next_experience = chained or next((item for item in next_candidates if item["id"] not in history["completedIds"]), next_candidates[0] if next_candidates else None)
+    return {
+        "message": "One thing lighter.", "completed": history["total"], "state": "COMPLETED",
+        "emoraReaction": quest["reaction"], "events": events, "milestone": milestone,
+        "unlocked": [{"id": item["id"], "title": item["title"]} for item in unlocked],
+        "nextExperience": {key: next_experience[key] for key in ("id", "title", "category", "minutes")} if next_experience else None,
+        "progress": {"totalMoments": history["total"], "stage": stage, "environmentElements": elements, "message": stage_message},
+    }
 
 
 @router.get("/garden")
 def get_garden(current_user: dict = Depends(get_current_user)) -> dict:
-    completed = sum(sum(1 for quest in item.get("quests", []) if quest.get("completed")) for item in feature_collection("quests").find({"user_id": current_user["_id"]}))
-    stage = "seed" if completed == 0 else "sprout" if completed < 4 else "bloom" if completed < 12 else "grove"
-    return {"stage": stage, "completedQuests": completed, "message": "Your private garden grows through completed quests, never public comparison."}
+    history = _play_history(list(feature_collection("quests").find({"user_id": current_user["_id"]})))
+    stage, elements, message = _play_stage(history["total"])
+    return {"stage": stage, "completedQuests": history["total"], "elements": elements, "milestones": _play_milestones(history["total"]), "message": message}
+
+
+@router.get("/progress")
+def play_progress(current_user: dict = Depends(get_current_user)) -> dict:
+    quest_payload = get_quests(current_user)
+    progress = quest_payload["progress"]
+    return {
+        **progress,
+        "ready": progress["availableToday"],
+        "indicator": "milestone" if progress["milestones"] and progress["milestones"][-1]["at"] == progress["totalMoments"] else "ready" if progress["availableToday"] else None,
+    }
 
 
 @router.get("/ritual-history")
@@ -613,16 +811,32 @@ async def send_focus_room_message(
         "messages. Help members discuss, clarify, or make gentle progress together. Keep replies concise and suitable "
         "for everyone in the room. The entire chat disappears when the session ends."
     )
+    search_decision = decide_web_search(text, history)
+    search_outcome: SearchOutcome | None = None
     try:
-        assistant_text, _, model = await get_companion_reply(
-            message=f"A room member says: {text}",
-            history=history,
-            persona_prompt=room_context,
-            history_limit=limits["chatHistoryMessages"],
-            priority=has_entitlement(current_user, "priority_generation"),
-            requester_id=f"focus-room:{room['code']}",
-            requester_limit=1,
-        )
+        if search_decision.needs_web:
+            assistant_text, _, model, search_outcome = await get_web_grounded_companion_reply(
+                message=f"A room member says: {text}",
+                decision=search_decision,
+                search_tool=web_search_tool,
+                hourly_limit=limits["webSearchesPerHour"],
+                history=history,
+                persona_prompt=room_context,
+                history_limit=limits["chatHistoryMessages"],
+                priority=has_entitlement(current_user, "priority_generation"),
+                requester_id=f"focus-room:{room['code']}",
+                requester_limit=1,
+            )
+        else:
+            assistant_text, _, model = await get_companion_reply(
+                message=f"A room member says: {text}",
+                history=history,
+                persona_prompt=room_context,
+                history_limit=limits["chatHistoryMessages"],
+                priority=has_entitlement(current_user, "priority_generation"),
+                requester_id=f"focus-room:{room['code']}",
+                requester_limit=1,
+            )
     except ValueError as exc:
         collection.update_one(
             {"_id": room["_id"]},
@@ -639,6 +853,13 @@ async def send_focus_room_message(
         "created_at": utc_now(),
         "model": model,
     }
+    if search_decision.needs_web:
+        assistant_message["web_search"] = {
+            "searched": True,
+            "status": "complete" if search_outcome and search_outcome.ok else "unavailable",
+            "reason": search_decision.reason,
+            "sources": [source.public() for source in (search_outcome.sources if search_outcome else ())],
+        }
     reply_now = utc_now()
     updated = collection.find_one_and_update(
         {"_id": room["_id"], **_focus_active_query(reply_now)},

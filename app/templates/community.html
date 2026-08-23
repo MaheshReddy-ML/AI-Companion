@@ -12,29 +12,27 @@
       </a>
     </div>
 
-    <div class="nav-group">
-      <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
-      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
-      <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
-      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
-      <a class="nav-item" href="/focus-together"><span class="nav-item-icon">F</span> Focus Together <span class="nav-badge">Pro</span></a>
-      <a class="nav-item active" href="/community"><span class="nav-item-icon">M</span> Community</a>
+    <div class="sidebar-scroll-region">
+    <div class="nav-group"><div class="nav-group-label">Space</div>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">⌂</span> Overview</a>
+      <a class="nav-item" href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><span class="nav-item-icon">✦</span> Meet Emora <span class="nav-badge nav-live-state" data-emora-live-state hidden></span></a>
+      <a class="nav-item" href="/chat" aria-label="Chat with Emora using text"><span class="nav-item-icon">▣</span> Chat with Emora</a>
+      <a class="nav-item" href="/play"><span class="nav-item-icon">✧</span> Emora Play <span class="nav-badge nav-play-progress" data-play-progress hidden></span></a>
+      <a class="nav-item" href="/focus-together"><span class="nav-item-icon">◌</span> Focus Together <span class="nav-badge" aria-label="Premium capability">✦</span></a>
     </div>
-
-    <div class="nav-group">
-      <div class="nav-group-label">Personal</div>
-      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+    <div class="nav-group"><div class="nav-group-label">Reflect</div><a class="nav-item" href="/insights"><span class="nav-item-icon">↗</span> Insights</a><a class="nav-item" href="/journal"><span class="nav-item-icon">▣</span> Journal</a><a class="nav-item" href="/goals"><span class="nav-item-icon">◎</span> Gentle Goals</a></div>
+    <div class="nav-group"><div class="nav-group-label">Connect</div><a class="nav-item active" href="/community"><span class="nav-item-icon">◉</span> Community</a></div>
     </div>
 
     <div class="sidebar-footer">
-      <div class="user-pill">
+      <a class="user-pill" href="/profile" aria-label="Open profile and settings">
         <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
         <div class="user-pill-info">
           <h6 data-session-user-name>Mahesh Reddy</h6>
           <span data-session-plan>Free plan</span>
         </div>
-      </div>
+      </a>
+      <div class="sidebar-account-actions" aria-label="Account controls"><button type="button" data-theme-toggle><span>Light mode</span></button><button type="button" data-logout><span>Sign out</span></button></div>
     </div>
   </aside>
 

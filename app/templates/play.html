@@ -13,11 +13,12 @@
 {% block content %}
 <main class="play-world" data-play-world>
   <section class="play-cinematic-hero" aria-labelledby="play-world-title">
-    <div class="play-room-scene" aria-hidden="true">
+    <div class="play-room-scene" aria-hidden="true" data-play-environment>
       <div class="play-room-fallback"></div>
       <div class="play-room-mount" data-play-room-mount></div>
       <div class="play-room-vignette"></div>
       <div class="play-room-grain"></div>
+      <div class="play-world-growth"><i data-world-element="first-light"></i><i data-world-element="soft-stars"></i><i data-world-element="growing-branch"></i><i data-world-element="constellation"></i></div>
     </div>
 
     <nav class="play-world-nav" aria-label="Emora Play navigation">
@@ -52,9 +53,21 @@
   <section class="play-depth" id="rituals">
     <header class="play-ritual-heading">
       <div><p class="play-section-index">TODAY’S RITUALS / 01</p><h2 class="serif">Small wins,<br /><em>real momentum.</em></h2></div>
-      <p>Complete one quiet quest and your private world responds. No public score, no pressure.</p>
+      <p>Choose one small experience. Begin when you want, stop when you need, and let completion change the room without turning into a score.</p>
     </header>
+    <div class="play-living-progress" id="play-living-progress" aria-live="polite"><div><span>YOUR SPACE</span><strong id="play-progress-message">Waiting without expectation.</strong></div><p id="play-progress-detail">Your first moment can be very small.</p><div class="play-progress-track" aria-hidden="true"><i id="play-progress-fill"></i></div></div>
+    <div class="play-daily-note"><span>TODAY WITH EMORA</span><p id="play-daily-note">A small selection, ready when you are.</p></div>
     <div id="quest-list" class="play-ritual-grid" aria-live="polite"></div>
+    <aside class="play-next-unlock" id="play-next-unlock" hidden><span>NEXT EXPERIENCE</span><strong id="play-next-unlock-title"></strong><p id="play-next-unlock-reason"></p></aside>
+    <section class="play-milestones" aria-labelledby="play-milestones-title"><header><span>YOUR MOMENTS</span><h3 class="serif" id="play-milestones-title">Nothing to maintain.<br><em>Something to return to.</em></h3></header><div id="play-milestone-list"><p>Your first milestone appears after one meaningful moment.</p></div></section>
+  </section>
+
+  <section class="play-completion-layer" id="play-completion-layer" role="dialog" aria-modal="true" aria-labelledby="play-completion-title" hidden>
+    <div class="play-completion-mark" aria-hidden="true"><i></i><span>✓</span></div>
+    <p class="play-section-index">MOMENT COMPLETE</p><h2 class="serif" id="play-completion-title">One thing lighter.</h2>
+    <p id="play-completion-reaction"></p><blockquote id="play-completion-milestone" hidden></blockquote>
+    <div class="play-completion-next" id="play-completion-next" hidden><span>A NEW MOMENT IS READY</span><strong id="play-completion-next-title"></strong></div>
+    <div><button type="button" id="play-completion-close">Done for now</button><button type="button" id="play-completion-explore" hidden>Explore next →</button></div>
   </section>
 
   <section class="play-interactions" id="play-about">

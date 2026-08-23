@@ -13,8 +13,8 @@ from app.services.local_mlx_vision import local_mlx_vision
 
 
 class LocalChatAdapter:
-    def generate(self, *, model_id: str, messages: list[dict[str, str]], max_tokens: int, temperature: float, enable_thinking: bool = True) -> str:
-        return local_mlx_chat.generate(model_id=model_id, messages=messages, max_tokens=max_tokens, temperature=temperature, enable_thinking=enable_thinking)
+    def generate(self, *, model_id: str, messages: list[dict[str, Any]], max_tokens: int, temperature: float, enable_thinking: bool = True, tools: list[dict[str, Any]] | None = None) -> str:
+        return local_mlx_chat.generate(model_id=model_id, messages=messages, max_tokens=max_tokens, temperature=temperature, enable_thinking=enable_thinking, tools=tools)
 
     def runtime_stats(self) -> dict[str, Any]:
         return local_mlx_chat.runtime_stats()

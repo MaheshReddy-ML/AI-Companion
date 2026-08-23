@@ -5,6 +5,75 @@ export const STORAGE_KEYS = {
   starterCharacter: "ai-companion:starter-character",
 };
 
+const EMORA_PRESENCE_KEY = "emora:live-presence";
+const EMORA_LIVE_STATES = new Set(["LIVE", "LISTENING", "THINKING", "SPEAKING", "WITH YOU", "OFFLINE"]);
+let navigationStateStarted = false;
+let lastPublishedPresence = "";
+let presenceChannel = null;
+
+function renderEmoraPresenceState(state) {
+  const normalized = EMORA_LIVE_STATES.has(state) ? state : "OFFLINE";
+  document.querySelectorAll("[data-emora-live-state]").forEach((element) => {
+    element.textContent = normalized;
+    element.dataset.state = normalized.toLowerCase().replaceAll(" ", "-");
+    element.hidden = false;
+  });
+}
+
+export function publishEmoraPresence(state) {
+  if (!EMORA_LIVE_STATES.has(state) || state === lastPublishedPresence) return;
+  lastPublishedPresence = state;
+  const payload = { state, at: Date.now() };
+  try { localStorage.setItem(EMORA_PRESENCE_KEY, JSON.stringify(payload)); } catch (_) { /* private storage may be unavailable */ }
+  presenceChannel?.postMessage?.(payload);
+  renderEmoraPresenceState(state);
+}
+
+function renderPlayNavigationProgress(progress = {}) {
+  document.querySelectorAll("[data-play-progress]").forEach((element) => {
+    const milestone = progress.indicator === "milestone";
+    const ready = Number(progress.ready || 0);
+    element.textContent = milestone ? "✦" : ready ? String(ready) : "";
+    element.hidden = !milestone && !ready;
+    element.dataset.kind = milestone ? "milestone" : "ready";
+    element.setAttribute("aria-label", milestone ? "A real Emora Play milestone was reached" : `${ready} Emora Play experience${ready === 1 ? "" : "s"} ready`);
+  });
+}
+
+function initDynamicNavigation() {
+  if (navigationStateStarted || !getToken()) return;
+  navigationStateStarted = true;
+  try {
+    const saved = JSON.parse(localStorage.getItem(EMORA_PRESENCE_KEY) || "null");
+    if (saved?.state && Date.now() - Number(saved.at || 0) < 15000) renderEmoraPresenceState(saved.state);
+  } catch (_) { /* use live health result below */ }
+  if ("BroadcastChannel" in window) {
+    presenceChannel = new BroadcastChannel("emora-presence");
+    presenceChannel.addEventListener("message", (event) => {
+      if (event.data?.state) renderEmoraPresenceState(event.data.state);
+    });
+  }
+  window.addEventListener("storage", (event) => {
+    if (event.key !== EMORA_PRESENCE_KEY || !event.newValue) return;
+    try { renderEmoraPresenceState(JSON.parse(event.newValue).state); } catch (_) { /* ignore malformed local state */ }
+  });
+  fetch("/health", { cache: "no-store" })
+    .then((response) => {
+      try {
+        const current = JSON.parse(localStorage.getItem(EMORA_PRESENCE_KEY) || "null");
+        if (current?.state && Date.now() - Number(current.at || 0) < 15000 && current.state !== "LIVE") {
+          renderEmoraPresenceState(current.state);
+          return;
+        }
+      } catch (_) { /* fall through to service health */ }
+      renderEmoraPresenceState(response.ok ? "LIVE" : "OFFLINE");
+    })
+    .catch(() => renderEmoraPresenceState("OFFLINE"));
+  apiRequest("/api/play/progress", { auth: true, cache: "no-store" })
+    .then(renderPlayNavigationProgress)
+    .catch(() => renderPlayNavigationProgress({}));
+}
+
 export const COMPANION_PROFILES = [
   {
     id: "grok-companion",
@@ -340,6 +409,7 @@ export function guardEntitlement(entitlement) {
 export function initChrome() {
   applyTheme();
   syncChrome();
+  initDynamicNavigation();
 
   const upgradeDialog = document.getElementById("upgrade-dialog");
   if (upgradeDialog && upgradeDialog.dataset.bound !== "true") {

@@ -189,6 +189,10 @@
 .focus-chat-message.from-emora { width: min(84%, 780px); }
 .focus-chat-message.from-emora strong { color: #bdabdc; }
 .focus-chat-message.from-emora p { padding-left: 22px; color: #ddd8cf; background: linear-gradient(90deg, rgba(130, 107, 172, .11), rgba(255, 255, 255, .018)); border-left: 2px solid #8f79ba; }
+.focus-web-sources { margin: 8px 0 0 22px; }
+.focus-web-sources summary { width: fit-content; color: #a999c7; font: 500 .55rem/1.4 "Sora", sans-serif; cursor: pointer; list-style: none; }
+.focus-web-sources summary::-webkit-details-marker { display: none; }
+.focus-web-sources a { display: block; max-width: 62ch; overflow: hidden; margin-top: 5px; color: #9abdc0; font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
 
 .focus-emora-typing { margin: -16px max(8px, 4vw) 24px; color: #8a9290; font-size: .59rem; }
 .focus-emora-typing[hidden] { display: none; }
@@ -270,6 +274,8 @@
   .focus-live-card { min-height: auto; padding: 34px 24px; }
   .focus-live-card { grid-column: auto; min-height: 390px; }
   .focus-shared-chat { grid-column: auto; min-height: 600px; padding: 34px 20px; }
+  .focus-chat-composer { grid-template-columns: 1fr; padding: 11px; }
+  .focus-chat-composer button { width: 100%; min-width: 0; }
   .focus-shared-chat > header { align-items: flex-start; flex-direction: column; }
   .focus-chat-messages { min-height: 330px; padding: 32px 0; }
   .focus-chat-message,

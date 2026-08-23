@@ -115,6 +115,7 @@ def ensure_indexes() -> None:
         memories_collection().create_index([("user_id", ASCENDING), ("category", ASCENDING), ("key", ASCENDING)], unique=True)
         memories_collection().create_index([("expires_at", ASCENDING)], sparse=True)
         get_database()["quests"].create_index([("user_id", ASCENDING), ("date", DESCENDING)])
+        get_database()["play_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         focus_rooms = get_database()["focus_rooms"]
         focus_rooms.create_index([("code", ASCENDING)], unique=True)
         existing_ends_index = focus_rooms.index_information().get("ends_at_1", {})
@@ -180,6 +181,8 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         payload["behaviorReport"] = document.get("behavior_report")
     if document.get("vision"):
         payload["vision"] = document.get("vision")
+    if document.get("web_search"):
+        payload["webSearch"] = document.get("web_search")
     return payload
 
 

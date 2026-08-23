@@ -64,12 +64,12 @@ def dashboard_page(request: Request) -> HTMLResponse:
 
 @router.get("/chat", response_class=HTMLResponse)
 def chat_page(request: Request) -> HTMLResponse:
-    return render_page(request, "chat.html", "Companion")
+    return render_page(request, "chat.html", "Chat with Emora")
 
 
 @router.get("/your-emora", response_class=HTMLResponse)
 def your_emora_page(request: Request) -> HTMLResponse:
-    return render_page(request, "your_emora.html", "Your Emora")
+    return render_page(request, "your_emora.html", "Meet Emora")
 
 
 @router.get("/insights", response_class=HTMLResponse)

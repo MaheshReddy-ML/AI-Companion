@@ -305,6 +305,73 @@ def test_focus_reflection_uses_real_room_transcript_and_is_saved_before_cleanup(
     assert result["room"]["reflection"]["text"].startswith("The outline moved")
 
 
+def test_emora_play_states_selection_milestones_and_entitlements_are_real():
+    user_id = ObjectId()
+    free_user = {"_id": user_id, "email": "free@example.com"}
+    pro_user = {"_id": user_id, "email": "pro@example.com", "subscription": {"plan": "pro", "status": "active"}}
+    history = play._play_history([
+        {"date": "2026-08-22", "quests": [{"id": "carrying-thought", "completed": True}, {"id": "one-quiet-minute", "completed": False}]},
+    ])
+
+    assert history["total"] == 1
+    assert history["activeDates"] == ["2026-08-22"]
+    revisit = play._serialize_play_quest(play._play_catalog_by_id()["carrying-thought"], None, history, free_user)
+    assert revisit["state"] == "REVISIT"
+    premium_locked = play._serialize_play_quest(play._play_catalog_by_id()["deeper-pattern"], None, history, free_user)
+    assert premium_locked["state"] == "LOCKED"
+    assert "Plus" in premium_locked["lockReason"]
+    assert len(play._daily_play_selection(free_user, 1, "heavy", play.date(2026, 8, 23))) == 3
+    assert len(play._daily_play_selection(pro_user, 1, "heavy", play.date(2026, 8, 23))) == 4
+    assert play._play_milestones(1)[0]["title"] == "You started."
+    assert play._play_stage(10)[0] == "alive"
+
+
+def test_emora_play_start_and_completion_persist_events(monkeypatch):
+    import copy
+
+    user_id = ObjectId()
+    today = play.utc_now().date().isoformat()
+    document = {"_id": ObjectId(), "user_id": user_id, "date": today, "quests": [{"id": "one-quiet-minute", "completed": False}]}
+    events = []
+
+    class Quests:
+        def find(self, query):
+            return [copy.deepcopy(document)]
+
+        def find_one(self, query, sort=None):
+            return copy.deepcopy(document)
+
+        def find_one_and_update(self, query, update, return_document=False, upsert=False):
+            document["quests"][0]["started_at"] = update["$set"]["quests.$.started_at"]
+            document["quests"][0]["state"] = "IN_PROGRESS"
+            return copy.deepcopy(document)
+
+        def update_one(self, query, update):
+            document["quests"][0]["completed"] = True
+            document["quests"][0]["state"] = "COMPLETED"
+            document["quests"][0]["completed_at"] = update["$set"]["quests.$.completed_at"]
+            return SimpleNamespace(matched_count=1)
+
+    class Events:
+        def insert_one(self, item):
+            events.append(copy.deepcopy(item))
+            return SimpleNamespace(inserted_id=ObjectId())
+
+    quests = Quests()
+    monkeypatch.setattr(play, "feature_collection", lambda name: Events() if name == "play_events" else quests)
+    user = {"_id": user_id, "email": "free@example.com"}
+
+    started = play.start_quest("one-quiet-minute", user)
+    completed = play.complete_quest("one-quiet-minute", user)
+
+    assert started["state"] == "IN_PROGRESS"
+    assert completed["state"] == "COMPLETED"
+    assert completed["milestone"]["id"] == "you-started"
+    assert [item["type"] for item in events] == [
+        "TASK_STARTED", "TASK_COMPLETED", "MILESTONE_REACHED", "NEW_EXPERIENCE_UNLOCKED",
+    ]
+
+
 def test_unlimited_focus_room_has_no_deadline(monkeypatch):
     inserted = {}
 

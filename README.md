@@ -57,7 +57,7 @@ Most chatbots reset when a tab closes. Emora is designed around continuity: it k
 | --- | --- |
 | **Overview** | Live activity rhythm, memory count, recent threads, and gentle conversation-driven nudges. |
 | **Companion** | Persistent chat, file attachments, conversation pinning/search/export, and character-specific personas. |
-| **Your Emora** | A live VRM room with auto-framing camera, speech recognition, Qwen3-TTS streaming, lip sync, and responsive motion. |
+| **Meet Emora** | A live VRM room with auto-framing camera, speech recognition, Qwen3-TTS streaming, lip sync, and responsive motion. |
 | **Insights** | Tone trends and activity for everyone, with longer Look Back ranges, Pro reflection briefs, a real-data period reflection, and a private cross-source timeline when entitled. |
 | **Emora Play** | Daily quests and a private garden, plus a paid Ritual Archive, persistent World Atelier, nine real Remix transformations, and Complete voice keepsakes. |
 | **Focus Together** | A dedicated Pro space for timed or open-ended invitation-only rooms, live participant presence, refresh recovery, and a shared `@emora` conversation. The transcript is cleared when the room ends. |
@@ -239,7 +239,7 @@ Chat runs locally through `Qwen/Qwen3-4B-MLX-4bit` on Apple Silicon and never ne
 
 ### Optional local camera check-ins
 
-In Companion or Your Emora, select the camera button and grant browser permission only when comfortable. Emora captures one reduced-size frame only when you send a message, analyzes it locally with the 4-bit MLX `Qwen2-VL-2B` model, and uses only coarse momentary expression/attention cues to adapt its reply. It never stores camera frames, video, identity data, demographic guesses, medical conclusions, or diagnoses. Each chat saves a short behavior report based on the words shared and, when enabled, that optional visual check-in; the aggregate appears in Insights.
+In Chat with Emora or Meet Emora, select the camera button and grant browser permission only when comfortable. Emora captures one reduced-size frame only when you send a message, analyzes it locally with the 4-bit MLX `Qwen2-VL-2B` model, and uses only coarse momentary expression/attention cues to adapt its reply. It never stores camera frames, video, identity data, demographic guesses, medical conclusions, or diagnoses. Each chat saves a short behavior report based on the words shared and, when enabled, that optional visual check-in; the aggregate appears in Insights.
 
 The vision model downloads on the first camera check-in and is kept in the Hugging Face cache. Set `VISION_MLX_MODEL` to use another compatible MLX-VLM checkpoint.
 

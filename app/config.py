@@ -18,6 +18,11 @@ def _derive_database_name(mongo_uri: str) -> str:
     return db_name or "ai_companion_fastapi"
 
 
+def _env(primary: str, legacy: str, default: str = "") -> str:
+    """Read the documented setting first while preserving older deployments."""
+    return os.getenv(primary, os.getenv(legacy, default))
+
+
 @dataclass(slots=True)
 class Settings:
     app_name: str = os.getenv("APP_NAME", "AI Companion FastAPI")
@@ -85,6 +90,17 @@ class Settings:
     chat_worker_count: int = int(os.getenv("CHAT_WORKER_COUNT", "1"))
     chat_queue_max_pending: int = int(os.getenv("CHAT_QUEUE_MAX_PENDING", "32"))
     chat_queue_wait_seconds: float = float(os.getenv("CHAT_QUEUE_WAIT_SECONDS", "3"))
+    # WEB_SEARCH_* is the public contract. EMORA_* remains a compatibility
+    # fallback for existing deployments, never a second configuration path.
+    emora_web_search_enabled: bool = _env("WEB_SEARCH_ENABLED", "EMORA_WEB_SEARCH_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    emora_web_search_provider: str = _env("WEB_SEARCH_PROVIDER", "EMORA_WEB_SEARCH_PROVIDER", "tavily").strip().lower()
+    emora_web_search_api_key: str = _env("TAVILY_API_KEY", "EMORA_WEB_SEARCH_API_KEY").strip()
+    emora_web_search_max_results: int = min(10, max(1, int(_env("WEB_SEARCH_MAX_RESULTS", "EMORA_WEB_SEARCH_MAX_RESULTS", "5"))))
+    emora_web_search_timeout_seconds: float = max(1.0, float(_env("WEB_SEARCH_TIMEOUT", "EMORA_WEB_SEARCH_TIMEOUT_SECONDS", "10")))
+    emora_web_search_retries: int = min(2, max(0, int(_env("WEB_SEARCH_RETRIES", "EMORA_WEB_SEARCH_RETRIES", "1"))))
+    emora_web_search_cache_enabled: bool = _env("WEB_SEARCH_CACHE_ENABLED", "EMORA_WEB_SEARCH_CACHE_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+    emora_web_search_cache_seconds: int = max(15, int(_env("WEB_SEARCH_CACHE_SECONDS", "EMORA_WEB_SEARCH_CACHE_SECONDS", "300")))
+    emora_web_search_max_tool_iterations: int = min(3, max(1, int(os.getenv("WEB_SEARCH_MAX_TOOL_ITERATIONS", "3"))))
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
     # Inference provider selection: 'local' (MLX on mac) or 'modal' (cloud GPU)

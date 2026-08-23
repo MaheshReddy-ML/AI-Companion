@@ -5,12 +5,22 @@
   }
 }
 
-/* Keep every full-height workspace rail independently scrollable. */
+/* Keep account controls fixed while only the middle of a full-height rail scrolls. */
 .app-layout > .sidebar,
 .dashboard-shell > .sidebar,
 .chat-route-layout > .sidebar {
   min-height: 0;
   max-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+
+.sidebar-scroll-region {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -18,17 +28,62 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.app-layout > .sidebar::-webkit-scrollbar,
-.dashboard-shell > .sidebar::-webkit-scrollbar,
-.chat-route-layout > .sidebar::-webkit-scrollbar {
+.sidebar-scroll-region::-webkit-scrollbar {
   width: 5px;
 }
 
-.app-layout > .sidebar::-webkit-scrollbar-thumb,
-.dashboard-shell > .sidebar::-webkit-scrollbar-thumb,
-.chat-route-layout > .sidebar::-webkit-scrollbar-thumb {
+.sidebar-scroll-region::-webkit-scrollbar-thumb {
   background: rgba(222, 226, 219, .2);
   border-radius: 99px;
+}
+
+.sidebar-footer { flex: 0 0 auto; }
+
+.app-section-layout .sidebar .nav-item-icon { font-size: .65rem !important; }
+.app-section-layout .sidebar .nav-item-icon::after { display: none !important; content: none !important; }
+
+.sidebar-account-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.sidebar-account-actions button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted, rgba(255,255,255,.64));
+  font: 500 10px/1 "Sora", sans-serif;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.sidebar-account-actions button::before { font: 13px/1 "JetBrains Mono", monospace; }
+.sidebar-account-actions [data-theme-toggle]::before { content: "☼"; }
+.sidebar-account-actions [data-theme-toggle][data-theme-state="light"]::before { content: "◐"; }
+.sidebar-account-actions [data-logout]::before { content: "↗"; }
+.sidebar-account-actions button:hover {
+  border-color: var(--teal, #8abdb4);
+  background: var(--nav-hover, rgba(255,255,255,.04));
+  color: var(--text, #fff);
+}
+
+.profile-mobile-account-actions { display: none; }
+
+@media (max-width: 900px) {
+  .profile-mobile-account-actions {
+    display: grid;
+    width: min(100%, 250px);
+    margin: 14px 0 0;
+  }
 }
 
 .global-premium-access {
@@ -58,6 +113,15 @@
   border-color: rgba(238, 208, 164, .55);
   transform: translateY(-3px);
 }
+
+.light .global-premium-access {
+  border-color: rgba(116,86,39,.2);
+  background: rgba(255,253,249,.94);
+  color: #26343b;
+  box-shadow: 0 16px 38px rgba(42,56,63,.13), inset 0 1px rgba(255,255,255,.8);
+}
+.light .global-premium-access:hover { border-color: rgba(116,86,39,.38); background: #fff; color: #14232a; }
+.light .global-premium-access small { color: #78694f; }
 
 .global-premium-spark {
   width: 32px;
@@ -99,6 +163,15 @@ body[data-access-paid="true"] .global-premium-access {
   background: linear-gradient(135deg, rgba(42, 34, 30, .94), rgba(22, 25, 36, .94));
   box-shadow: 0 18px 52px rgba(0, 0, 0, .38), 0 0 34px rgba(224, 190, 137, .08), inset 0 1px rgba(255, 255, 255, .1);
 }
+
+.light body[data-access-paid="true"] .global-premium-access {
+  border-color: rgba(116,86,39,.26);
+  background: linear-gradient(135deg,rgba(255,252,246,.98),rgba(242,241,250,.98));
+  color: #20323a;
+  box-shadow: 0 18px 46px rgba(42,56,63,.15), 0 0 28px rgba(130,104,64,.06), inset 0 1px #fff;
+}
+.light body[data-access-paid="true"] .global-premium-access strong { color: #20323a; }
+.light body[data-access-paid="true"] .global-premium-access i { color: #596b74; }
 
 body[data-access-plan="pro"] .global-premium-spark,
 body[data-access-plan="complete"] .global-premium-spark,
@@ -152,4 +225,10 @@ body[data-access-plan="admin"] .global-premium-spark {
     width: 28px;
     height: 28px;
   }
+}
+
+@media (max-width: 520px) {
+  .upgrade-dialog-card { padding: 30px 22px 24px; }
+  .upgrade-dialog-actions { align-items: stretch; flex-direction: column-reverse; }
+  .upgrade-dialog-actions .btn { width: 100%; justify-content: center; }
 }

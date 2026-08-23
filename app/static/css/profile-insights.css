@@ -16,3 +16,19 @@
 @keyframes insightPulse { to { transform: translateY(-1px); } }
 @media (max-width: 760px) { .profile-wrap, .insights-body { padding: 18px; }.profile-header { flex-wrap: wrap; padding: 21px; }.profile-edit-btn { margin-left: 0; }.settings-grid, .insights-grid-top, .avatar-studio { grid-template-columns: 1fr; }.mood-wheel { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .profile-header *, .settings-section, .insights-body .card, .avatar-studio, .drp, .mood-cell, .tc-bar, .hmap-cell { animation: none !important; transition: none !important; } }
+
+/* Profile is outside the editorial body marker, so give it an explicit light surface contract. */
+.light .app-section-layout .main-content { background: radial-gradient(circle at 72% 0%,rgba(75,111,170,.07),transparent 28%),#f4f6f8; }
+.light :is(.profile-header,.settings-section,.avatar-preview-card,.avatar-gallery-panel,.insights-body .card) {
+  border-color: rgba(35,58,72,.13);
+  background: #fff;
+  color: #18262e;
+  box-shadow: 0 18px 46px rgba(35,52,62,.08);
+}
+.light .profile-header::after { background: radial-gradient(circle,rgba(40,125,116,.1),transparent 66%); }
+.light .profile-edit-btn { border-color: rgba(35,125,115,.34); background: rgba(35,125,115,.06); color: #226f67; }
+.light .profile-setting-row:hover { background: rgba(40,125,116,.055); }
+.light .drp { border-color: rgba(35,58,72,.13); background: #fff; color: #5a6a74; }
+.light .drp.active { border-color: rgba(35,125,115,.36); background: rgba(35,125,115,.09); color: #1d6861; }
+.light .insights-body .card-header { border-color: rgba(35,58,72,.1); background: rgba(35,58,72,.025); }
+.light :is(.settings-section input,.settings-section select,.settings-section textarea) { border-color: rgba(35,58,72,.14); background: #f8fafb; color: #18262e; }

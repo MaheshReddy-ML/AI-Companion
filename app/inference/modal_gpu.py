@@ -44,10 +44,12 @@ class ModalChatProvider:
                 raise RuntimeError(f"Could not load cloud model '{model_id}': {exc}") from exc
             self._loaded = True
 
-    def generate(self, *, model_id: str, messages: list[dict[str, str]], max_tokens: int, temperature: float, enable_thinking: bool = True) -> str:
+    def generate(self, *, model_id: str, messages: list[dict[str, Any]], max_tokens: int, temperature: float, enable_thinking: bool = True, tools: list[dict[str, Any]] | None = None) -> str:
         self._ensure_loaded()
-        # Very small compatibility shim: reconstruct prompt from chat messages
-        prompt = "\n".join([f"[{m['role']}] {m['content']}" for m in messages])
+        try:
+            prompt = self._tokenizer.apply_chat_template(messages, tools=tools or None, tokenize=False, add_generation_prompt=True)
+        except (TypeError, ValueError):
+            prompt = "\n".join([f"[{m['role']}] {m.get('content', '')}" for m in messages])
         inputs = self._tokenizer(prompt, return_tensors='pt')
         # move input tensors to model device(s) using torch
         device = next(self._model.parameters()).device

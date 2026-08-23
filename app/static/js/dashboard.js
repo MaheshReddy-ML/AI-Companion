@@ -102,6 +102,7 @@ const state = {
   drafts: {},
   selectedFile: null,
   isThinking: false,
+  isSearching: false,
   toastTimerId: null,
   activeModal: null,
   cameraStream: null,
@@ -389,6 +390,25 @@ function renderChatHeader() {
   elements.deleteChatButton.disabled = false;
 }
 
+function renderWebSources(webSearch) {
+  if (!webSearch?.searched) return "";
+  const sources = Array.isArray(webSearch.sources) ? webSearch.sources : [];
+  if (!sources.length) {
+    return '<div class="web-source-status unavailable">Web check unavailable · no claims were guessed</div>';
+  }
+  return `
+    <details class="web-source-panel">
+      <summary>⌕ Searched the web · ${sources.length} source${sources.length === 1 ? "" : "s"}</summary>
+      <div class="web-source-list">
+        ${sources.map((source) => `
+          <a href="${escapeHtml(source.url || "#")}" target="_blank" rel="noopener noreferrer">
+            <strong>${escapeHtml(source.title || source.domain || "Source")}</strong>
+            <span>${escapeHtml(source.domain || "")}</span>
+          </a>`).join("")}
+      </div>
+    </details>`;
+}
+
 function renderMessages() {
   const activeConversation = getActiveConversation();
 
@@ -424,6 +444,7 @@ function renderMessages() {
               <span>${escapeHtml(formatMessageTime(message.timestamp))}</span>
             </div>
             <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
+            ${message.role === "assistant" ? renderWebSources(message.webSearch) : ""}
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
           </div>
         </article>
@@ -435,9 +456,10 @@ function renderMessages() {
     ? `
       <article class="message-row assistant" data-avatar="${escapeHtml(assistantInitials)}">
         <div class="bubble assistant typing-bubble">
-          <div class="typing-dots" aria-label="Emora is thinking">
+          <div class="typing-dots" aria-label="${state.isSearching ? "Emora is searching the web" : "Emora is thinking"}">
             <span></span><span></span><span></span>
           </div>
+          ${state.isSearching ? '<div class="web-searching-label">⌕ Checking current sources…</div>' : ""}
         </div>
       </article>
     `
@@ -476,7 +498,7 @@ function render() {
   renderMessages();
   renderAttachment();
   renderDashboardSummary();
-  const companionState = state.isThinking ? "thinking" : state.listening ? "listening" : "idle";
+  const companionState = state.isSearching ? "searching" : state.isThinking ? "thinking" : state.listening ? "listening" : "idle";
   elements.chatStage.dataset.companionState = companionState;
   elements.stopButton.hidden = !state.isThinking;
   elements.micButton.dataset.active = state.listening ? "true" : "false";
@@ -791,6 +813,16 @@ async function handleSend(promptOverride = null) {
 
   try {
     const attachment = await uploadSelectedAttachment(selectedFile);
+    try {
+      const decision = await apiRequest("/api/chat/search-decision", {
+        method: "POST", auth: true, body: { message: outgoingContent }, signal: state.requestController.signal,
+      });
+      state.isSearching = Boolean(decision?.needsWeb);
+      render();
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      state.isSearching = false;
+    }
     const response = await apiRequest("/api/chat", {
       method: "POST",
       auth: true,
@@ -825,6 +857,7 @@ async function handleSend(promptOverride = null) {
     showToast(error.message || "Failed to get a response.", "error");
   } finally {
     state.isThinking = false;
+    state.isSearching = false;
     state.requestController = null;
     render();
   }

@@ -856,7 +856,7 @@ button,
     left: 12px;
     z-index: 90;
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(56px, 1fr));
     gap: 4px;
     padding: 8px;
     border: 1px solid var(--border);
@@ -864,7 +864,12 @@ button,
     background: rgba(18, 23, 32, 0.92);
     box-shadow: var(--shadow);
     backdrop-filter: blur(18px);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
+
+  .mobile-app-nav::-webkit-scrollbar { display: none; }
 
   .light body.app-body .mobile-app-nav,
   .light body.dashboard-body .mobile-app-nav {

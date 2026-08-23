@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
+from pydantic import BaseModel, Field
 
 from app.audit import audit_event
 from app.access import has_entitlement, usage_limits_for_user
@@ -18,10 +19,17 @@ from app.database import attachments_collection, conversations_collection, featu
 from app.models.schemas import AttachmentUploadRequest, ChatSendRequest, ConversationCreateRequest, ConversationUpdateRequest
 from app.rate_limit import rate_limit
 from app.security import get_current_user, require_entitlement
-from app.services.companion_chat import get_companion_reply
+from app.services.companion_chat import get_companion_reply, get_web_grounded_companion_reply
 from app.inference.provider import get_chat_provider, get_vision_provider, VisionAnalysisError
 from app.services.companion_memory import retrieve_memories, save_memory_candidates
 from app.services.attachments import create_attachment, delete_attachments_for_conversations, get_attachment_or_404
+from app.services.web_search import (
+    SearchOutcome,
+    decide_web_search,
+    ensure_conflict_disclosure,
+    spoken_text,
+    web_search_tool,
+)
 from app.preferences import get_user_preferences
 
 # provider-selected implementations
@@ -30,6 +38,10 @@ local_mlx_vision = get_vision_provider()
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+
+class SearchDecisionRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=12_000)
 
 COMPANION_MODE_PROMPTS = {
     "listen": "Listen closely. Do not rush to solve; validate first and keep questions gentle.",
@@ -123,6 +135,12 @@ def get_user_conversation_or_404(conversation_id: str, user_id) -> dict:
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
+
+
+@router.post("/search-decision")
+def preview_search_decision(payload: SearchDecisionRequest, _: dict = Depends(get_current_user)) -> dict:
+    """Expose only real UI state, never the private query or routing internals."""
+    return decide_web_search(payload.message).public()
 
 
 @router.get("")
@@ -364,31 +382,53 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
 
     warning: str | None = vision_warning
     resolved_model = payload.model or ""
+    search_decision = decide_web_search(outgoing_content, history_source)
+    search_outcome: SearchOutcome | None = None
+    companion_context = "\n\n".join(filter(None, [
+        account_profile_prompt_context(current_user),
+        memory_prompt_context(relevant_memories, user_analysis),
+        adaptive_context,
+        vision_prompt_context(vision),
+        f"Current response mode: {COMPANION_MODE_PROMPTS.get(conversation.get('companion_mode') or 'listen', COMPANION_MODE_PROMPTS['listen'])}",
+        "Quiet hours are active. Stay user-led and do not suggest reminders or proactive outreach." if preferences["quietHours"] else None,
+    ]))
 
     try:
-        assistant_text, raw_brain, resolved_model = await get_companion_reply(
-            message=outgoing_content,
-            history=history_source,
-            model=payload.model,
-            persona_prompt=conversation.get("persona_prompt"),
-            character_id=conversation.get("character_id") or payload.character_id,
-            companion_context="\n\n".join(filter(None, [
-                account_profile_prompt_context(current_user),
-                memory_prompt_context(relevant_memories, user_analysis),
-                adaptive_context,
-                vision_prompt_context(vision),
-                f"Current response mode: {COMPANION_MODE_PROMPTS.get(conversation.get('companion_mode') or 'listen', COMPANION_MODE_PROMPTS['listen'])}",
-                "Quiet hours are active. Stay user-led and do not suggest reminders or proactive outreach." if preferences["quietHours"] else None,
-            ])),
-            history_limit=max(access_limits["chatHistoryMessages"], 24) if conversation.get("companion_mode") == "deep" else access_limits["chatHistoryMessages"],
-            priority=has_entitlement(current_user, "priority_generation"),
-            requester_id=str(current_user["_id"]),
-            requester_limit=access_limits["chatConcurrentRequests"],
-        )
+        if search_decision.needs_web:
+            assistant_text, raw_brain, resolved_model, search_outcome = await get_web_grounded_companion_reply(
+                message=outgoing_content,
+                decision=search_decision,
+                search_tool=web_search_tool,
+                hourly_limit=access_limits["webSearchesPerHour"],
+                history=history_source,
+                model=payload.model,
+                persona_prompt=conversation.get("persona_prompt"),
+                character_id=conversation.get("character_id") or payload.character_id,
+                companion_context=companion_context,
+                history_limit=max(access_limits["chatHistoryMessages"], 24) if conversation.get("companion_mode") == "deep" else access_limits["chatHistoryMessages"],
+                priority=has_entitlement(current_user, "priority_generation"),
+                requester_id=str(current_user["_id"]),
+                requester_limit=access_limits["chatConcurrentRequests"],
+            )
+        else:
+            assistant_text, raw_brain, resolved_model = await get_companion_reply(
+                message=outgoing_content,
+                history=history_source,
+                model=payload.model,
+                persona_prompt=conversation.get("persona_prompt"),
+                character_id=conversation.get("character_id") or payload.character_id,
+                companion_context=companion_context,
+                history_limit=max(access_limits["chatHistoryMessages"], 24) if conversation.get("companion_mode") == "deep" else access_limits["chatHistoryMessages"],
+                priority=has_entitlement(current_user, "priority_generation"),
+                requester_id=str(current_user["_id"]),
+                requester_limit=access_limits["chatConcurrentRequests"],
+            )
     except ValueError as exc:
         warning = str(exc)
         audit_event("chat.reply.failed", user_id=current_user["_id"], reason=warning)
         raise HTTPException(status_code=503, detail=warning) from exc
+
+    assistant_text = ensure_conflict_disclosure(assistant_text, search_outcome)
 
     brain = build_companion_brain(
         reply=assistant_text,
@@ -406,6 +446,13 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     brain["memory"]["relevant"] = relevant_memories
     assistant_message = build_message("assistant", assistant_text)
     assistant_message["brain"] = brain
+    if search_decision.needs_web:
+        assistant_message["web_search"] = {
+            "searched": True,
+            "status": "complete" if search_outcome and search_outcome.ok else "unavailable",
+            "reason": search_decision.reason,
+            "sources": [source.public() for source in (search_outcome.sources if search_outcome else ())],
+        }
     conversation["messages"].append(assistant_message)
     conversation["updated_at"] = assistant_message["timestamp"]
 
@@ -435,9 +482,17 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         "brain": brain,
         "model": resolved_model,
         "warning": warning,
+        "speechText": spoken_text(assistant_text),
         "behaviorReport": user_message["behavior_report"],
         "memoriesSaved": len(saved_memories),
     }
     if settings.companion_debug:
         response_payload["generationStats"] = local_mlx_chat.runtime_stats()
+        if search_decision.needs_web:
+            response_payload["webSearchStats"] = {
+                "reason": search_decision.reason,
+                "latencyMs": search_outcome.latency_ms if search_outcome else 0,
+                "resultCount": len(search_outcome.sources) if search_outcome else 0,
+                "cached": bool(search_outcome and search_outcome.cached),
+            }
     return response_payload

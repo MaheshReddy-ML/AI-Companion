@@ -74,6 +74,24 @@ def test_core_static_assets_are_served():
         assert response.status_code == 200
 
 
+def test_development_responses_cannot_reuse_stale_localhost_assets():
+    client = TestClient(app)
+    static_response = client.get(
+        "/static/css/styles.css",
+        headers={
+            "If-None-Match": '"stale-local-copy"',
+            "If-Modified-Since": "Wed, 21 Oct 2015 07:28:00 GMT",
+        },
+    )
+    page_response = client.get("/chat")
+
+    assert static_response.status_code == 200
+    assert static_response.headers["cache-control"] == "no-store, no-cache, must-revalidate, max-age=0"
+    assert "etag" not in static_response.headers
+    assert "last-modified" not in static_response.headers
+    assert page_response.headers["clear-site-data"] == '"cache"'
+
+
 def test_home_uses_the_cinematic_emora_play_scene():
     response = TestClient(app).get("/")
 
@@ -198,11 +216,41 @@ def test_product_depth_stays_inside_existing_sections():
     assert 'data-companion-mode="deep"' in companion
     assert 'id="session-reflection-button"' in companion
 
+    assert "Meet Emora" in dashboard
+    assert "Chat with Emora" in dashboard
+    assert "Your Emora" not in dashboard
+    assert 'localStorage.getItem("theme") || "system"' in dashboard
+    assert "Chat with Emora" in companion
+    assert 'data-emora-live-state' in companion
+    assert 'data-play-progress' in companion
+    assert 'href="/play" aria-label="Emora Play"' in companion
+
+    play_page = client.get("/play").text
+    assert 'id="play-living-progress"' in play_page
+    assert 'id="play-completion-layer"' in play_page
+    assert 'id="play-milestone-list"' in play_page
+
     assert 'id="insights-lookback"' in client.get("/insights").text
     assert 'data-journal-prompt' in client.get("/journal").text
     assert 'id="journal-cancel-edit"' in client.get("/journal").text
     assert "TODAY’S TINY THING" in client.get("/static/js/personal.js").text
     assert 'href="/focus-together"' in client.get("/community").text
+    assert 'href="/profile" aria-label="Open profile and settings"' in client.get("/community").text
+
+    for path in ["/dashboard", "/chat", "/insights", "/community", "/profile"]:
+        account_html = client.get(path).text
+        assert "data-theme-toggle" in account_html
+        assert "data-logout" in account_html
+    for path in ["/chat", "/insights", "/community", "/profile"]:
+        assert 'class="sidebar-scroll-region"' in client.get(path).text
+
+    editorial_css = client.get("/static/css/workspace-editorial.css").text
+    companion_css = client.get("/static/css/companion-chat.css").text
+    shell_css = client.get("/static/css/emora-overrides.css").text
+    assert ".light .editorial-workspace" in editorial_css
+    assert ".light .editorial-companion" in companion_css
+    assert ".sidebar-scroll-region" in shell_css
+    assert "overflow-y: hidden" in shell_css
 
     for path in ["/dashboard", "/chat", "/insights", "/journal", "/goals", "/community"]:
         html = client.get(path).text
@@ -238,7 +286,7 @@ def test_your_emora_chat_boot_is_independent_from_optional_vrm_runtime():
     page = client.get("/your-emora").text
     runtime = client.get("/static/js/your-emora.js").text
 
-    assert "20260822-runtime-recovery-v1" in page
+    assert "20260823-web-intelligence-v1" in page
     assert 'import { createEmoraAvatarStage }' not in runtime
     assert "await import(AVATAR_STAGE_MODULE)" in runtime
     assert runtime.index("bindEvents();") < runtime.index("void initializeAvatarStage();")
@@ -256,8 +304,30 @@ def test_companion_room_uses_compact_spacing_for_laptop_height():
     page = client.get("/chat").text
     styles = client.get("/static/css/companion-chat.css").text
 
-    assert "companion-chat.css?v=20260822-spacing-fix-v1" in page
+    assert "companion-chat.css?v=20260823-responsive-room-v3" in page
     assert "@media (max-height: 920px) and (min-width: 901px)" in styles
+
+
+def test_final_responsive_light_and_icon_regressions_are_present():
+    client = TestClient(app)
+    companion = client.get("/static/css/companion-chat.css").text
+    workspace = client.get("/static/css/workspace-editorial.css").text
+    overrides = client.get("/static/css/emora-overrides.css").text
+    polish = client.get("/static/css/polish.css").text
+    profile = client.get("/static/css/profile-insights.css").text
+    focus = client.get("/static/css/focus-together.css").text
+
+    assert '.sidebar .nav-item-icon::after' in companion
+    assert 'content: none !important' in companion
+    assert 'container-name: companion-workspace' in companion
+    assert '@container companion-workspace (max-width: 1350px)' in companion
+    assert 'url("/static/images/emora-night-room-v1.webp")' in companion
+    assert 'url("/static/images/emora-companion-room-v1.webp")' not in companion
+    assert '.sidebar .nav-item-icon::after' in workspace
+    assert '.light body[data-access-paid="true"] .global-premium-access' in overrides
+    assert 'repeat(8, minmax(56px, 1fr))' in polish
+    assert '.light :is(.profile-header,.settings-section' in profile
+    assert '.focus-chat-composer' in focus and 'grid-template-columns: 1fr' in focus
 
 
 def test_insights_exposes_real_plan_gated_premium_brief():

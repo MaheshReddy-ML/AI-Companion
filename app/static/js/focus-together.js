@@ -58,6 +58,12 @@ function formatMessageTime(value) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function renderFocusSources(webSearch) {
+  const sources = Array.isArray(webSearch?.sources) ? webSearch.sources : [];
+  if (!sources.length) return "";
+  return `<details class="focus-web-sources"><summary>⌕ Web sources · ${sources.length}</summary>${sources.map((source) => `<a href="${escapeHtml(source.url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || source.domain || "Source")}</a>`).join("")}</details>`;
+}
+
 function renderMessages(messages = [], replyPending = false) {
   const container = byId("focus-chat-messages");
   const shouldStick = container.scrollHeight - container.scrollTop - container.clientHeight < 90;
@@ -69,6 +75,7 @@ function renderMessages(messages = [], replyPending = false) {
           <article class="focus-chat-message ${message.senderType === "EMORA" ? "from-emora" : message.mine ? "from-you" : "from-member"}">
             <div><strong>${escapeHtml(message.sender)}</strong><time>${escapeHtml(formatMessageTime(message.createdAt))}</time></div>
             <p>${escapeHtml(message.content)}</p>
+            ${message.senderType === "EMORA" ? renderFocusSources(message.webSearch) : ""}
           </article>`).join("")
       : '<div class="focus-chat-empty"><span>✦</span><p>This room is quiet for now. Write to everyone, or mention @emora when the group wants her help.</p></div>';
     if (shouldStick || messages.length <= 2) container.scrollTop = container.scrollHeight;
