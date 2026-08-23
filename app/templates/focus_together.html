@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block body_class %}app-body focus-together-body{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/focus-together.css?v=20260823-focus-realtime-v2" />
+{% endblock %}
+
+{% block content %}
+<main class="focus-world">
+  <nav class="focus-nav" aria-label="Focus Together navigation">
+    <a class="focus-brand" href="/dashboard"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /> <span>EMORA</span><i>FOCUS TOGETHER</i></a>
+    <div><a href="/play">Emora Play</a><a href="/community">Community</a><a href="/dashboard">Workspace</a></div>
+  </nav>
+
+  <header class="focus-hero">
+    <div class="focus-hero-orbit" aria-hidden="true"><i></i><i></i><span>◷</span></div>
+    <div class="focus-hero-copy">
+      <p class="focus-kicker">FOCUS TOGETHER / PRO</p>
+      <h1 class="serif">Quiet company,<br /><em>shared intention.</em></h1>
+      <p>Create a timed or open-ended room and join with a private code. Every member sees the same temporary conversation with Emora.</p>
+      <div class="focus-privacy-line"><span>No profiles</span><span>No feed</span><span>No public score</span></div>
+    </div>
+    <div class="focus-access-seal"><small id="focus-access-kicker">YOUR ACCESS</small><strong id="focus-access-label">Checking access…</strong></div>
+  </header>
+
+  <section class="focus-room-section" aria-labelledby="focus-room-title">
+    <header>
+      <div><p class="focus-kicker">YOUR QUIET ROOM / 01</p><h2 class="serif" id="focus-room-title">Choose how you<br /><em>want to arrive.</em></h2></div>
+      <p>One intention. One finish line. Just enough company to make beginning feel lighter.</p>
+    </header>
+
+    <div class="focus-room-workspace" data-entitlement="focus_rooms" data-plan-label="Pro">
+      <form id="focus-room-form" class="focus-create-card">
+        <div class="focus-card-title"><span>01</span><div><small>CREATE A ROOM</small><h3 class="serif">Set the intention.</h3></div></div>
+        <label><span>Room name</span><input id="focus-room-name" value="Quiet focus" maxlength="60" required placeholder="What are you making room for?" /></label>
+        <fieldset><legend>Choose a rhythm</legend><div class="focus-presets"><button type="button" data-focus-minutes="15">15 min <small>Settle</small></button><button class="active" type="button" data-focus-minutes="25">25 min <small>Focus</small></button><button type="button" data-focus-minutes="50">50 min <small>Deep work</small></button><button type="button" data-focus-unlimited="true">Unlimited <small>Open-ended</small></button></div></fieldset>
+        <label class="focus-custom-time"><span>Custom minutes</span><input id="focus-room-minutes" type="number" min="5" max="120" value="25" /></label>
+        <button class="focus-primary" type="submit">Create private room <span>→</span></button>
+      </form>
+
+      <form id="focus-join-form" class="focus-join-card">
+        <div class="focus-card-title"><span>02</span><div><small>JOIN WITH A CODE</small><h3 class="serif">Step in quietly.</h3></div></div>
+        <p>Your display name will appear only to people inside this private room while you are present.</p>
+        <label for="focus-room-code">Private invite code</label>
+        <input id="focus-room-code" maxlength="32" required autocomplete="off" placeholder="Paste the room code" />
+        <button type="submit">Join focus room <span>→</span></button>
+      </form>
+
+      <aside class="focus-live-card" id="focus-live-room" aria-live="polite">
+        <div class="focus-live-sigil">◷</div><small>ROOM STATE</small>
+        <h3 class="serif" id="focus-live-name">No active room yet</h3>
+        <p id="focus-room-status">Create or join a room when you are ready.</p>
+        <div class="focus-live-meta"><span><b id="focus-live-members">0</b> quiet member<span id="focus-member-plural">s</span></span><span><b id="focus-live-time">—</b> <span id="focus-time-label">remaining</span></span></div>
+        <div class="focus-participants" id="focus-participants" hidden><span>IN THIS ROOM</span><ul id="focus-participant-list"></ul></div>
+        <div class="focus-room-code" id="focus-code-wrap" hidden><span>INVITE CODE</span><strong id="focus-live-code"></strong><button id="focus-copy-code" type="button">Copy code</button></div>
+        <button class="focus-end-session" id="focus-end-session" type="button" hidden>End session</button>
+        <button class="focus-reflect-session" id="focus-reflect-session" type="button" data-entitlement="session_reflection" data-plan-label="Pro" hidden>Reflect before closing</button>
+      </aside>
+
+      <section class="focus-shared-chat" id="focus-shared-chat" aria-labelledby="focus-chat-title" hidden>
+        <header><div><p class="focus-kicker">SHARED EMORA / LIVE</p><h3 class="serif" id="focus-chat-title">A conversation for this room.</h3></div><div class="focus-chat-presence"><i></i><span id="focus-chat-presence">Room connected</span></div></header>
+        <div class="focus-chat-messages" id="focus-chat-messages" aria-live="polite"><div class="focus-chat-empty"><span>✦</span><p>Start with what the room is here to move forward. Everyone inside will see the conversation and Emora’s replies.</p></div></div>
+        <p class="focus-emora-typing" id="focus-emora-typing" hidden><i></i><i></i><i></i> Emora is listening to the room…</p>
+        <aside class="focus-session-reflection" id="focus-session-reflection" hidden><span>SESSION REFLECTION</span><p id="focus-session-reflection-text"></p><small id="focus-session-reflection-meta"></small></aside>
+        <form class="focus-chat-composer" id="focus-chat-form">
+          <label class="sr-only" for="focus-chat-input">Message the room and Emora</label>
+          <div class="focus-composer-input"><textarea id="focus-chat-input" maxlength="4000" rows="2" required placeholder="Write to the room and Emora…" aria-autocomplete="list" aria-controls="focus-mention-menu" aria-expanded="false"></textarea><div class="focus-mention-menu" id="focus-mention-menu" role="listbox" hidden><button type="button" role="option" aria-selected="true"><span>✦</span><strong>Emora<small>AI companion</small></strong></button></div></div>
+          <button type="submit">Send to room <span>↗</span></button>
+        </form>
+        <footer><span>Messages are shared only inside this private room.</span><strong>The conversation is deleted when the session ends.</strong></footer>
+      </section>
+    </div>
+  </section>
+
+  <section class="focus-principles" aria-label="Focus Together privacy principles">
+    <article><span>01</span><h3 class="serif">Present, not exposed.</h3><p>Members share display names and messages inside the room, while avatars, profiles, and account details remain hidden.</p></article>
+    <article><span>02</span><h3 class="serif">Bounded by design.</h3><p>Choose a finish line or an open-ended room. When the host ends it or time runs out, the conversation is deleted.</p></article>
+    <article><span>03</span><h3 class="serif">Invitation only.</h3><p>A private room code is the only way in. There is no public room directory or feed.</p></article>
+  </section>
+
+  <footer class="focus-footer"><a href="/dashboard">← Workspace</a><span>EMORA · PRIVATE BY DESIGN</span><a href="/play">Emora Play →</a></footer>
+</main>
+
+<dialog class="focus-end-dialog" id="focus-end-dialog" aria-labelledby="focus-end-title">
+  <form method="dialog"><p class="focus-kicker">END FOCUS ROOM</p><h2 class="serif" id="focus-end-title">End this session?</h2><p>Everyone in the room will be disconnected from the live conversation, and its messages will be deleted.</p><div><button value="cancel">Cancel</button><button class="confirm" id="focus-confirm-end" value="confirm">End session</button></div></form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}<script type="module" src="/static/js/focus-together.js?v=20260823-focus-realtime-v2"></script>{% endblock %}

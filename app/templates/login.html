@@ -1,6 +1,41 @@
 {% extends "base.html" %}
-{% block body_class %}auth-body flagship-auth-body{% endblock %}
-{% block head_extra %}{% if google_client_id %}<script src="https://accounts.google.com/gsi/client" async defer></script>{% endif %}{% endblock %}
+{% block body_class %}auth-body auth-doorway-body{% endblock %}
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/auth-doorway.css?v=20260822-auth-doorway-v1" />
+  {% if google_client_id %}<script src="https://accounts.google.com/gsi/client" async defer></script>{% endif %}
+{% endblock %}
 {% block content %}
-<main class="flagship-auth"><section class="auth-story"><a class="auth-brand" href="/"><span>e</span> emora</a><div class="auth-story-copy"><p class="auth-kicker">WELCOME BACK</p><h1 class="serif">Your space is<br><em>waiting for you.</em></h1><p>Return to the conversations, rituals, and small moments that are still waiting for you.</p><div class="auth-story-points"><span><i>◌</i> Continue at your pace</span><span><i>⌁</i> Your history stays yours</span><span><i>✦</i> A gentle place to begin</span></div></div><div class="auth-story-scene" data-atmosphere-scene><div class="atmosphere-sky" aria-hidden="true"><div class="atmosphere-orb"></div><div class="atmosphere-cloud atmosphere-cloud-one"></div><div class="atmosphere-cloud atmosphere-cloud-two"></div><div class="atmosphere-stars"></div><div class="atmosphere-rain"></div><div class="atmosphere-mist"></div><div class="atmosphere-horizon atmosphere-horizon-back"></div><div class="atmosphere-horizon atmosphere-horizon-front"></div></div><div class="auth-scene-orbit"></div><div class="auth-scene-core">e</div><div class="atmosphere-status auth-atmosphere-status" aria-live="polite"><span class="atmosphere-status-icon" data-atmosphere-icon>◌</span><span><strong data-atmosphere-title>A scene for your time</strong><small data-atmosphere-detail>Local atmosphere</small></span><button class="atmosphere-location-button" data-atmosphere-location type="button">Use location</button></div></div><p class="auth-story-foot">Private by design <b>·</b> Yours to return to</p></section><section class="auth-form-area"><div class="auth-form-shell"><a class="auth-back" href="/">← Back to home</a><div class="auth-form-heading"><p class="auth-kicker">SIGN IN</p><h2 class="serif">Good to see you.</h2><p>Pick up wherever you left off.</p></div><form id="login-form" class="flagship-auth-form" novalidate><label><span>Email address</span><input id="identifier" name="identifier" type="text" placeholder="you@example.com" autocomplete="username"/></label><label><span class="field-label-row">Password <a href="/forgot-password">Forgot password?</a></span><div class="flagship-password"><input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password"/><button id="toggle-password" type="button">Show</button></div></label><p id="login-status" class="status" hidden></p><button id="login-submit" class="flagship-submit" type="submit">Enter my space <span>→</span></button></form><div class="flagship-divider"><span>or continue with</span></div><div id="google-login-button" class="google-slot"></div><p class="flagship-auth-foot">New to Emora? <a href="/register">Create your space →</a></p></div></section></main>
-{% endblock %}{% block scripts %}<script type="module" src="/static/js/atmosphere.js?v=20260713"></script><script type="module" src="/static/js/login.js"></script>{% endblock %}
+<main class="emora-auth">
+  {% set auth_story_kicker = "WELCOME BACK" %}
+  {% set auth_story_heading = "Your space is<br><em>waiting for you.</em>" %}
+  {% set auth_story_body = "Return to the conversations, rituals, and small moments that are still waiting for you." %}
+  {% include "_auth_story.html" %}
+
+  <section class="auth-doorway-panel" aria-labelledby="login-heading">
+    <div class="auth-doorway-form">
+      <a class="auth-doorway-back" href="/">← Back to home</a>
+      <header class="auth-doorway-heading">
+        <p class="auth-panel-kicker">SIGN IN</p>
+        <h2 id="login-heading">Good to see you.</h2>
+        <p>Pick up wherever you left off.</p>
+      </header>
+      <form id="login-form" class="doorway-auth-form" novalidate>
+        <label class="doorway-field">
+          <span class="doorway-label">Email address</span>
+          <input id="identifier" name="identifier" type="email" placeholder="you@example.com" autocomplete="username" />
+        </label>
+        <label class="doorway-field">
+          <span class="doorway-label-row"><span>Password</span><a href="/forgot-password">Forgot password?</a></span>
+          <span class="doorway-password"><input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password" /><button id="toggle-password" type="button" aria-label="Show password">Show</button></span>
+        </label>
+        <p id="login-status" class="status" role="status" aria-live="polite" hidden></p>
+        <button id="login-submit" class="doorway-submit" type="submit">Enter my space <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="auth-doorway-divider"><span>OR CONTINUE WITH</span></div>
+      <div id="google-login-button" class="auth-doorway-google"></div>
+      <p class="auth-doorway-foot">New to Emora? <a href="/register">Create your space →</a></p>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/atmosphere.js?v=20260822-auth-doorway-v1"></script><script type="module" src="/static/js/login.js"></script>{% endblock %}

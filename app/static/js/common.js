@@ -41,6 +41,44 @@ export const COMPANION_PROFILES = [
   },
 ];
 
+const ENTITLEMENT_EXPLANATIONS = {
+  voice: { plan: "Plus", title: "Talk when typing is not enough", copy: "Plus adds voice conversations while keeping your saved space and privacy controls unchanged." },
+  companion_memory: { plan: "Plus", title: "Let Emora hold the context you choose", copy: "Plus expands continuity across conversations. You can inspect, edit, pause, or forget every saved detail." },
+  extended_chat: { plan: "Plus", title: "Bring more context into the conversation", copy: "Plus supports longer messages and private file context for conversations that need more room." },
+  conversation_export: { plan: "Plus", title: "Keep a copy of meaningful conversations", copy: "Plus lets you export a conversation as text or JSON without changing the original." },
+  look_back: { plan: "Plus", title: "Return to moments worth revisiting", copy: "Plus uses your real conversation history to surface gentle Look Back reflections." },
+  conversation_remix: { plan: "Pro", title: "Turn a conversation into something useful", copy: "Pro can transform an existing conversation into a real journal draft, plan, or other supported format." },
+  ambient_rooms: { plan: "Pro", title: "Shape a calmer conversation space", copy: "Pro saves ambient room choices to your account for a more immersive Companion experience." },
+  focus_rooms: { plan: "Pro", title: "Hold a quiet focus room together", copy: "Pro adds private invite-only focus rooms with a chosen duration and no public feed." },
+  advanced_insights: { plan: "Pro", title: "See the bigger picture", copy: "Pro adds deeper patterns built only from your actual activity, check-ins, goals, and conversations." },
+  adaptive_companion: { plan: "Pro", title: "Let Emora understand the bigger picture", copy: "With your permission, Pro can use active goals and your latest check-in when they are relevant. Journal entries remain private." },
+  voice_postcards: { plan: "Complete", title: "Keep a conversation in voice", copy: "Complete can create a private voice postcard from a conversation you choose." },
+};
+
+function showUpgradeExplanation(entitlement) {
+  const dialog = document.getElementById("upgrade-dialog");
+  if (!dialog) return false;
+  const detail = ENTITLEMENT_EXPLANATIONS[entitlement] || {
+    plan: "a higher plan",
+    title: "Unlock more with Emora",
+    copy: "See which Emora plan includes this capability and what changes when you upgrade.",
+  };
+  const plan = document.getElementById("upgrade-dialog-plan");
+  const title = document.getElementById("upgrade-dialog-title");
+  const copy = document.getElementById("upgrade-dialog-copy");
+  const link = document.getElementById("upgrade-dialog-link");
+  if (plan) plan.textContent = `INCLUDED WITH ${detail.plan.toUpperCase()}`;
+  if (title) title.textContent = detail.title;
+  if (copy) copy.textContent = detail.copy;
+  if (link) {
+    link.textContent = `View ${detail.plan}`;
+    link.href = `/payment?feature=${encodeURIComponent(entitlement)}`;
+  }
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  return true;
+}
+
 let systemThemeListenerBound = false;
 
 function resolveTheme(theme = getStoredTheme()) {
@@ -152,6 +190,26 @@ export function renderUserAvatar(element, user, fallbackLabel = null) {
   element.textContent = getInitials(label);
 }
 
+export function accessDisplayForUser(user = getStoredUser()) {
+  const access = user?.access || {};
+  if (access.isAdmin || access.plan === "admin") {
+    return {
+      kicker: "PLATFORM ADMIN",
+      label: "Full platform access",
+      compact: "Admin · Full access",
+      planName: "Administrator",
+    };
+  }
+  const planName = access.planName || "Free";
+  const paid = Boolean(user && access.plan && access.plan !== "free");
+  return {
+    kicker: paid ? "YOUR EMORA SPACE" : "EMORA PLANS",
+    label: user ? (paid ? `${planName} access` : "View plans") : "View access",
+    compact: `${planName} plan`,
+    planName,
+  };
+}
+
 export function redirect(path) {
   window.location.assign(path);
 }
@@ -225,11 +283,71 @@ export function syncChrome() {
     element.hidden = !user;
     element.textContent = user ? name : "";
   });
+
+  const access = user?.access || { plan: "free", planName: "Free", entitlements: [] };
+  const plan = access.isAdmin ? "admin" : access.plan || "free";
+  const isPaid = Boolean(user && plan !== "free");
+  const accessDisplay = accessDisplayForUser(user);
+  document.body.dataset.accessPlan = plan;
+  document.body.dataset.accessPaid = String(isPaid);
+  document.querySelectorAll(".global-premium-access").forEach((element) => {
+    element.setAttribute("aria-label", access.isAdmin ? "Open administrator access controls" : isPaid ? `Manage ${access.planName} access` : "View Emora plans");
+    if (access.isAdmin) element.href = "/payment#billing-admin";
+  });
+  document.querySelectorAll("[data-global-plan-kicker]").forEach((element) => {
+    element.textContent = accessDisplay.kicker;
+  });
+  document.querySelectorAll("[data-global-plan-label]").forEach((element) => {
+    element.textContent = accessDisplay.label;
+  });
+  document.querySelectorAll("[data-entitlement]").forEach((element) => {
+    const allowed = Boolean(access.isAdmin || access.entitlements?.includes(element.dataset.entitlement));
+    element.dataset.locked = String(!allowed);
+    element.setAttribute("aria-disabled", String(!allowed));
+    if (!allowed) element.title = `${element.dataset.planLabel || "A higher Emora plan"} is required`;
+    if (element.dataset.entitlementBound !== "true") {
+      element.dataset.entitlementBound = "true";
+      const guard = (event) => {
+        if (element.dataset.locked !== "true") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!showUpgradeExplanation(element.dataset.entitlement)) {
+          window.location.assign(`/payment?feature=${encodeURIComponent(element.dataset.entitlement)}`);
+        }
+      };
+      element.addEventListener("click", guard, true);
+      element.addEventListener("submit", guard, true);
+      element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") guard(event);
+      }, true);
+    }
+  });
+}
+
+export function hasStoredEntitlement(entitlement) {
+  const access = getStoredUser()?.access;
+  return Boolean(access?.isAdmin || access?.entitlements?.includes(entitlement));
+}
+
+export function guardEntitlement(entitlement) {
+  if (hasStoredEntitlement(entitlement)) return true;
+  if (!showUpgradeExplanation(entitlement)) {
+    window.location.assign(`/payment?feature=${encodeURIComponent(entitlement)}`);
+  }
+  return false;
 }
 
 export function initChrome() {
   applyTheme();
   syncChrome();
+
+  const upgradeDialog = document.getElementById("upgrade-dialog");
+  if (upgradeDialog && upgradeDialog.dataset.bound !== "true") {
+    upgradeDialog.dataset.bound = "true";
+    upgradeDialog.addEventListener("click", (event) => {
+      if (event.target === upgradeDialog) upgradeDialog.close?.();
+    });
+  }
 
   document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
     if (button.dataset.themeBound === "true") {
@@ -265,7 +383,7 @@ function normalizeErrorMessage(data) {
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, auth = false, headers = {}, signal } = options;
+  const { method = "GET", body, auth = false, headers = {}, signal, cache = "default" } = options;
   const requestHeaders = { ...headers };
 
   if (body !== undefined) {
@@ -281,6 +399,7 @@ export async function apiRequest(path, options = {}) {
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
+    cache,
   });
 
   const contentType = response.headers.get("content-type") || "";

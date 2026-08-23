@@ -18,6 +18,13 @@ const submitButtonLabel = submitButton.innerHTML;
 
 initChrome();
 
+const loginParams = new URLSearchParams(window.location.search);
+if (loginParams.get("registered") === "1") {
+  const registeredEmail = loginParams.get("email") || "";
+  if (registeredEmail) identifierInput.value = registeredEmail;
+  showStatus(statusElement, "Account created. Sign in with your new credentials.", "success");
+}
+
 async function consumeCallbackParameters() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
@@ -56,6 +63,7 @@ async function submitLogin(event) {
   }
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Signing in...";
 
   try {
@@ -73,6 +81,7 @@ async function submitLogin(event) {
     showStatus(statusElement, error.message || "Login failed.");
   } finally {
     submitButton.disabled = false;
+    submitButton.removeAttribute("aria-busy");
     submitButton.innerHTML = submitButtonLabel;
   }
 }
@@ -131,6 +140,7 @@ togglePasswordButton.addEventListener("click", () => {
   const nextType = passwordInput.type === "password" ? "text" : "password";
   passwordInput.type = nextType;
   togglePasswordButton.textContent = nextType === "password" ? "Show" : "Hide";
+  togglePasswordButton.setAttribute("aria-label", `${nextType === "password" ? "Show" : "Hide"} password`);
 });
 
 form.addEventListener("submit", submitLogin);

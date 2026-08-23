@@ -4,3 +4,152 @@
     top: 232px;
   }
 }
+
+/* Keep every full-height workspace rail independently scrollable. */
+.app-layout > .sidebar,
+.dashboard-shell > .sidebar,
+.chat-route-layout > .sidebar {
+  min-height: 0;
+  max-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-layout > .sidebar::-webkit-scrollbar,
+.dashboard-shell > .sidebar::-webkit-scrollbar,
+.chat-route-layout > .sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.app-layout > .sidebar::-webkit-scrollbar-thumb,
+.dashboard-shell > .sidebar::-webkit-scrollbar-thumb,
+.chat-route-layout > .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(222, 226, 219, .2);
+  border-radius: 99px;
+}
+
+.global-premium-access {
+  position: fixed;
+  z-index: 1200;
+  right: 22px;
+  bottom: 22px;
+  min-width: 174px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 32px 1fr 18px;
+  align-items: center;
+  gap: 10px;
+  color: #f4eee3;
+  background: rgba(20, 19, 21, .82);
+  border: 1px solid rgba(238, 208, 164, .28);
+  border-radius: 13px;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .32), inset 0 1px rgba(255, 255, 255, .06);
+  backdrop-filter: blur(18px);
+  text-decoration: none;
+  transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
+}
+
+.global-premium-access:hover {
+  color: #fff;
+  background: rgba(31, 28, 27, .94);
+  border-color: rgba(238, 208, 164, .55);
+  transform: translateY(-3px);
+}
+
+.global-premium-spark {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: #2b241e;
+  background: #e8cfaa;
+  border-radius: 9px 9px 9px 3px;
+}
+
+.global-premium-access > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+
+.global-premium-access small {
+  color: rgba(239, 221, 194, .64);
+  font: 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: .12em;
+}
+
+.global-premium-access strong {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.global-premium-access i {
+  font-style: normal;
+  transition: transform 220ms ease;
+}
+
+.global-premium-access:hover i {
+  transform: translateX(3px);
+}
+
+body[data-access-paid="true"] .global-premium-access {
+  border-color: rgba(238, 208, 164, .5);
+  background: linear-gradient(135deg, rgba(42, 34, 30, .94), rgba(22, 25, 36, .94));
+  box-shadow: 0 18px 52px rgba(0, 0, 0, .38), 0 0 34px rgba(224, 190, 137, .08), inset 0 1px rgba(255, 255, 255, .1);
+}
+
+body[data-access-plan="pro"] .global-premium-spark,
+body[data-access-plan="complete"] .global-premium-spark,
+body[data-access-plan="admin"] .global-premium-spark {
+  background: linear-gradient(135deg, #f1d8aa, #a996ef 58%, #6ed9d0);
+}
+
+.upgrade-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  color: #f5efe5;
+  background: transparent;
+  border: 0;
+}
+
+.upgrade-dialog::backdrop {
+  background: rgba(3, 7, 13, .72);
+  backdrop-filter: blur(8px);
+}
+
+.upgrade-dialog-card {
+  position: relative;
+  padding: 38px;
+  background: radial-gradient(circle at 90% 0%, rgba(144, 117, 216, .18), transparent 45%), linear-gradient(145deg, #171a22, #0e141c);
+  border: 1px solid rgba(226, 198, 151, .35);
+  border-radius: 22px;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, .55);
+}
+
+.upgrade-dialog-kicker { color: #dec18d; font: 10px/1.4 "JetBrains Mono", monospace; letter-spacing: .18em; }
+.upgrade-dialog h2 { margin: 16px 0 10px; font: 400 clamp(2rem, 6vw, 3.1rem)/.98 "Instrument Serif", serif; }
+.upgrade-dialog p { max-width: 42ch; margin: 0; color: #aab2c0; line-height: 1.7; }
+.upgrade-dialog-close { position: absolute; top: 16px; right: 18px; color: #9ca6b6; background: transparent; border: 0; font-size: 24px; cursor: pointer; }
+.upgrade-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; }
+
+@media (max-width: 820px) {
+  .global-premium-access {
+    right: 12px;
+    bottom: 76px;
+    min-width: 0;
+    grid-template-columns: 28px auto;
+    padding: 8px 10px;
+  }
+
+  .global-premium-access > i,
+  .global-premium-access small {
+    display: none;
+  }
+
+  .global-premium-spark {
+    width: 28px;
+    height: 28px;
+  }
+}

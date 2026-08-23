@@ -25,7 +25,7 @@ def build_otp_verification_email(otp: str) -> tuple[str, str]:
               <td align="center" style="padding:0 0 20px;">
                 <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                   <tr>
-                    <td style="width:34px; height:34px; border-radius:10px; background-color:#6d5dfc; overflow:hidden; text-align:center; vertical-align:middle;"><img src="cid:ai-companion-logo" width="34" height="34" alt="AI Companion" style="display:block; width:34px; height:34px; border:0; outline:none; text-decoration:none;"></td>
+                    <td style="width:34px; height:34px; border-radius:10px; background-color:#111827; overflow:hidden; text-align:center; vertical-align:middle;"><img src="cid:ai-companion-logo" width="34" height="34" alt="Emora" style="display:block; width:34px; height:34px; border:0; outline:none; text-decoration:none;"></td>
                     <td style="padding-left:10px; color:#172033; font-size:16px; font-weight:750; letter-spacing:-0.3px;">AI Companion</td>
                   </tr>
                 </table>

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/payment.css?v=20260822-emora-mark" />
+{% endblock %}
+
+{% block body_class %}payment-body{% endblock %}
+
+{% block content %}
+<div class="payment-page">
+  <header class="payment-nav">
+    <a class="payment-brand" href="/dashboard" aria-label="Emora dashboard">
+      <img class="payment-brand-mark" src="/static/images/logo.svg?v=20260822-emora-mark" alt="" />
+      <span>emora</span>
+    </a>
+    <div class="payment-nav-actions">
+      <span class="payment-secure-label"><i aria-hidden="true"></i> Checkout preview</span>
+      <button class="payment-theme-toggle" type="button" data-theme-toggle aria-label="Switch color theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.03-.9-.1-1.34A7 7 0 0 1 13.34 3.1C12.9 3.03 12.46 3 12 3Z"/></svg>
+        <span>Theme</span>
+      </button>
+      <a class="payment-back-link" href="/dashboard">Back to your space <span>→</span></a>
+    </div>
+  </header>
+
+  <main class="payment-main">
+    <section class="payment-story" aria-labelledby="payment-title">
+      <p class="payment-eyebrow"><span>PLANS</span> Choose the space that fits</p>
+      <h1 id="payment-title" class="serif">More ways to grow<br />with <em>you and Emora.</em></h1>
+      <p class="payment-lead">Start free, add more continuity with Plus, deepen the experience with Pro, or unlock every capability with Complete.</p>
+
+      <div class="payment-feature-list">
+        <article>
+          <span class="payment-feature-icon">∞</span>
+          <div><h2>Longer, richer conversations</h2><p>Stay in the moment with expanded chat and voice access.</p></div>
+        </article>
+        <article>
+          <span class="payment-feature-icon">◇</span>
+          <div><h2>Deeper companion memory</h2><p>Give Emora more room to hold the details you choose to keep.</p></div>
+        </article>
+        <article>
+          <span class="payment-feature-icon">✦</span>
+          <div><h2>Personal rituals and insights</h2><p>Unlock richer patterns, custom companions, and reflection tools.</p></div>
+        </article>
+      </div>
+
+      <div class="payment-quote">
+        <span class="payment-quote-mark">“</span>
+        <blockquote>More continuity. More personalisation. Still your private space.</blockquote>
+        <p>Emora plans</p>
+      </div>
+    </section>
+
+    <section class="checkout-card" aria-labelledby="checkout-title">
+      <div class="checkout-card-head">
+        <div><p class="payment-eyebrow">YOUR PLAN · <span data-current-plan>CHECKING ACCESS</span></p><h2 id="checkout-title" class="serif">Choose your Emora plan</h2></div>
+        <span class="checkout-spark" aria-hidden="true">✦</span>
+      </div>
+
+      <div class="plan-picker" role="radiogroup" aria-label="Emora plan">
+        <button type="button" role="radio" aria-checked="false" data-plan-id="free"><span>Free</span><small>₹0 · always</small></button>
+        <button class="active" type="button" role="radio" aria-checked="true" data-plan-id="plus"><span>Plus</span><small>Voice + memory</small></button>
+        <button type="button" role="radio" aria-checked="false" data-plan-id="pro"><span>Pro</span><small>Reflect + create</small></button>
+        <button type="button" role="radio" aria-checked="false" data-plan-id="complete"><span>Complete</span><small>Everything</small></button>
+      </div>
+
+      <div class="billing-toggle" role="radiogroup" aria-label="Billing cycle">
+        <button type="button" role="radio" aria-checked="false" data-billing-cycle="monthly">
+          <span>Monthly</span><small>Flexible</small>
+        </button>
+        <button class="active" type="button" role="radio" aria-checked="true" data-billing-cycle="yearly">
+          <span>Yearly</span><small>Save 20%</small>
+        </button>
+      </div>
+
+      <div class="checkout-price-row">
+        <div><span class="checkout-price" data-plan-price>₹399</span><span class="checkout-price-period">/ month</span><p data-plan-billing>Billed ₹4,790 once a year</p></div>
+        <span class="checkout-save" data-plan-saving>Save ₹1,198</span>
+      </div>
+
+      <div class="checkout-includes">
+        <p data-plan-includes-label>Everything in Free, plus:</p>
+        <ul id="checkout-feature-list"></ul>
+      </div>
+
+      <div class="checkout-divider"><span>Payment method</span></div>
+
+      <div class="payment-methods" role="tablist" aria-label="Payment method">
+        <button class="active" id="card-method-tab" type="button" role="tab" aria-selected="true" aria-controls="card-method-panel" data-payment-method="card">
+          <span class="method-card-icon" aria-hidden="true"></span> Card
+        </button>
+        <button id="upi-method-tab" type="button" role="tab" aria-selected="false" aria-controls="upi-method-panel" data-payment-method="upi">
+          <span class="method-upi-icon" aria-hidden="true">UPI</span> UPI
+        </button>
+      </div>
+
+      <form id="checkout-form" novalidate>
+        <div id="card-method-panel" role="tabpanel" aria-labelledby="card-method-tab" data-payment-panel="card">
+          <label class="checkout-field checkout-field-full">
+            <span>Name on card</span>
+            <input name="cardName" type="text" autocomplete="cc-name" placeholder="Your name" required />
+          </label>
+          <label class="checkout-field checkout-field-full">
+            <span>Card number</span>
+            <div class="card-number-wrap"><input name="cardNumber" type="text" inputmode="numeric" autocomplete="cc-number" minlength="19" maxlength="19" pattern="[0-9 ]{19}" placeholder="1234  5678  9012  3456" required /><b>VISA</b></div>
+          </label>
+          <div class="checkout-field-row">
+            <label class="checkout-field"><span>Expiry</span><input name="expiry" type="text" inputmode="numeric" autocomplete="cc-exp" minlength="5" maxlength="5" pattern="(0[1-9]|1[0-2])/[0-9]{2}" placeholder="MM / YY" required /></label>
+            <label class="checkout-field"><span>CVV</span><input name="cvv" type="password" inputmode="numeric" autocomplete="cc-csc" minlength="3" maxlength="4" pattern="[0-9]{3,4}" placeholder="•••" required /></label>
+          </div>
+        </div>
+
+        <div id="upi-method-panel" role="tabpanel" aria-labelledby="upi-method-tab" data-payment-panel="upi" hidden>
+          <label class="checkout-field checkout-field-full">
+            <span>UPI ID</span>
+            <div class="upi-input-wrap"><input name="upiId" type="text" inputmode="email" autocomplete="off" pattern="[^@\s]+@[^@\s]+" placeholder="yourname@bank" /><b>UPI</b></div>
+          </label>
+          <p class="upi-note">You’ll approve the payment securely in your UPI app.</p>
+        </div>
+
+        <label class="checkout-consent"><input name="consent" type="checkbox" required /><span>I agree to the <a href="/help">subscription terms</a> and understand I can cancel anytime.</span></label>
+
+        <button class="checkout-submit" type="submit"><span data-checkout-label>Continue with yearly plan</span><b>→</b></button>
+        <div class="checkout-status" id="checkout-status" role="status" hidden></div>
+      </form>
+
+      <div class="checkout-footnote">
+        <span><i>▣</i> Nothing stored</span><span><i>↻</i> Cancel anytime</span><span><i>♡</i> Support included</span>
+      </div>
+      <p class="checkout-preview-note">Checkout preview — submitting creates a pending plan request. Access changes only after payment-provider verification or an administrator update.</p>
+    </section>
+  </main>
+
+  <section class="plan-comparison" aria-labelledby="plan-comparison-title">
+    <div><p class="payment-eyebrow">COMPARE ACCESS</p><h2 id="plan-comparison-title" class="serif">One account. Four levels of support.</h2></div>
+    <div class="plan-comparison-grid" id="plan-comparison-grid" aria-live="polite"></div>
+  </section>
+
+  <section class="billing-admin" id="billing-admin" hidden aria-labelledby="billing-admin-title">
+    <div class="billing-admin-head"><div><p class="payment-eyebrow"><span>ADMIN</span> Account access</p><h2 id="billing-admin-title" class="serif">Manage subscriptions</h2><p>Owner-only controls. Changes are enforced by the server and recorded in the audit log.</p></div><span class="admin-access-badge">Full platform access</span></div>
+    <form id="admin-user-search-form" class="admin-user-search"><label for="admin-user-search">Find an account</label><div><input id="admin-user-search" type="search" maxlength="120" placeholder="Name or email"><button type="submit">Search</button></div></form>
+    <div id="admin-subscription-status" class="checkout-status" role="status" hidden></div>
+    <div id="admin-user-list" class="admin-user-list"></div>
+  </section>
+
+  <section class="payment-faq" aria-labelledby="payment-faq-title">
+    <div><p class="payment-eyebrow">GOOD TO KNOW</p><h2 id="payment-faq-title" class="serif">Simple, clear, and always in your control.</h2></div>
+    <div class="payment-faq-grid">
+      <details><summary>Can I cancel whenever I want?<span>+</span></summary><p>Yes. Once live billing is connected, you’ll be able to manage or cancel your plan from your account.</p></details>
+      <details><summary>What happens to my private data?<span>+</span></summary><p>Upgrading does not change Emora’s privacy controls. You decide what memories and conversations to keep or remove.</p></details>
+      <details><summary>When does paid access begin?<span>+</span></summary><p>After a connected payment provider verifies payment, or when an administrator explicitly activates the plan. This preview never grants access from unverified card details.</p></details>
+    </div>
+  </section>
+
+  <footer class="payment-footer"><span>© 2026 Emora</span><span>A private space to feel, reflect, and grow.</span><a href="/help">Help & safety</a></footer>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/payment.js?v=20260822-emora-plus"></script>
+{% endblock %}

@@ -1,4 +1,4 @@
-import { apiRequest, ensureSession, escapeHtml, showStatus } from "./common.js";
+import { apiRequest, ensureSession, escapeHtml, showStatus } from "./common.js?v=20260822-community-feed-v1";
 
 const MAX_POST_LENGTH = 2000;
 const AVATAR_CLASSES = ["post-avatar-one", "post-avatar-two", "post-avatar-three"];
@@ -187,7 +187,10 @@ async function loadPosts({ append = false } = {}) {
   showStatus(elements.feedStatus, "Loading community reflections...", "info");
 
   try {
-    const response = await apiRequest(`/posts?page=${state.page}&limit=${state.limit}`, { auth: true });
+    const response = await apiRequest(`/posts?page=${state.page}&limit=${state.limit}`, {
+      auth: true,
+      cache: "no-store",
+    });
     const posts = Array.isArray(response) ? response : response.posts || [];
     state.posts = append ? [...state.posts, ...posts] : posts;
     state.hasMore = Array.isArray(response) ? false : Boolean(response.has_more || response.hasMore);
@@ -338,7 +341,6 @@ function bindEvents() {
     state.page += 1;
     await loadPosts({ append: true });
   });
-
   elements.postList?.addEventListener("click", (event) => {
     const likeButton = event.target.closest("[data-like-post-id]");
     if (likeButton) {
@@ -376,6 +378,15 @@ async function initCommunityPage() {
   bindEvents();
   state.page = 1;
   await loadPosts();
+
+  // Refresh when a user returns to the tab so posts shared by other accounts
+  // appear without requiring a hard reload.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && !state.isSubmitting) {
+      state.page = 1;
+      void loadPosts();
+    }
+  });
 }
 
 initCommunityPage();

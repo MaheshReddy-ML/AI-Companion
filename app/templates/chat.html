@@ -1,13 +1,17 @@
 {% extends "base.html" %}
 
-{% block body_class %}dashboard-body{% endblock %}
+{% block body_class %}dashboard-body editorial-workspace editorial-companion{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/companion-chat.css?v=20260822-spacing-fix-v1" />
+{% endblock %}
 
 {% block content %}
 <div class="app-layout chat-route-layout">
   <aside class="sidebar" id="dashboard-sidebar">
     <div class="sidebar-logo">
       <a class="logo" href="/">
-        <span class="logo-mark">AI</span>
+        <span class="logo-mark"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
         <span class="logo-name">Emora</span>
       </a>
       <span class="chat-brand-tagline">A quiet place to talk</span>
@@ -15,19 +19,24 @@
 
     <div class="nav-group">
       <div class="nav-group-label">Main</div>
-      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">O</span> Overview</a>
-      <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
-      <a class="nav-item active" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
-      <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
-      <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
-      <a class="nav-item" href="/profile"><span class="nav-item-icon">P</span> Profile</a>
+      <a class="nav-item" href="/dashboard"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5V20H4v-8.5Z"/></svg></span> Overview</a>
+      <a class="nav-item" href="/your-emora"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2"/></svg></span> Your Emora</a>
+      <a class="nav-item active" href="/chat"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12c2-4 4-4 7 0s5 4 7 0"/><path d="M6 8c1.5-2 3-2 4.5 0m3 8c1.5 2 3 2 4.5 0"/></svg></span> Companion <span class="nav-badge">Live</span></a>
+      <a class="nav-item" href="/insights"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M6 14v4h4m4-12h4v4"/></svg></span> Insights</a>
+      <a class="nav-item" href="/focus-together"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></span> Focus Together <span class="nav-badge">Pro</span></a>
+      <a class="nav-item" href="/community"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14M5 16h14"/><circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/></svg></span> Community</a>
+      <a class="nav-item" href="/profile"><span class="nav-item-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span> Profile</a>
     </div>
 
-    <button class="btn btn-primary btn-sm w-full dashboard-cta" id="new-chat-button" type="button">New session</button>
+    <button class="btn btn-primary btn-sm w-full dashboard-cta" id="new-chat-button" type="button"><span aria-hidden="true">＋</span> New session</button>
 
     <div class="nav-group">
       <label class="sr-only" for="conversation-search">Search conversations</label>
-      <input id="conversation-search" class="auth-input" type="search" placeholder="Search conversations" autocomplete="off" />
+      <div class="conversation-search-wrap">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input id="conversation-search" class="auth-input" type="search" placeholder="Search conversations" autocomplete="off" />
+        <kbd>⌘ K</kbd>
+      </div>
     </div>
 
     <div class="nav-group">
@@ -40,7 +49,7 @@
       <div id="recent-conversations" class="conversation-list"></div>
     </div>
 
-    <div class="nav-group">
+    <div class="nav-group companion-secondary-actions">
       <div class="nav-group-label">Workspace</div>
       <div class="sidebar-note">
         <span class="nav-badge" id="sidebar-plan-badge">Free Plan</span>
@@ -56,7 +65,7 @@
       </button>
       <button class="nav-item nav-item-button" id="premium-button" type="button">
         <span class="nav-item-icon">+</span>
-        Premium
+        View plans
       </button>
     </div>
 
@@ -67,6 +76,9 @@
           <h6 id="sidebar-user-name">AI Companion</h6>
           <span id="sidebar-user-email">Signed in workspace</span>
         </div>
+        <button class="sidebar-settings-shortcut" type="button" aria-label="Open workspace menu" aria-expanded="false" title="Workspace menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.7-1L14.5 3h-5L9 6a8 8 0 0 0-1.7 1L5 6.1 3 9.5 5.1 11a7 7 0 0 0 0 2L3 14.5 5 18l2.3-1a8 8 0 0 0 1.7 1l.5 3h5l.5-3a8 8 0 0 0 1.7-1l2.3 1 2-3.5-2.1-1.5a7 7 0 0 0 .1-1Z"/></svg>
+        </button>
       </div>
       <button type="button" data-logout hidden aria-hidden="true"></button>
     </div>
@@ -80,41 +92,45 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="m10 9-3 3 3 3"/></svg>
           </button>
           <div class="chat-companion-info">
-            <div class="companion-avatar">
-              AI
+            <div class="companion-avatar" aria-hidden="true">
+              <span class="mini-emora-face"><i></i><i></i></span>
               <div class="online-dot"></div>
             </div>
             <div>
-              <div class="companion-name" id="active-chat-title">Emora <span class="companion-verified" aria-label="Verified companion">✓</span></div>
+              <div class="companion-name"><span id="active-chat-title">Emora</span> <span class="companion-verified" aria-label="Verified companion">✓</span></div>
               <div class="companion-status" id="active-chat-meta">Present and ready to listen.</div>
             </div>
           </div>
           <div class="chat-header-actions">
-            <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-4 1-3 3-1-4-4-1 3-3 1-4 2 2Z"/></svg>Pin</button>
+            <button class="btn btn-outline btn-sm" id="companion-tools-button" type="button" aria-expanded="false" aria-controls="companion-tools"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M3 19c1-4 9-4 10 0m3-13h5m-2.5-2.5v5M16 14h5m-2.5-2.5v5"/></svg>Arrive</button>
+            <button class="btn btn-outline btn-sm" id="pin-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-4 1-3 3-1-4-4-1 3-3 1-4 2 2Z"/></svg><span id="pin-chat-label">Pin</span></button>
             <button class="btn btn-outline btn-sm" id="share-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg>Share</button>
-            <button class="btn btn-outline btn-sm" id="export-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>Export</button>
-            <button class="btn btn-outline btn-sm chat-postcard-action" id="postcard-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9v6m4-9v12m4-8v4m4-7v10"/></svg>Voice postcard</button>
+            <button class="btn btn-outline btn-sm" id="export-chat-button" type="button" data-entitlement="conversation_export" data-plan-label="Plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>Export</button>
+            <button class="btn btn-outline btn-sm chat-postcard-action" id="postcard-button" type="button" data-entitlement="voice_postcards" data-plan-label="Complete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9v6m4-9v12m4-8v4m4-7v10"/></svg>Voice postcard</button>
             <button class="btn btn-ghost btn-sm chat-delete-action" id="delete-chat-button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v5m4-5v5M9 7l1-3h4l1 3m-8 0 1 13h8l1-13"/></svg>Delete</button>
           </div>
         </div>
 
         <section class="chat-stage" id="chat-stage" data-companion-state="idle" aria-label="Conversation with Emora">
-          <div class="chat-atmosphere" aria-hidden="true"><i></i><i></i></div>
+          <div class="chat-atmosphere" aria-hidden="true"><i></i><i></i><i></i></div>
+          <aside class="companion-tools" id="companion-tools" hidden aria-label="Companion options">
+            <header><div><span>ARRIVE</span><h2>Meet the moment gently.</h2></div><button id="companion-tools-close" type="button" aria-label="Close companion options">×</button></header>
+            <section><h3>How are you arriving?</h3><div class="tool-choice-grid" data-arrival-choices><button type="button" data-arrival-mood="calm">Calm</button><button type="button" data-arrival-mood="hopeful">Hopeful</button><button type="button" data-arrival-mood="tired">Tired</button><button type="button" data-arrival-mood="anxious">Anxious</button><button type="button" data-arrival-mood="low">Low</button><button type="button" data-arrival-mood="unsure">Unsure</button></div><p id="companion-arrival-status" aria-live="polite"></p></section>
+            <section><div class="tool-section-heading"><h3>Choose how Emora responds</h3><span id="companion-mode-status" aria-live="polite">Just listen</span></div><div class="tool-mode-list"><button type="button" data-companion-mode="listen" aria-pressed="true">Just listen</button><button type="button" data-companion-mode="think" aria-pressed="false">Help me think</button><button type="button" data-companion-mode="reflect" aria-pressed="false">Reflect with me</button><button type="button" data-companion-mode="plan" aria-pressed="false">Gentle plan</button><button type="button" data-companion-mode="deep" data-entitlement="deep_conversation" data-plan-label="Pro" aria-pressed="false">Deep Conversation</button></div><button class="quiet-presence" type="button" data-companion-mode="quiet" aria-pressed="false">I don’t want to talk</button><p class="deep-conversation-note">Deep Conversation uses more of this thread and gives reflection more room. It is still the same Emora.</p></section>
+            <section data-entitlement="ambient_rooms" data-plan-label="Pro"><label for="companion-ambience"><h3>Room atmosphere</h3></label><select id="companion-ambience"><option value="none">Quiet room</option><option value="rain">Soft rain</option><option value="cafe">Distant café</option><option value="fireplace">Warm fireplace</option></select></section>
+            <section><div class="tool-section-heading"><h3>What Emora remembers</h3><span id="companion-memory-count">0 held with care</span></div><form id="companion-memory-form" class="companion-memory-form" data-entitlement="companion_memory" data-plan-label="Plus"><label class="sr-only" for="companion-memory-input">A detail Emora should remember</label><input id="companion-memory-input" maxlength="300" required placeholder="Remember that…"><button type="submit">Save</button></form><p id="companion-memory-status" aria-live="polite"></p><div class="companion-memory-list" id="companion-memory-list"><p>Loading your private memories…</p></div></section>
+            <footer data-entitlement="session_reflection" data-plan-label="Pro"><button id="session-reflection-button" type="button">Before you go, reflect this back <span>→</span></button><p id="session-reflection-output" aria-live="polite"></p><small>Generated only when you ask, from this conversation, and not saved as memory.</small></footer>
+            <footer data-entitlement="conversation_remix" data-plan-label="Pro"><button id="remix-journal-button" type="button">Remix this conversation into a journal draft <span>→</span></button><small>You will review the draft before anything is saved.</small></footer>
+          </aside>
           <div class="chat-empty-copy" id="chat-empty-copy">
-            <div class="chat-companion-sprite" aria-hidden="true">
-              <span class="chat-companion-aura"></span>
-              <span class="chat-companion-body"><i></i><i></i><b></b></span>
-              <span class="chat-companion-spark spark-one">✦</span>
-              <span class="chat-companion-spark spark-two">✧</span>
-            </div>
-            <span>A quiet <em>place</em> to talk</span>
+            <span>A quiet place to talk</span>
             <h1>What’s on your <em>mind?</em></h1>
             <p>There’s no need to have it all figured out.<br>I’m here, whenever you’re ready.</p>
             <div class="chat-prompt-chips" aria-label="Suggested ways to begin">
-              <button type="button" data-chat-prompt="I want to talk about my day.">☀ <span>Talk about my day</span></button>
-              <button type="button" data-chat-prompt="Help me think this through.">◉ <span>Help me think</span></button>
-              <button type="button" data-chat-prompt="I’m feeling anxious and could use a calm check-in.">♡ <span>I’m feeling anxious</span></button>
-              <button type="button" data-chat-prompt="Let’s get real about what I’m feeling.">✦ <span>Let’s get real</span></button>
+              <button type="button" data-chat-prompt="I want to talk about my day."><i aria-hidden="true">☀</i><strong>Talk about<br>my day</strong><small>Share what happened</small><b aria-hidden="true">→</b></button>
+              <button type="button" data-chat-prompt="Help me think this through."><i aria-hidden="true">◉</i><strong>Help me<br>think</strong><small>Get clarity on something</small><b aria-hidden="true">→</b></button>
+              <button type="button" data-chat-prompt="I’m feeling anxious and could use a calm check-in."><i aria-hidden="true">♡</i><strong>I’m feeling<br>anxious</strong><small>Talk it out together</small><b aria-hidden="true">→</b></button>
+              <button type="button" data-chat-prompt="Let’s get real about what I’m feeling."><i aria-hidden="true">✦</i><strong>Let’s get<br>real</strong><small>Honest talk, no filters</small><b aria-hidden="true">→</b></button>
             </div>
           </div>
           <div id="chat-toast" class="toast status" hidden></div>
@@ -135,18 +151,19 @@
 
           <div class="chat-input-wrap">
             <textarea id="message-input" class="chat-textarea" placeholder="Type what's on your mind..." rows="1"></textarea>
-            <label class="file-btn" for="file-input" aria-label="Attach file">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14,2 14,8 20,8"></polyline>
-              </svg>
-            </label>
+            <div class="composer-context">
+              <button class="add-context-button" id="add-context-button" type="button" aria-expanded="false" aria-controls="context-menu"><span aria-hidden="true">＋</span> Add context <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5"/></svg></button>
+              <div class="context-menu" id="context-menu" hidden>
+                <label for="file-input" data-entitlement="extended_chat" data-plan-label="Plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Zm8 0v5h5"/></svg><span><strong>Attach a file</strong><small>PDF, text, or image</small></span></label>
+                <button id="camera-button" type="button" aria-label="Turn on optional camera check-in" title="Optional camera check-in"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l2-2h6l2 2h3v12H4V7Z"/><circle cx="12" cy="13" r="3"/></svg><span><strong>Camera check-in</strong><small>Private, one frame only</small></span></button>
+              </div>
+            </div>
             <input id="file-input" type="file" accept="application/pdf,text/plain,text/markdown,image/png,image/jpeg,image/webp" hidden />
-            <button id="mic-button" class="file-btn" type="button" aria-label="Start voice input" title="Talk to Emora">⌁</button>
-            <button id="camera-button" class="file-btn" type="button" aria-label="Turn on optional camera check-in" title="Optional camera check-in">◉</button>
+            <label class="file-btn" for="file-input" aria-label="Attach file" title="Attach file" data-entitlement="extended_chat" data-plan-label="Plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6V3Zm8 0v5h5"/></svg></label>
+            <button id="mic-button" class="file-btn" type="button" aria-label="Start voice input" title="Talk to Emora" data-entitlement="voice" data-plan-label="Plus"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0m-7 7v3"/></svg></button>
             <button id="stop-button" class="stop-btn" type="button" aria-label="Stop companion" hidden>■</button>
             <button id="send-button" class="send-btn" type="button" aria-label="Send message">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg viewBox="0 0 24 24">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
               </svg>
@@ -156,7 +173,7 @@
           <div class="chat-input-hints">
             <span class="hint-chip">Press Enter to send</span>
             <span class="hint-chip">Shift + Enter for newline</span>
-            <span class="hint-chip">PDF, text, or image up to 5 MB</span>
+            <span class="hint-chip" id="chat-message-limit">Free messages up to 2,000 characters</span>
           </div>
         </div>
       </div>
@@ -238,8 +255,8 @@
   <div class="dashboard-modal-card card" role="dialog" aria-modal="true" aria-labelledby="premium-modal-title">
     <div class="dashboard-modal-header">
       <div>
-        <p class="section-label">Premium</p>
-        <h2 id="premium-modal-title" class="serif">Upgrade path</h2>
+        <p class="section-label">Plans</p>
+        <h2 id="premium-modal-title" class="serif">Choose your access</h2>
       </div>
       <button class="btn btn-ghost btn-sm" data-close-modal="premium" type="button">Close</button>
     </div>
@@ -251,17 +268,15 @@
           <p>Core chat, pinned conversations, Google sign-in, OTP reset, and companion starters.</p>
         </article>
         <article class="premium-tier premium-tier-featured">
-          <span class="nav-badge">Suggested</span>
-          <h3>Premium</h3>
-          <p>Custom companions, export tools, richer history controls, workspace insights, and priority polish.</p>
-          <ul class="premium-feature-list">
-            <li>Conversation export and archive tools</li>
-            <li>Custom personas and saved assistant presets</li>
-            <li>Advanced workspace analytics</li>
-            <li>Priority UX and feature rollout</li>
-          </ul>
-          <button class="btn btn-primary w-full" id="premium-request-button" type="button">Request Premium Access</button>
+          <span class="nav-badge">Plus</span><h3>Voice + continuity</h3><p>Voice, expanded memory, Look Back, and exports.</p>
         </article>
+        <article class="premium-tier">
+          <span class="nav-badge">Pro</span><h3>Reflect + create</h3><p>Remix, ambient rooms, focus rooms, custom companions, and advanced insights.</p>
+        </article>
+        <article class="premium-tier">
+          <span class="nav-badge">Complete</span><h3>Every capability</h3><p>Voice postcards, extended limits, priority generation, and early access.</p>
+        </article>
+        <button class="btn btn-primary w-full" id="premium-request-button" type="button">Compare all plans</button>
       </div>
     </div>
   </div>
@@ -269,5 +284,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/dashboard.js?v=20260811-companion-stage"></script>
+  <script type="module" src="/static/js/dashboard.js?v=20260822-runtime-recovery-v1"></script>
 {% endblock %}

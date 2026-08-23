@@ -8,6 +8,7 @@
     content="Emora is an emotionally aware AI companion with secure sign-in, guided conversations, and a research-inspired workspace."
   />
   <title>{{ page_title }} | Emora</title>
+  <link rel="icon" type="image/svg+xml" href="/static/images/logo.svg?v=20260822-emora-mark" />
   <script>
     (function () {
       try {
@@ -38,11 +39,11 @@
   />
   <link rel="stylesheet" href="/static/css/styles.css" />
   <link rel="stylesheet" href="/static/css/emora.css?v=20260811-living-companion" />
-  <link rel="stylesheet" href="/static/css/emora-overrides.css?v=20260812-character-spacing" />
-  <link rel="stylesheet" href="/static/css/polish.css" />
-  <link rel="stylesheet" href="/static/css/flagship.css?v=20260710-flagship-v8" />
-  <link rel="stylesheet" href="/static/css/companion-chat.css?v=20260812-companion-reference-v6" />
+  <link rel="stylesheet" href="/static/css/emora-overrides.css?v=20260822-premium-space-v1" />
+  <link rel="stylesheet" href="/static/css/polish.css?v=20260822-emora-mark" />
+  <link rel="stylesheet" href="/static/css/flagship.css?v=20260822-emora-mark" />
   <link rel="stylesheet" href="/static/css/profile-insights.css?v=20260812-interactive" />
+  <link rel="stylesheet" href="/static/css/workspace-editorial.css?v=20260822-premium-depth-v2" />
   <script>
     window.APP_CONFIG = {{ { "googleClientId": google_client_id } | tojson }};
   </script>
@@ -50,6 +51,27 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% block content %}{% endblock %}
+  {% if page_title not in ['AI Companion', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Emora Plus', 'Emora Plans'] %}
+  <a class="global-premium-access" href="/payment" aria-label="View account access">
+    <span class="global-premium-spark" aria-hidden="true">✦</span>
+    <span><small data-global-plan-kicker>ACCOUNT ACCESS</small><strong data-global-plan-label>Checking access…</strong></span>
+    <i aria-hidden="true">→</i>
+  </a>
+  {% endif %}
+  {% if page_title != 'Your Emora' %}
+  <dialog class="upgrade-dialog" id="upgrade-dialog" aria-labelledby="upgrade-dialog-title">
+    <form method="dialog" class="upgrade-dialog-card">
+      <button class="upgrade-dialog-close" value="cancel" aria-label="Dismiss upgrade information">×</button>
+      <span class="upgrade-dialog-kicker" id="upgrade-dialog-plan">EMORA PLUS</span>
+      <h2 id="upgrade-dialog-title">Make Emora more personal</h2>
+      <p id="upgrade-dialog-copy">Unlock the context that makes this capability useful.</p>
+      <div class="upgrade-dialog-actions">
+        <button class="btn btn-ghost" value="cancel">Not now</button>
+        <a class="btn btn-primary" id="upgrade-dialog-link" href="/payment">View plan</a>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
   <nav class="mobile-app-nav" aria-label="Workspace navigation">
     <a class="mobile-app-nav-item {% if page_title == 'Dashboard' %}active{% endif %}" href="/dashboard" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-11h7V4h-7v5Z"/></svg>
@@ -66,6 +88,10 @@
     <a class="mobile-app-nav-item {% if page_title == 'Insights' %}active{% endif %}" href="/insights" aria-label="Insights">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14v2H5v-2Zm1-2h3V9H6v8Zm5 0h3V3h-3v14Zm5 0h3V6h-3v11Z"/></svg>
       <span>Insights</span>
+    </a>
+    <a class="mobile-app-nav-item {% if page_title == 'Focus Together' %}active{% endif %}" href="/focus-together" aria-label="Focus Together">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Zm1 4v4.45l3.2 1.85-1 1.73L11 12.6V7h2Z"/></svg>
+      <span>Focus</span>
     </a>
     <a class="mobile-app-nav-item {% if page_title == 'Community' %}active{% endif %}" href="/community" aria-label="Community">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11A3.5 3.5 0 1 0 8.5 4a3.5 3.5 0 0 0 0 7Zm7 0A3.5 3.5 0 1 0 15.5 4a3.5 3.5 0 0 0 0 7ZM3 20a5.5 5.5 0 0 1 11 0v1H3v-1Zm9.5 1v-1a7 7 0 0 0-1.3-4.1A5.5 5.5 0 0 1 21 19.4V21h-8.5Z"/></svg>

@@ -18,26 +18,66 @@ from app.voice_manager import get_manager
 
 _executor = ThreadPoolExecutor(max_workers=max(1, settings.tts_worker_count), thread_name_prefix="emora-tts")
 _pending = threading.BoundedSemaphore(max(1, settings.tts_queue_max_pending))
+_standard_pending = threading.BoundedSemaphore(max(1, settings.tts_queue_max_pending - settings.tts_priority_reserved))
+_user_slots: dict[tuple[str, int], threading.BoundedSemaphore] = {}
+_user_slots_lock = threading.Lock()
 
 
-async def _acquire_slot() -> None:
-    acquired = await asyncio.to_thread(_pending.acquire, True, 0.1)
-    if not acquired:
-        raise RuntimeError("Speech queue is full. Please try again in a moment.")
+def _user_semaphore(requester_id: str | None, limit: int) -> threading.BoundedSemaphore | None:
+    if not requester_id:
+        return None
+    key = (requester_id, max(1, limit))
+    with _user_slots_lock:
+        return _user_slots.setdefault(key, threading.BoundedSemaphore(key[1]))
+
+
+async def _acquire_slot(*, requester_id: str | None, requester_limit: int, priority: bool) -> list[threading.BoundedSemaphore]:
+    acquired_slots: list[threading.BoundedSemaphore] = []
+    requested = [_user_semaphore(requester_id, requester_limit)]
+    if not priority:
+        requested.append(_standard_pending)
+    requested.append(_pending)
+    for semaphore in (item for item in requested if item is not None):
+        acquired = await asyncio.to_thread(semaphore.acquire, True, settings.tts_queue_wait_seconds)
+        if not acquired:
+            for held in reversed(acquired_slots):
+                held.release()
+            if semaphore is requested[0] and requester_id:
+                raise RuntimeError("Too many speech requests are already active for this account. Please wait for one to finish.")
+            raise RuntimeError("Speech capacity is full. Please try again in a moment.")
+        acquired_slots.append(semaphore)
+    return acquired_slots
+
+
+def _release_slots(slots: list[threading.BoundedSemaphore]) -> None:
+    for semaphore in reversed(slots):
+        semaphore.release()
+
+
+async def reserve_tts_capacity(*, requester_id: str | None, requester_limit: int, priority: bool) -> list[threading.BoundedSemaphore]:
+    """Reserve queue capacity before an HTTP streaming response commits 200."""
+    return await _acquire_slot(requester_id=requester_id, requester_limit=requester_limit, priority=priority)
 
 
 async def generate_audio(**kwargs):
-    await _acquire_slot()
+    requester_id = kwargs.pop("requester_id", None)
+    requester_limit = int(kwargs.pop("requester_limit", 1))
+    priority = bool(kwargs.pop("priority", False))
+    slots = await _acquire_slot(requester_id=requester_id, requester_limit=requester_limit, priority=priority)
     loop = asyncio.get_running_loop()
     try:
         return await loop.run_in_executor(_executor, partial(get_manager().generate_audio, **kwargs))
     finally:
-        _pending.release()
+        _release_slots(slots)
 
 
 async def stream_pcm(**kwargs) -> AsyncIterator[bytes]:
     """Yield PCM chunks while allowing client disconnects to stop future work."""
-    await _acquire_slot()
+    reserved_slots = kwargs.pop("reserved_slots", None)
+    requester_id = kwargs.pop("requester_id", None)
+    requester_limit = int(kwargs.pop("requester_limit", 1))
+    priority = bool(kwargs.pop("priority", False))
+    slots = reserved_slots or await _acquire_slot(requester_id=requester_id, requester_limit=requester_limit, priority=priority)
     loop = asyncio.get_running_loop()
     chunks: asyncio.Queue[bytes | BaseException | None] = asyncio.Queue(maxsize=6)
     cancelled = threading.Event()
@@ -74,6 +114,7 @@ async def stream_pcm(**kwargs) -> AsyncIterator[bytes]:
             yield item
     finally:
         cancelled.set()
-        _pending.release()
         # Do not wait here: a cancelled browser request must return instantly.
-        worker.add_done_callback(lambda _: None)
+        # Capacity is released only after the synthesizer has actually stopped,
+        # preventing a disconnected client from overcommitting shared models.
+        worker.add_done_callback(lambda _: _release_slots(slots))

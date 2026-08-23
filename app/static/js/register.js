@@ -1,5 +1,6 @@
 import {
   apiRequest,
+  clearSession,
   ensureSession,
   initChrome,
   redirect,
@@ -102,6 +103,7 @@ togglePasswordButton.addEventListener("click", () => {
   const nextType = passwordInput.type === "password" ? "text" : "password";
   passwordInput.type = nextType;
   togglePasswordButton.textContent = nextType === "password" ? "Show" : "Hide";
+  togglePasswordButton.setAttribute("aria-label", `${nextType === "password" ? "Show" : "Hide"} password`);
 });
 
 form.addEventListener("submit", async (event) => {
@@ -128,20 +130,21 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Creating account...";
 
   try {
-    const response = await apiRequest("/api/auth/register", {
+    await apiRequest("/api/auth/register", {
       method: "POST",
       body: { name, email, password },
     });
-    storeSession(response);
-    await ensureSession({ redirectTo: null });
-    redirect("/dashboard");
+    clearSession();
+    redirect(`/login?registered=1&email=${encodeURIComponent(email)}`);
   } catch (error) {
     showStatus(statusElement, error.message || "Registration failed.");
   } finally {
     submitButton.disabled = false;
+    submitButton.removeAttribute("aria-busy");
     submitButton.innerHTML = submitButtonLabel;
   }
 });

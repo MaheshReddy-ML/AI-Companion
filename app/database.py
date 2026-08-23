@@ -10,6 +10,7 @@ from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
 from app.avatar_catalog import resolve_avatar_payload
+from app.access import access_profile
 from app.config import settings
 
 
@@ -114,10 +115,28 @@ def ensure_indexes() -> None:
         memories_collection().create_index([("user_id", ASCENDING), ("category", ASCENDING), ("key", ASCENDING)], unique=True)
         memories_collection().create_index([("expires_at", ASCENDING)], sparse=True)
         get_database()["quests"].create_index([("user_id", ASCENDING), ("date", DESCENDING)])
-        get_database()["focus_rooms"].create_index([("code", ASCENDING)], unique=True)
+        focus_rooms = get_database()["focus_rooms"]
+        focus_rooms.create_index([("code", ASCENDING)], unique=True)
+        existing_ends_index = focus_rooms.index_information().get("ends_at_1", {})
+        if existing_ends_index.get("expireAfterSeconds") is not None:
+            focus_rooms.drop_index("ends_at_1")
+        focus_rooms.create_index([("ends_at", ASCENDING)], name="focus_rooms_ends_at")
+        focus_rooms.create_index([("delete_at", ASCENDING)], name="focus_rooms_delete_at", expireAfterSeconds=0)
+        focus_rooms.create_index([("members", ASCENDING), ("last_activity_at", DESCENDING)])
+        focus_presence = get_database()["focus_room_presence"]
+        focus_presence.create_index(
+            [("room_id", ASCENDING), ("user_id", ASCENDING), ("connection_id", ASCENDING)],
+            unique=True,
+        )
+        focus_presence.create_index([("room_id", ASCENDING), ("last_seen_at", DESCENDING)])
+        focus_presence.create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
         get_database()["user_spaces"].create_index([("user_id", ASCENDING)], unique=True)
         get_database()["journal_entries"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         get_database()["goals"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["daily_check_ins"].create_index([("user_id", ASCENDING), ("date", DESCENDING)], unique=True)
+        get_database()["user_preferences"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["billing_requests"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["billing_requests"].create_index([("status", ASCENDING), ("created_at", DESCENDING)])
     except PyMongoError as exc:
         raise RuntimeError(
             f"MongoDB is not reachable at {settings.mongo_uri}. "
@@ -137,8 +156,10 @@ def serialize_user(document: dict[str, Any]) -> dict[str, Any]:
         "name": document.get("name", ""),
         "email": document.get("email", ""),
         "authProvider": document.get("auth_provider", "local"),
+        "createdAt": to_iso(document.get("created_at")),
     }
     payload.update(resolve_avatar_payload(document))
+    payload["access"] = access_profile(document)
     return payload
 
 
@@ -170,6 +191,7 @@ def serialize_conversation(document: dict[str, Any]) -> dict[str, Any]:
         "characterId": document.get("character_id"),
         "characterName": document.get("character_name"),
         "personaPrompt": document.get("persona_prompt"),
+        "companionMode": document.get("companion_mode", "listen"),
         "messages": [serialize_message(message) for message in document.get("messages", [])],
         "createdAt": to_iso(document.get("created_at")),
         "updatedAt": to_iso(document.get("updated_at")),
@@ -184,6 +206,6 @@ def serialize_post(document: dict[str, Any], *, current_anonymous_id: str | None
         "updated_at": to_iso(document.get("updated_at")),
         "likes": int(document.get("likes", 0)),
         "liked_by_current_user": bool(current_anonymous_id and current_anonymous_id in document.get("liked_by", [])),
-        "moderation_status": document.get("moderation_status", "visible"),
+        "moderation_status": document.get("moderation_status") or "visible",
         "owned_by_current_user": bool(current_anonymous_id and document.get("anonymous_id") == current_anonymous_id),
     }

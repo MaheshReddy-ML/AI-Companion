@@ -10,21 +10,69 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from app.audit import audit_event
+from app.access import has_entitlement, usage_limits_for_user
 from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
 from app.config import settings
 from app.companion_brain import build_companion_brain
-from app.database import attachments_collection, conversations_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
+from app.database import attachments_collection, conversations_collection, feature_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
 from app.models.schemas import AttachmentUploadRequest, ChatSendRequest, ConversationCreateRequest, ConversationUpdateRequest
 from app.rate_limit import rate_limit
-from app.security import get_current_user
+from app.security import get_current_user, require_entitlement
 from app.services.companion_chat import get_companion_reply
-from app.services.local_mlx_chat import local_mlx_chat
+from app.inference.provider import get_chat_provider, get_vision_provider, VisionAnalysisError
 from app.services.companion_memory import retrieve_memories, save_memory_candidates
 from app.services.attachments import create_attachment, delete_attachments_for_conversations, get_attachment_or_404
-from app.services.local_mlx_vision import VisionAnalysisError, local_mlx_vision
+from app.preferences import get_user_preferences
+
+# provider-selected implementations
+local_mlx_chat = get_chat_provider()
+local_mlx_vision = get_vision_provider()
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+COMPANION_MODE_PROMPTS = {
+    "listen": "Listen closely. Do not rush to solve; validate first and keep questions gentle.",
+    "think": "Help the user think clearly. Ask at most one focused question at a time.",
+    "reflect": "Reflect back the meaning and emotional pattern you hear without diagnosing.",
+    "plan": "Help choose one small, pressure-free, concrete next step.",
+    "quiet": "Offer quiet presence. Be brief, do not press for an explanation, and do not ask a question.",
+    "deep": "Enter Deep Conversation mode. Use the full relevant history, reflect patterns carefully, stay grounded in what the user actually said, and ask only one unhurried question at a time.",
+}
+
+
+def require_mode_access(user: dict, mode: str | None) -> None:
+    if mode == "deep" and not has_entitlement(user, "deep_conversation"):
+        raise HTTPException(status_code=403, detail="Deep Conversation is included with Emora Pro.")
+
+
+def build_adaptive_context(goals: list[dict], latest_check_in: dict | None) -> str:
+    """Build a factual, compact prompt fragment from explicitly allowed data."""
+    lines: list[str] = []
+    goal_titles = [str(goal.get("title", "")).strip() for goal in goals if str(goal.get("title", "")).strip()]
+    if goal_titles:
+        lines.append(f"Active goals the user created: {json.dumps(goal_titles[:3], ensure_ascii=False)}.")
+    if latest_check_in:
+        mood = str(latest_check_in.get("mood", "")).strip()
+        tiny_thing = str(latest_check_in.get("tiny_thing", "")).strip()
+        if mood:
+            lines.append(f"Latest private check-in mood: {mood}.")
+        if tiny_thing:
+            lines.append(f"Their chosen one tiny thing: {json.dumps(tiny_thing, ensure_ascii=False)}.")
+    if not lines:
+        return ""
+    return "Adaptive context is opt-in and factual. Use it only when relevant; never imply knowledge beyond it. " + " ".join(lines)
+
+
+def adaptive_context_for_user(user_id) -> str:
+    goals = list(
+        feature_collection("goals")
+        .find({"user_id": user_id, "completed": False}, {"title": 1})
+        .sort("created_at", -1)
+        .limit(3)
+    )
+    latest_check_in = feature_collection("daily_check_ins").find_one({"user_id": user_id}, sort=[("date", -1)])
+    return build_adaptive_context(goals, latest_check_in)
 
 
 def create_chat_title(text: str) -> str:
@@ -59,6 +107,7 @@ def build_conversation_document(user_id, payload: ConversationCreateRequest) -> 
         "character_id": payload.character_id,
         "character_name": payload.character_name,
         "persona_prompt": payload.persona_prompt,
+        "companion_mode": payload.companion_mode,
         "messages": messages,
         "created_at": now,
         "updated_at": messages[-1]["timestamp"] if messages else now,
@@ -115,6 +164,7 @@ def get_conversations(
 
 @router.post("/conversations")
 def create_conversation(payload: ConversationCreateRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    require_mode_access(current_user, payload.companion_mode)
     document = build_conversation_document(current_user["_id"], payload)
     inserted = conversations_collection().insert_one(document)
     document["_id"] = inserted.inserted_id
@@ -129,6 +179,7 @@ def update_conversation(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     conversation = get_user_conversation_or_404(conversation_id, current_user["_id"])
+    require_mode_access(current_user, payload.companion_mode)
 
     updates = {}
     if payload.title is not None:
@@ -141,6 +192,8 @@ def update_conversation(
         updates["character_name"] = payload.character_name
     if payload.persona_prompt is not None:
         updates["persona_prompt"] = payload.persona_prompt
+    if payload.companion_mode is not None:
+        updates["companion_mode"] = payload.companion_mode
 
     updates["updated_at"] = utc_now()
     conversations_collection().update_one({"_id": conversation["_id"]}, {"$set": updates})
@@ -162,7 +215,7 @@ def delete_conversation(conversation_id: str, current_user: dict = Depends(get_c
 def export_conversation(
     conversation_id: str,
     format: str = Query(default="json", pattern="^(json|text)$"),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_entitlement("conversation_export")),
 ) -> Response:
     """Export a user's conversation without exposing it to another account."""
     conversation = get_user_conversation_or_404(conversation_id, current_user["_id"])
@@ -189,7 +242,7 @@ def export_conversation(
 
 
 @router.post("/attachments", status_code=201, dependencies=[Depends(rate_limit(12, 300, "chat-attachment"))])
-def upload_attachment(payload: AttachmentUploadRequest, current_user: dict = Depends(get_current_user)) -> dict:
+def upload_attachment(payload: AttachmentUploadRequest, current_user: dict = Depends(require_entitlement("extended_chat"))) -> dict:
     attachment = create_attachment(
         user_id=current_user["_id"],
         name=payload.name,
@@ -211,6 +264,7 @@ def download_attachment(attachment_id: str, current_user: dict = Depends(get_cur
 
 @router.post("", dependencies=[Depends(rate_limit(30, 300, "chat-send"))])
 async def send_message(payload: ChatSendRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    require_mode_access(current_user, payload.companion_mode)
     message_text = (payload.message or "").strip()
     attachment_name = (payload.attachment_name or "").strip() or None
     attachment_id = parse_object_id(payload.attachment_id or "") if payload.attachment_id else None
@@ -227,32 +281,49 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         attachment_name = attachment["name"]
 
     outgoing_content = message_text or f"Shared file: {attachment_name}"
+    access_limits = usage_limits_for_user(current_user)
+    if len(outgoing_content) > access_limits["chatMessageCharacters"]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Your current plan supports messages up to {access_limits['chatMessageCharacters']:,} characters. Upgrade for longer messages.",
+        )
     user_message = build_message("user", outgoing_content, attachment_name, attachment_id)
     user_analysis = analyze_emotion(outgoing_content)
     user_message["analysis"] = user_analysis
+    preferences = get_user_preferences(current_user["_id"])
+    adaptive_context = (
+        adaptive_context_for_user(current_user["_id"])
+        if preferences.get("adaptiveContext", False) and has_entitlement(current_user, "adaptive_companion")
+        else ""
+    )
     vision: dict | None = None
     vision_warning: str | None = None
     if payload.camera_frame:
+        if not preferences["visualInput"]:
+            raise HTTPException(status_code=403, detail="Camera check-ins are disabled in Profile settings.")
         if not payload.camera_opt_in:
             raise HTTPException(status_code=400, detail="Camera analysis requires explicit opt-in.")
         try:
             vision = await asyncio.to_thread(
                 local_mlx_vision.analyze,
-                model_id=settings.vision_mlx_model,
+                model_id=(settings.vision_modal_model.strip() or settings.vision_mlx_model),
                 data_url=payload.camera_frame,
                 max_tokens=settings.vision_mlx_max_tokens,
             )
-            user_message["vision"] = vision
+            if not preferences["dataMinimisation"]:
+                user_message["vision"] = vision
         except VisionAnalysisError as exc:
             # A camera failure never blocks a text conversation and never saves pixels.
             vision_warning = str(exc)
-    user_message["behavior_report"] = behavior_report(user_analysis, vision)
-    relevant_memories = retrieve_memories(current_user["_id"], outgoing_content)
+    user_message["behavior_report"] = behavior_report(user_analysis, None if preferences["dataMinimisation"] else vision)
+    memory_limit = 12 if has_entitlement(current_user, "extended_limits") else 8 if has_entitlement(current_user, "companion_memory") else 3
+    relevant_memories = retrieve_memories(current_user["_id"], outgoing_content, limit=memory_limit) if preferences["emotionalMemory"] else []
 
     conversations = conversations_collection()
     conversation: dict | None = None
     if payload.conversation_id:
         conversation = get_user_conversation_or_404(payload.conversation_id, current_user["_id"])
+        require_mode_access(current_user, conversation.get("companion_mode"))
 
     if conversation is None:
         now = utc_now()
@@ -263,6 +334,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             "character_id": None,
             "character_name": payload.character_name,
             "persona_prompt": payload.persona_prompt,
+            "companion_mode": payload.companion_mode or "listen",
             "messages": [],
             "created_at": now,
             "updated_at": now,
@@ -274,6 +346,8 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         conversation["character_id"] = payload.character_id
     if payload.persona_prompt is not None:
         conversation["persona_prompt"] = payload.persona_prompt
+    if payload.companion_mode is not None:
+        conversation["companion_mode"] = payload.companion_mode
 
     if not conversation.get("messages") or conversation.get("title") == "New conversation":
         conversation["title"] = create_chat_title(outgoing_content)
@@ -301,14 +375,20 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             companion_context="\n\n".join(filter(None, [
                 account_profile_prompt_context(current_user),
                 memory_prompt_context(relevant_memories, user_analysis),
+                adaptive_context,
                 vision_prompt_context(vision),
+                f"Current response mode: {COMPANION_MODE_PROMPTS.get(conversation.get('companion_mode') or 'listen', COMPANION_MODE_PROMPTS['listen'])}",
+                "Quiet hours are active. Stay user-led and do not suggest reminders or proactive outreach." if preferences["quietHours"] else None,
             ])),
+            history_limit=max(access_limits["chatHistoryMessages"], 24) if conversation.get("companion_mode") == "deep" else access_limits["chatHistoryMessages"],
+            priority=has_entitlement(current_user, "priority_generation"),
+            requester_id=str(current_user["_id"]),
+            requester_limit=access_limits["chatConcurrentRequests"],
         )
     except ValueError as exc:
         warning = str(exc)
         audit_event("chat.reply.failed", user_id=current_user["_id"], reason=warning)
-        assistant_text = f"I could not complete that request. {warning}"
-        raw_brain = {}
+        raise HTTPException(status_code=503, detail=warning) from exc
 
     brain = build_companion_brain(
         reply=assistant_text,
@@ -335,7 +415,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         inserted = conversations.insert_one(conversation)
         conversation["_id"] = inserted.inserted_id
 
-    saved_memories = save_memory_candidates(current_user["_id"], outgoing_content, user_message["id"])
+    saved_memories = save_memory_candidates(current_user["_id"], outgoing_content, user_message["id"]) if preferences["emotionalMemory"] else []
 
     if attachment_id:
         attachments_collection().update_one(

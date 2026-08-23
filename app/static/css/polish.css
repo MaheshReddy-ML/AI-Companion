@@ -312,7 +312,7 @@ button,
   aspect-ratio: 1;
   right: max(-120px, -8vw);
   top: 48px;
-  background: url("/static/images/logo.svg") center / contain no-repeat;
+  background: url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
   opacity: 0.08;
   filter: saturate(1.2);
   pointer-events: none;
@@ -427,7 +427,7 @@ button,
   bottom: 44px;
   width: 220px;
   aspect-ratio: 1;
-  background: url("/static/images/logo.svg") center / contain no-repeat;
+  background: url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
   opacity: 0.12;
 }
 
@@ -856,7 +856,7 @@ button,
     left: 12px;
     z-index: 90;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 4px;
     padding: 8px;
     border: 1px solid var(--border);
@@ -1059,7 +1059,7 @@ button,
   }
 
   .mobile-app-nav-item span {
-    font-size: 10px;
+    font-size: 9px;
   }
 }
 
@@ -1080,3 +1080,7 @@ button,
     animation: none;
   }
 }
+
+[data-entitlement][data-locked="true"] { position: relative; opacity: .62; }
+[data-entitlement][data-locked="true"]::after { position: absolute; top: 8px; right: 8px; z-index: 3; padding: 4px 7px; border: 1px solid rgba(226,191,119,.28); border-radius: 999px; background: rgba(10,15,24,.9); color: #e2bf77; content: attr(data-plan-label); font: 8px "JetBrains Mono",monospace; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+button[data-entitlement][data-locked="true"] { cursor: pointer; }

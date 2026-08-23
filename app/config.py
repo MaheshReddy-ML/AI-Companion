@@ -36,13 +36,16 @@ class Settings:
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
     access_token_expire_days: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "7"))
     admin_api_key: str = os.getenv("ADMIN_API_KEY", "")
+    admin_emails: str = os.getenv("ADMIN_EMAILS", "hemu171807@gmail.com,emoracomapnion@gmail.com")
     rate_limit_enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     redis_url: str = os.getenv("REDIS_URL", "")
     redis_rate_limit_prefix: str = os.getenv("REDIS_RATE_LIMIT_PREFIX", "emora:rate-limit")
     clamav_socket: str = os.getenv("CLAMAV_SOCKET", "")
     audio_cache_max_age_days: int = int(os.getenv("AUDIO_CACHE_MAX_AGE_DAYS", "7"))
-    tts_worker_count: int = int(os.getenv("TTS_WORKER_COUNT", "2"))
-    tts_queue_max_pending: int = int(os.getenv("TTS_QUEUE_MAX_PENDING", "6"))
+    tts_worker_count: int = int(os.getenv("TTS_WORKER_COUNT", "4"))
+    tts_queue_max_pending: int = int(os.getenv("TTS_QUEUE_MAX_PENDING", "24"))
+    tts_priority_reserved: int = int(os.getenv("TTS_PRIORITY_RESERVED", "4"))
+    tts_queue_wait_seconds: float = float(os.getenv("TTS_QUEUE_WAIT_SECONDS", "3"))
     tts_engine: str = os.getenv("TTS_ENGINE", "qwen3-mlx")
     tts_qwen_model: str = os.getenv("TTS_QWEN_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-6bit")
     tts_streaming_interval: float = float(os.getenv("TTS_STREAMING_INTERVAL", "0.32"))
@@ -79,8 +82,17 @@ class Settings:
     # auto enables Qwen reasoning only for explicitly complex turns. The
     # legacy boolean remains supported as an explicit always-on override.
     chat_mlx_thinking_mode: str = os.getenv("CHAT_MLX_THINKING_MODE", "auto").strip().lower()
+    chat_worker_count: int = int(os.getenv("CHAT_WORKER_COUNT", "1"))
+    chat_queue_max_pending: int = int(os.getenv("CHAT_QUEUE_MAX_PENDING", "32"))
+    chat_queue_wait_seconds: float = float(os.getenv("CHAT_QUEUE_WAIT_SECONDS", "3"))
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
+    # Inference provider selection: 'local' (MLX on mac) or 'modal' (cloud GPU)
+    inference_provider: str = os.getenv("INFERENCE_PROVIDER", "local").strip().lower()
+    # Optional cloud model overrides for Modal provider. If unset, the code
+    # will attempt to use the MLX model ids as a starting point.
+    chat_modal_model: str = os.getenv("CHAT_MODAL_MODEL", "")
+    vision_modal_model: str = os.getenv("VISION_MODAL_MODEL", "")
 
 
     @property
@@ -91,6 +103,10 @@ class Settings:
     @property
     def email_configured(self) -> bool:
         return bool(self.email_user and self.email_password)
+
+    @property
+    def admin_email_set(self) -> set[str]:
+        return {item.strip().lower() for item in self.admin_emails.split(",") if item.strip()}
 
 
 settings = Settings()

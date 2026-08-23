@@ -23,6 +23,7 @@
   <p>
     <a href="#why-emora">Why Emora</a> ·
     <a href="#experience">Experience</a> ·
+    <a href="#plans--real-access">Plans</a> ·
     <a href="#architecture">Architecture</a> ·
     <a href="#quick-start">Quick start</a> ·
     <a href="#api-map">API map</a> ·
@@ -57,9 +58,24 @@ Most chatbots reset when a tab closes. Emora is designed around continuity: it k
 | **Overview** | Live activity rhythm, memory count, recent threads, and gentle conversation-driven nudges. |
 | **Companion** | Persistent chat, file attachments, conversation pinning/search/export, and character-specific personas. |
 | **Your Emora** | A live VRM room with auto-framing camera, speech recognition, Qwen3-TTS streaming, lip sync, and responsive motion. |
-| **Insights** | Tone trends, activity heatmaps, mood distribution, and day-of-week reflection patterns. |
-| **Personal space** | Journal entries, goals, quests, private garden, focus rooms, and companion memories. |
+| **Insights** | Tone trends and activity for everyone, with longer Look Back ranges, Pro reflection briefs, a real-data period reflection, and a private cross-source timeline when entitled. |
+| **Emora Play** | Daily quests and a private garden, plus a paid Ritual Archive, persistent World Atelier, nine real Remix transformations, and Complete voice keepsakes. |
+| **Focus Together** | A dedicated Pro space for timed or open-ended invitation-only rooms, live participant presence, refresh recovery, and a shared `@emora` conversation. The transcript is cleared when the room ends. |
+| **Personal space** | Journal entries, Gentle Goals, arrival check-ins, quiet hours, and user-controlled companion memories. |
 | **Community** | An anonymous, moderated reflections feed with ownership-aware edit/delete controls. |
+
+## Plans & real access
+
+Emora keeps the existing **Free**, **Plus**, **Pro**, and **Complete** plan structure. Access is resolved on the server from the signed-in account’s active or trialing subscription; expired or canceled subscriptions safely resolve to Free without deleting retained user data. The interface mirrors those server entitlements, but sensitive endpoints enforce them independently.
+
+| Plan | Product outcome | Working capabilities |
+| --- | --- | --- |
+| **Free** | Start building a private space. | Text companion, journal, Gentle Goals, daily quests and garden, community, 7/30-day insights, memory review/removal, and privacy controls. |
+| **Plus** | Make Emora more personal. | Voice, longer messages and attachments, expanded companion memory, conversation export, 90-day Look Back, and a private Play Ritual Archive derived from completed quests. |
+| **Pro** | Let Emora understand the bigger picture. | Everything in Plus, opt-in Adaptive Context, persistent World Atelier choices, timed or unlimited Focus Together rooms with live presence and shared `@emora` replies, nine functional Conversation Remix shapes, all-time insights, a Pro Reflection Brief, period reflection, and a personal timeline built from real conversations, arrivals, journals, goals, and memories. |
+| **Complete** | Use every current Emora capability. | Everything in Pro, private Voice Keepsakes generated from an owned conversation, higher chat/TTS limits, priority local generation, and early access. |
+
+The project does not pretend a payment succeeded when it has not. The existing billing route records a pending checkout request; subscription activation remains controlled by the configured billing/admin workflow. Owner allowlisted accounts receive administrator access through the same centralized access resolver.
 
 ### Companion signals, from message to presence
 
@@ -183,7 +199,7 @@ docker run --name emora-mongo -p 27017:27017 -d mongo:7
 ### 5. Run Emora
 
 ```bash
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** and create an account.
@@ -242,6 +258,7 @@ Copy `.env.example`; it documents every available setting. These are the setting
 | **Voice** | `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING`, `TTS_PRONUNCIATION_DICTIONARY` | The default engine is `qwen3-mlx`; set `kokoro` to force the fallback. |
 | **Google OAuth** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Configure the same callback URL with Google. |
 | **Email / OTP** | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM_NAME` | Required when password-reset email is enabled. |
+| **Owner access** | `ADMIN_EMAILS`, `ADMIN_API_KEY` | Comma-separated owner allowlist receives administrator/full-plan access; the key remains available for diagnostics automation. Owner addresses cannot be claimed through unverified local registration. |
 
 <details>
 <summary><strong>Google OAuth local callback</strong></summary>
@@ -273,9 +290,24 @@ All account-scoped endpoints require `Authorization: Bearer <token>` unless note
 | Memory | `DELETE` | `/api/companion/memories/{memory_id}` | Remove one owned memory. |
 | Companion | `GET` | `/api/companion/dashboard` | Read conversation-derived companion metrics. |
 | Insights | `GET` | `/api/insights?days=30` | Read reflective timeline and mood data. |
+| Emora Play | `GET` | `/api/play/ritual-history` | Read the Plus private ritual archive. |
+| Emora Play | `PUT` | `/api/play/space` | Persist a Pro World Atelier backdrop, ambience, and accessory. |
+| Emora Play | `POST` | `/api/play/remix` | Run one of the entitlement-protected Remix transformations. |
+| Emora Play | `GET` | `/api/play/postcard/{conversation_id}` | Generate a Complete voice keepsake from an owned conversation. |
+| Focus Together | `POST` | `/api/play/focus-rooms` | Create a timed or unlimited, invitation-only Pro focus room. |
+| Focus Together | `POST` | `/api/play/focus-rooms/join` | Join an active focus room using its private code. |
+| Focus Together | `GET` | `/api/play/focus-rooms/current` | Restore the signed-in member’s active room after refresh. |
+| Focus Together | `GET` | `/api/play/focus-rooms/{code}` | Read authoritative room state, active participants, and shared transcript. |
+| Focus Together | `GET` | `/api/play/focus-rooms/{code}/events` | Subscribe to the authenticated room-scoped server event stream. |
+| Focus Together | `POST` | `/api/play/focus-rooms/{code}/messages` | Add a shared message; an `@emora` mention also creates a room-visible Emora reply. |
+| Focus Together | `POST` | `/api/play/focus-rooms/{code}/end` | End an active room (host only) and clear its conversation. |
+| Focus Together | `POST` | `/api/play/focus-rooms/{code}/leave` | Remove one client connection from room presence. |
 | Voice | `GET` / `POST` | `/api/voices/list` · `/api/voices/speak` | List voices or generate speech. |
 | Community | `GET` / `POST` | `/posts` | Browse or create anonymous reflections. |
-| Admin | `GET` | `/api/admin/diagnostics` | Protected diagnostics; send `X-Admin-Key`. |
+| Billing | `GET` | `/api/billing/plans` | Public Free, Plus, Pro, and Complete plan catalog. |
+| Billing | `GET` / `POST` | `/api/billing/access` · `/api/billing/checkout` | Read effective entitlements or create a pending verified-checkout request. |
+| Billing admin | `GET` / `PATCH` | `/api/billing/admin/users` · `/api/billing/admin/users/{id}/subscription` | Owner-only account and subscription management. |
+| Admin | `GET` | `/api/admin/diagnostics` | Protected diagnostics; send `X-Admin-Key` or use an owner account token. |
 
 ### A few useful requests
 
@@ -317,6 +349,7 @@ Emora is built around user control rather than the illusion of perfect recall.
 - Passwords use bcrypt hashing with a SHA-256 pre-hash; reset OTPs are hashed before storage.
 - JWTs include expiration and token versions. Password resets and logout revoke older sessions.
 - High-risk endpoints are rate limited, attachments validate file type/signature, and admin diagnostics require a separate key.
+- Paid access is resolved on the server from active subscription state. The checkout preview stores no card or UPI details and creates only a pending request until a billing provider or administrator verifies access.
 - The companion stores only clear, useful facts; temporary reminders expire after 28 days.
 - Memory, conversations, attachments, account exports, and deletion actions are authenticated and scoped to the account owner.
 - Community identities remain server-side; clients receive no profile identity for anonymous posts.

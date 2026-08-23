@@ -188,6 +188,8 @@ class VoiceManager:
         self._kokoro_pipelines: Dict[str, Any] = {}
         self._qwen_models: Dict[str, Any] = {}
         self._load_lock = threading.RLock()
+        self._qwen_generation_lock = threading.RLock()
+        self._kokoro_generation_lock = threading.RLock()
         self._scan_models()
 
     def _load_metadata(self) -> List[Dict]:
@@ -441,13 +443,14 @@ class VoiceManager:
             print(f"VoiceManager: Qwen3 streaming unavailable, using Kokoro fallback. {exc}")
 
         try:
-            pipeline = self._kokoro_pipeline(vm.voice)
-            generator = pipeline(speech_text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
-            for _, _, audio in generator:
-                if cancel_event.is_set():
-                    return
-                yield self._audio_to_pcm(audio)
-            return
+            with self._kokoro_generation_lock:
+                pipeline = self._kokoro_pipeline(vm.voice)
+                generator = pipeline(speech_text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+                for _, _, audio in generator:
+                    if cancel_event.is_set():
+                        return
+                    yield self._audio_to_pcm(audio)
+                return
         except Exception as exc:
             if not self._can_use_macos_say():
                 raise RuntimeError(f"No streaming TTS runtime is available: {exc}") from exc
@@ -526,15 +529,16 @@ class VoiceManager:
 
     def _kokoro_pipeline(self, voice_id: str):
         lang_code = self._kokoro_lang_code(voice_id)
-        if lang_code in self._kokoro_pipelines:
-            return self._kokoro_pipelines[lang_code]
-        try:
-            from kokoro import KPipeline
-        except Exception as exc:
-            raise RuntimeError("Kokoro is not installed. Install kokoro>=0.9.4 and soundfile.") from exc
-        pipeline = KPipeline(lang_code=lang_code)
-        self._kokoro_pipelines[lang_code] = pipeline
-        return pipeline
+        with self._load_lock:
+            if lang_code in self._kokoro_pipelines:
+                return self._kokoro_pipelines[lang_code]
+            try:
+                from kokoro import KPipeline
+            except Exception as exc:
+                raise RuntimeError("Kokoro is not installed. Install kokoro>=0.9.4 and soundfile.") from exc
+            pipeline = KPipeline(lang_code=lang_code)
+            self._kokoro_pipelines[lang_code] = pipeline
+            return pipeline
 
     def _generate_with_kokoro(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -544,22 +548,25 @@ class VoiceManager:
         except Exception as exc:
             raise RuntimeError("Kokoro audio writing requires numpy and soundfile.") from exc
 
-        pipeline = self._kokoro_pipeline(vm.voice)
-        audio_parts = []
-        try:
-            generator = pipeline(text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
-            for _, _, audio in generator:
-                audio_parts.append(audio)
-        except Exception as exc:
-            raise RuntimeError(f"Kokoro generation failed: {exc}") from exc
+        with self._kokoro_generation_lock:
+            if out_path.exists() and out_path.stat().st_size > 44:
+                return out_path
+            pipeline = self._kokoro_pipeline(vm.voice)
+            audio_parts = []
+            try:
+                generator = pipeline(text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+                for _, _, audio in generator:
+                    audio_parts.append(audio)
+            except Exception as exc:
+                raise RuntimeError(f"Kokoro generation failed: {exc}") from exc
 
-        if not audio_parts:
-            raise RuntimeError("Kokoro generated no audio.")
-        audio = np.concatenate(audio_parts)
-        sf.write(str(out_path), audio, 24000)
-        if not out_path.exists() or out_path.stat().st_size <= 44:
-            raise RuntimeError("Kokoro generated an empty audio file.")
-        return out_path
+            if not audio_parts:
+                raise RuntimeError("Kokoro generated no audio.")
+            audio = np.concatenate(audio_parts)
+            sf.write(str(out_path), audio, 24000)
+            if not out_path.exists() or out_path.stat().st_size <= 44:
+                raise RuntimeError("Kokoro generated an empty audio file.")
+            return out_path
 
     def _qwen_model(self):
         model_id = settings.tts_qwen_model
@@ -610,33 +617,34 @@ class VoiceManager:
             import numpy as np
         except Exception as exc:
             raise RuntimeError("Qwen3 audio conversion requires numpy.") from exc
-        model = self._qwen_model()
-        speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
-        kwargs = {
-            "text": text,
-            "speaker": speaker,
-            "language": "English",
-            "instruct": speech_profile["style_instruction"],
-            "stream": True,
-            "streaming_interval": settings.tts_streaming_interval,
-        }
-        try:
-            results = model.generate_custom_voice(**kwargs)
-        except (AttributeError, TypeError) as exc:
-            raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
-        emitted = False
-        try:
-            for result in results:
-                if cancel_event.is_set():
-                    return
-                audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
-                if audio.size:
-                    emitted = True
-                    yield audio
-        except Exception as exc:
-            raise RuntimeError(f"Qwen3 generation failed: {exc}") from exc
-        if not emitted and not cancel_event.is_set():
-            raise RuntimeError("Qwen3 generated no audio.")
+        with self._qwen_generation_lock:
+            model = self._qwen_model()
+            speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
+            kwargs = {
+                "text": text,
+                "speaker": speaker,
+                "language": "English",
+                "instruct": speech_profile["style_instruction"],
+                "stream": True,
+                "streaming_interval": settings.tts_streaming_interval,
+            }
+            try:
+                results = model.generate_custom_voice(**kwargs)
+            except (AttributeError, TypeError) as exc:
+                raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
+            emitted = False
+            try:
+                for result in results:
+                    if cancel_event.is_set():
+                        return
+                    audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
+                    if audio.size:
+                        emitted = True
+                        yield audio
+            except Exception as exc:
+                raise RuntimeError(f"Qwen3 generation failed: {exc}") from exc
+            if not emitted and not cancel_event.is_set():
+                raise RuntimeError("Qwen3 generated no audio.")
 
     def _generate_with_qwen(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -645,18 +653,21 @@ class VoiceManager:
             import soundfile as sf
         except Exception as exc:
             raise RuntimeError("Qwen3 audio writing requires numpy and soundfile.") from exc
-        cancelled = threading.Event()
-        parts = [
-            audio
-            for sentence in self._sentence_chunks(text)
-            for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancelled)
-        ]
-        if not parts:
-            raise RuntimeError("Qwen3 generated no audio.")
-        sf.write(str(out_path), np.concatenate(parts), settings.tts_sample_rate)
-        if not out_path.exists() or out_path.stat().st_size <= 44:
-            raise RuntimeError("Qwen3 generated an empty audio file.")
-        return out_path
+        with self._qwen_generation_lock:
+            if out_path.exists() and out_path.stat().st_size > 44:
+                return out_path
+            cancelled = threading.Event()
+            parts = [
+                audio
+                for sentence in self._sentence_chunks(text)
+                for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancelled)
+            ]
+            if not parts:
+                raise RuntimeError("Qwen3 generated no audio.")
+            sf.write(str(out_path), np.concatenate(parts), settings.tts_sample_rate)
+            if not out_path.exists() or out_path.stat().st_size <= 44:
+                raise RuntimeError("Qwen3 generated no audio.")
+            return out_path
 
     def _audio_to_pcm(self, audio: Any) -> bytes:
         try:

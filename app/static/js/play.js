@@ -1,16 +1,13 @@
-import { apiRequest, ensureSession, escapeHtml, initChrome } from "./common.js";
+import { accessDisplayForUser, apiRequest, ensureSession, escapeHtml, getStoredUser, getToken, guardEntitlement, hasStoredEntitlement, initChrome } from "./common.js";
+import { createCinematicRoom } from "./cinematic-room.js";
 
 const byId = (id) => document.getElementById(id);
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-function makeSparkles(amount = 18) {
-  const layer = byId("play-sparkles");
-  if (!layer || prefersReducedMotion) return;
-  layer.innerHTML = Array.from({ length: amount }, (_, index) => `<i style="--x:${(index * 37) % 100}%;--y:${(index * 61) % 92}%;--delay:-${(index % 7) * .72}s;--size:${3 + (index % 4) * 1.5}px"></i>`).join("");
-}
+const playWorld = document.querySelector("[data-play-world]");
+let cinematicRoom = null;
 
 function celebrate(button) {
-  const garden = document.querySelector(".garden-preview");
+  const garden = document.querySelector(".play-garden-state");
   garden?.classList.remove("garden-celebrate");
   requestAnimationFrame(() => garden?.classList.add("garden-celebrate"));
   button?.classList.add("quest-complete-pop");
@@ -19,10 +16,10 @@ function celebrate(button) {
 
 function renderQuests(quests) {
   byId("quest-list").innerHTML = quests.quests.map((quest, index) => `
-    <article class="quest-card ${quest.completed ? "is-complete" : ""}" style="--quest-delay:${index * 80}ms">
+    <article class="ritual-fragment ${quest.completed ? "is-complete" : ""}" data-ritual-index="0${index + 1}" style="--quest-delay:${index * 80}ms">
       <span class="quest-number">0${index + 1}</span><span class="quest-spark">✦</span>
       <div class="settings-row-label"><h4>${escapeHtml(quest.title)}</h4><p>${escapeHtml(quest.description)}</p></div>
-      <button class="btn ${quest.completed ? "btn-ghost" : "btn-outline"} btn-sm" data-quest="${quest.id}" ${quest.completed ? "disabled" : ""}>${quest.completed ? "Complete ✓" : "Begin ritual →"}</button>
+      <button data-quest="${quest.id}" ${quest.completed ? "disabled" : ""}>${quest.completed ? "Complete ✓" : "Begin ritual →"}</button>
     </article>`).join("");
 }
 
@@ -31,9 +28,62 @@ async function load() {
   renderQuests(quests);
   byId("garden-stage").textContent = `${garden.stage[0].toUpperCase()}${garden.stage.slice(1)} garden · ${garden.completedQuests} rituals`;
   byId("garden-copy").textContent = garden.message;
-  document.querySelector(".garden-preview")?.setAttribute("data-stage", garden.stage);
+  byId("garden-count").textContent = `+${quests.quests.filter((quest) => !quest.completed).length}`;
+  document.querySelector(".play-garden-state")?.setAttribute("data-stage", garden.stage);
   byId("memory-list").innerHTML = memories.memories.map((memory) => `<div class="settings-row"><span>${escapeHtml(memory.text)}</span><button class="btn btn-ghost btn-sm" data-memory="${memory.id}">Remove</button></div>`).join("") || "<p class='muted'>Nothing saved yet. You stay in control of every memory.</p>";
   for (const key of ["background", "ambience", "accessory"]) byId(`space-${key}`).value = space.space[key];
+  updateSpacePreview();
+}
+
+async function loadPremiumPlay() {
+  const access = getStoredUser()?.access;
+  const planName = access?.planName || "Free";
+  const accessDisplay = accessDisplayForUser(getStoredUser());
+  byId("play-plan-kicker").textContent = accessDisplay.kicker;
+  byId("play-plan-seal").textContent = accessDisplay.label;
+  document.querySelectorAll("[data-play-plan-name]").forEach((element) => { element.textContent = access?.isAdmin ? "Admin controls" : `${planName} plan`; });
+
+  if (hasStoredEntitlement("look_back")) {
+    const archive = await apiRequest("/api/play/ritual-history", { auth: true });
+    byId("archive-active-days").textContent = String(archive.activeDays || 0);
+    byId("archive-completed").textContent = String(archive.completedRituals || 0);
+    byId("archive-streak").textContent = `${archive.currentStreak || 0} day${archive.currentStreak === 1 ? "" : "s"}`;
+    byId("archive-strongest").textContent = archive.strongestRitual || "Still emerging";
+    byId("ritual-archive-list").innerHTML = archive.recent?.length
+      ? archive.recent.map((item) => `<article><time>${escapeHtml(new Date(`${item.date}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" }))}</time><p>${item.rituals.map(escapeHtml).join(" · ")}</p></article>`).join("")
+      : "<p>Your completed rituals will gather here.</p>";
+  }
+
+  if (hasStoredEntitlement("voice_postcards")) {
+    const conversations = await apiRequest("/api/chat?limit=30", { auth: true });
+    byId("keepsake-conversation").innerHTML = '<option value="">Choose a conversation</option>' + conversations
+      .filter((conversation) => conversation.messages?.some((message) => message.role === "assistant"))
+      .map((conversation) => `<option value="${escapeHtml(conversation.id)}">${escapeHtml(conversation.title)}</option>`)
+      .join("");
+  }
+}
+
+function updateSpacePreview() {
+  const spaceMaker = document.querySelector(".play-space-maker");
+  if (!spaceMaker) return;
+  spaceMaker.dataset.spacePreview = byId("space-background").value;
+  spaceMaker.dataset.spaceAmbience = byId("space-ambience").value;
+  spaceMaker.dataset.spaceAccessory = byId("space-accessory").value;
+}
+
+function initializeCinematicRoom() {
+  const mount = document.querySelector("[data-play-room-mount]");
+  if (!mount) return;
+  try {
+    cinematicRoom = createCinematicRoom(mount, {
+      imageUrl: "/static/images/emora-night-room-v1.webp",
+      reducedMotion: prefersReducedMotion,
+      onReady: () => playWorld?.classList.add("scene-ready"),
+    });
+  } catch (error) {
+    console.warn("Emora Play is using its cinematic fallback.", error);
+    playWorld?.classList.add("scene-ready", "scene-fallback");
+  }
 }
 
 byId("quest-list").addEventListener("click", async (event) => {
@@ -45,10 +95,38 @@ byId("quest-list").addEventListener("click", async (event) => {
 });
 byId("memory-form").addEventListener("submit", async (event) => { event.preventDefault(); const text = byId("memory-input").value.trim(); if (!text) return; await apiRequest("/api/play/memories", { method: "POST", auth: true, body: { text } }); byId("memory-input").value = ""; await load(); });
 byId("memory-list").addEventListener("click", async (event) => { const button = event.target.closest("[data-memory]"); if (!button) return; await apiRequest(`/api/play/memories/${button.dataset.memory}`, { method: "DELETE", auth: true }); await load(); });
-byId("room-form").addEventListener("submit", async (event) => { event.preventDefault(); const result = await apiRequest("/api/play/focus-rooms", { method: "POST", auth: true, body: { name: byId("room-name").value, minutes: Number(byId("room-minutes").value) } }); byId("room-status").textContent = `Invite code: ${result.room.code} · ${result.room.members} member`; });
-byId("room-join").addEventListener("click", async () => { const result = await apiRequest("/api/play/focus-rooms/join", { method: "POST", auth: true, body: { code: byId("room-code").value } }); byId("room-status").textContent = `Joined ${result.room.name} · ${result.room.members} members`; });
-byId("space-form").addEventListener("submit", async (event) => { event.preventDefault(); await apiRequest("/api/play/space", { method: "PUT", auth: true, body: { background: byId("space-background").value, ambience: byId("space-ambience").value, accessory: byId("space-accessory").value } }); byId("room-status").textContent = "Your atmosphere is ready."; });
-byId("remix-form").addEventListener("submit", async (event) => { event.preventDefault(); const result = await apiRequest("/api/play/remix", { method: "POST", auth: true, body: { text: byId("remix-input").value, format: byId("remix-format").value } }); byId("remix-output").textContent = result.content; });
+byId("space-form").addEventListener("change", updateSpacePreview);
+byId("space-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!guardEntitlement("ambient_rooms")) return; await apiRequest("/api/play/space", { method: "PUT", auth: true, body: { background: byId("space-background").value, ambience: byId("space-ambience").value, accessory: byId("space-accessory").value } }); byId("space-status").textContent = "Your atmosphere is ready."; });
+byId("remix-form").addEventListener("submit", async (event) => { event.preventDefault(); if (!guardEntitlement("conversation_remix")) return; const result = await apiRequest("/api/play/remix", { method: "POST", auth: true, body: { text: byId("remix-input").value, format: byId("remix-format").value } }); byId("remix-output").textContent = result.content + (result.createdGoal ? `\n\nSaved to Gentle Goals: ${result.createdGoal.title}` : ""); });
+byId("keepsake-create").addEventListener("click", async () => {
+  if (!guardEntitlement("voice_postcards")) return;
+  const conversationId = byId("keepsake-conversation").value;
+  if (!conversationId) { byId("keepsake-status").textContent = "Choose a conversation first."; return; }
+  const button = byId("keepsake-create");
+  button.disabled = true;
+  byId("keepsake-status").textContent = "Creating your private voice keepsake…";
+  try {
+    const response = await fetch(`/api/play/postcard/${encodeURIComponent(conversationId)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!response.ok) {
+      const detail = await response.json().catch(() => ({}));
+      throw new Error(detail.detail || "Could not create this voice keepsake.");
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const audio = new Audio(url);
+    audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
+    await audio.play();
+    byId("keepsake-status").textContent = "Playing your voice keepsake.";
+  } catch (error) {
+    byId("keepsake-status").textContent = error.message || "Could not create this voice keepsake.";
+  } finally {
+    button.disabled = false;
+  }
+});
 
 initChrome();
-if (await ensureSession({ redirectTo: "/login" })) { makeSparkles(); load(); }
+if (await ensureSession({ redirectTo: "/login" })) {
+  initializeCinematicRoom();
+  await Promise.all([load(), loadPremiumPlay()]);
+}
+
+window.addEventListener("pagehide", () => { cinematicRoom?.dispose(); }, { once: true });

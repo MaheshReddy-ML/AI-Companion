@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block body_class %}app-body{% endblock %}
+{% block body_class %}app-body editorial-workspace editorial-community{% endblock %}
 
 {% block content %}
 <div class="app-layout app-section-layout">
   <aside class="sidebar">
     <div class="sidebar-logo">
       <a class="logo" href="/">
-        <span class="logo-mark">AI</span>
+        <span class="logo-mark"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
         <span class="logo-name">Emora</span>
       </a>
     </div>
@@ -18,6 +18,7 @@
       <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
       <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
       <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/focus-together"><span class="nav-item-icon">F</span> Focus Together <span class="nav-badge">Pro</span></a>
       <a class="nav-item active" href="/community"><span class="nav-item-icon">M</span> Community</a>
     </div>
 
@@ -31,7 +32,7 @@
         <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
         <div class="user-pill-info">
           <h6 data-session-user-name>Mahesh Reddy</h6>
-          <span>Free plan</span>
+          <span data-session-plan>Free plan</span>
         </div>
       </div>
     </div>
@@ -134,5 +135,5 @@
 
 {% block scripts %}
   <script type="module" src="/static/js/workspace-shell.js"></script>
-  <script type="module" src="/static/js/community.js"></script>
+  <script type="module" src="/static/js/community.js?v=20260822-community-feed-v1"></script>
 {% endblock %}

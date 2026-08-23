@@ -7,7 +7,7 @@
   <aside class="sidebar">
     <div class="sidebar-logo">
       <a class="logo" href="/">
-        <span class="logo-mark">AI</span>
+        <span class="logo-mark"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
         <span class="logo-name">Emora</span>
       </a>
     </div>
@@ -18,6 +18,7 @@
       <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
       <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
       <a class="nav-item" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/focus-together"><span class="nav-item-icon">F</span> Focus Together <span class="nav-badge">Pro</span></a>
       <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
     </div>
 
@@ -52,10 +53,10 @@
         <div class="profile-avatar-lg" data-session-avatar data-session-user-initial>M</div>
         <div class="profile-info">
           <h2 class="serif" data-session-user-name>Mahesh Reddy</h2>
-          <p><span data-session-user-email>user@example.com</span> - Member since May 2025</p>
+          <p><span data-session-user-email>user@example.com</span> · <span id="profile-member-since">Member</span></p>
           <div class="profile-badges">
-            <span class="badge badge-gold">12-day streak</span>
-            <span class="badge badge-blue">4 sessions this week</span>
+            <span class="badge badge-gold" id="profile-streak-badge">Loading rhythm…</span>
+            <span class="badge badge-blue" id="profile-session-badge">Loading activity…</span>
           </div>
         </div>
         <button class="btn btn-outline btn-sm profile-edit-btn" id="profile-edit-button" type="button">Personalise profile</button>
@@ -102,27 +103,27 @@
         <div class="settings-section">
           <div class="settings-section-header"><h3>Companion preferences</h3></div>
           <div class="settings-list">
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Emotional memory</h4><p>Remember helpful conversation context on this device</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle emotional memory" data-profile-preference="emotional-memory"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Visual emotion input</h4><p>Offer the optional camera check-in during chat</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle visual emotion input" data-profile-preference="visual-input"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Session insights panel</h4><p>Show reflective signals while you chat</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle session insights panel" data-profile-preference="session-insights"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Gentle connection reminders</h4><p>Occasionally suggest reconnecting with people</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle gentle connection reminders" data-profile-preference="connection-reminders"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Emotional memory</h4><p>Let Emora save and use helpful details across conversations</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle emotional memory" data-profile-preference="emotionalMemory"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Visual emotion input</h4><p>Make the optional, one-frame camera check-in available in Companion</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle visual emotion input" data-profile-preference="visualInput"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Gentle connection prompts</h4><p>Allow an occasional in-app suggestion to reconnect with someone</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle gentle connection prompts" data-profile-preference="connectionReminders"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Quiet hours</h4><p>Keep Overview nudges and Companion responses calm and user-led</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle quiet hours" data-profile-preference="quietHours"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Adaptive context <span class="badge badge-gold">Pro</span></h4><p>Let Emora use your active goals and latest check-in when they are relevant. Journal entries stay private.</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle adaptive context" data-profile-preference="adaptiveContext" data-entitlement="adaptive_companion" data-plan-label="Pro"></button></div>
           </div>
         </div>
 
         <div class="settings-section">
-          <div class="settings-section-header"><h3>Notifications</h3></div>
+          <div class="settings-section-header"><h3>In-app reflections</h3></div>
           <div class="settings-list">
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Weekly insights digest</h4><p>Keep a weekly reflection reminder on this device</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle weekly insights digest" data-profile-preference="weekly-digest"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Streak reminders</h4><p>Get a gentle nudge after two quiet days</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle streak reminders" data-profile-preference="streak-reminders"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Community replies</h4><p>Show reply updates in your workspace</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle community replies" data-profile-preference="community-replies"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Weekly reflection</h4><p>Show your recent Look Back moments on Overview</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle weekly reflection" data-profile-preference="weeklyReflection"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Rhythm prompts</h4><p>Show a gentle in-app prompt after quiet days</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle rhythm prompts" data-profile-preference="streakReminders"></button></div>
           </div>
         </div>
 
         <div class="settings-section">
           <div class="settings-section-header"><h3>Privacy & data</h3></div>
           <div class="settings-list">
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Data minimisation mode</h4><p>Keep only essential local session preferences</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle data minimisation mode" data-profile-preference="data-minimisation"></button></div>
-            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Anonymous community posts</h4><p>Use an anonymous identity when you choose to post</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle anonymous community posts" data-profile-preference="anonymous-posts"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Data minimisation mode</h4><p>Use camera observations for the current reply without saving them</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle data minimisation mode" data-profile-preference="dataMinimisation"></button></div>
+            <div class="settings-row"><div class="settings-row-label"><h4>Community privacy</h4><p>Community posts always use your private anonymous identity; your account name is never shown.</p></div><span class="badge badge-blue">Always anonymous</span></div>
             <div class="settings-row profile-setting-stack">
               <div class="settings-row-label"><h4>Download my data</h4><p>Export all your sessions and emotional history</p></div>
               <button class="btn btn-outline btn-sm" id="account-export-button" type="button">Download data</button>
@@ -134,7 +135,7 @@
           <div class="settings-section-header"><h3>Danger zone</h3></div>
           <div class="settings-list">
             <div class="settings-row profile-setting-stack">
-              <div class="settings-row-label"><h4>Clear emotional history</h4><p>Removes all session data. Cannot be undone.</p></div>
+              <div class="settings-row-label"><h4>Clear conversation history</h4><p>Removes saved chats and their attachments. Cannot be undone.</p></div>
               <button class="btn btn-danger btn-sm" id="clear-history-button" type="button">Clear history</button>
             </div>
             <div class="settings-row profile-setting-stack">

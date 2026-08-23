@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import check_database_connection, ensure_indexes
 from app.voice_manager import cleanup_audio_cache
-from app.routers import account, admin, api_auth, api_chat, companion, insights, pages, personal, play, posts
+from app.routers import account, admin, api_auth, api_chat, billing, companion, insights, pages, personal, play, posts
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon() -> RedirectResponse:
-    return RedirectResponse(url="/static/images/logo.svg")
+    return RedirectResponse(url="/static/images/logo.svg?v=20260822-emora-mark")
 
 app.include_router(pages.router)
 app.include_router(api_auth.router, prefix="/api/auth")
@@ -49,6 +49,7 @@ app.include_router(play.router)
 app.include_router(personal.router)
 app.include_router(posts.router)
 app.include_router(admin.router)
+app.include_router(billing.router)
 # voice router
 from app.routers import voices as api_voices
 app.include_router(api_voices.router, prefix="/api/voices")

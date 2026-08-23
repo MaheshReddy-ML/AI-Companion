@@ -4,13 +4,23 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.config import settings
 from app.database import check_database_connection, conversations_collection, posts_collection, users_collection
-from app.services.local_mlx_chat import local_mlx_chat
+from app.inference.provider import get_chat_provider
+from app.access import is_platform_admin
+from app.security import get_optional_current_user
+
+# provider-selected chat for diagnostics
+local_mlx_chat = get_chat_provider()
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-def require_admin_key(x_admin_key: str | None = Header(default=None)) -> None:
+def require_admin_access(
+    x_admin_key: str | None = Header(default=None),
+    current_user: dict | None = Depends(get_optional_current_user),
+) -> None:
+    if is_platform_admin(current_user):
+        return
     if not settings.admin_api_key:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin diagnostics are not enabled.")
     if x_admin_key != settings.admin_api_key:
@@ -18,7 +28,7 @@ def require_admin_key(x_admin_key: str | None = Header(default=None)) -> None:
 
 
 @router.get("/diagnostics")
-def diagnostics(_: None = Depends(require_admin_key)) -> dict:
+def diagnostics(_: None = Depends(require_admin_access)) -> dict:
     database = check_database_connection()
     counts = {"users": None, "conversations": None, "posts": None}
 

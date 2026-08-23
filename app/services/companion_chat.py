@@ -1,13 +1,16 @@
 """Local-only MLX chat service for Emora."""
 from __future__ import annotations
 
-import asyncio
 import re
 from typing import Any
 
 from app.companion_brain import extract_reply_and_brain
 from app.config import settings
-from app.services.local_mlx_chat import local_mlx_chat
+from app.inference.provider import get_chat_provider
+from app.services.inference_queue import run_chat_generation
+
+# Use the selected chat provider (local or modal)
+local_mlx_chat = get_chat_provider()
 
 
 SYSTEM_PROMPT = (
@@ -40,9 +43,9 @@ COMPLEX_REASONING_PATTERN = re.compile(
 )
 
 
-def _normalize_history(history: list[dict] | None) -> list[dict[str, str]]:
+def _normalize_history(history: list[dict] | None, limit: int = MAX_HISTORY_MESSAGES) -> list[dict[str, str]]:
     normalized: list[dict[str, str]] = []
-    for item in (history or [])[-MAX_HISTORY_MESSAGES:]:
+    for item in (history or [])[-max(1, limit):]:
         content = str(item.get("content", "")).strip()
         if content:
             normalized.append({"role": "assistant" if item.get("role") == "assistant" else "user", "content": content})
@@ -96,15 +99,22 @@ async def get_companion_reply(
     persona_prompt: str | None = None,
     character_id: str | None = None,
     companion_context: str | None = None,
+    history_limit: int = MAX_HISTORY_MESSAGES,
+    priority: bool = False,
+    requester_id: str | None = None,
+    requester_limit: int = 1,
 ) -> tuple[str, dict[str, Any], str]:
     """Generate one local Qwen reply without blocking FastAPI's event loop."""
     resolved_model = (model or settings.chat_mlx_model).strip() or settings.chat_mlx_model
     try:
-        raw_content = await asyncio.to_thread(
+        raw_content = await run_chat_generation(
             local_mlx_chat.generate,
+            priority=priority,
+            requester_id=requester_id,
+            requester_limit=requester_limit,
             model_id=resolved_model,
             messages=_build_messages(
-                _normalize_history(history), message, persona_prompt, character_id, companion_context
+                _normalize_history(history, history_limit), message, persona_prompt, character_id, companion_context
             ),
             max_tokens=settings.chat_mlx_max_tokens,
             temperature=settings.chat_mlx_temperature,

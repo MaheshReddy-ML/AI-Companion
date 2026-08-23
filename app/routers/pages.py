@@ -87,9 +87,19 @@ def profile_page(request: Request) -> HTMLResponse:
     return render_page(request, "profile.html", "Profile")
 
 
+@router.get("/payment", response_class=HTMLResponse)
+def payment_page(request: Request) -> HTMLResponse:
+    return render_page(request, "payment.html", "Emora Plans")
+
+
 @router.get("/play", response_class=HTMLResponse)
 def play_page(request: Request) -> HTMLResponse:
     return render_page(request, "play.html", "Emora Play")
+
+
+@router.get("/focus-together", response_class=HTMLResponse)
+def focus_together_page(request: Request) -> HTMLResponse:
+    return render_page(request, "focus_together.html", "Focus Together")
 
 
 @router.get("/journal", response_class=HTMLResponse)

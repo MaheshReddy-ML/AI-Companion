@@ -5,9 +5,10 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-MAX_CHAT_MESSAGE_LENGTH = 8_000
+MAX_CHAT_MESSAGE_LENGTH = 12_000
 MAX_CONVERSATION_TITLE_LENGTH = 120
 MAX_PERSONA_PROMPT_LENGTH = 4_000
+CompanionMode = Literal["listen", "think", "reflect", "plan", "quiet", "deep"]
 
 
 class ChatHistoryMessage(BaseModel):
@@ -22,6 +23,7 @@ class ConversationCreateRequest(BaseModel):
     character_name: str | None = Field(default=None, alias="characterName")
     persona_prompt: str | None = Field(default=None, alias="personaPrompt", max_length=MAX_PERSONA_PROMPT_LENGTH)
     starter_message: str | None = Field(default=None, alias="starterMessage", max_length=MAX_CHAT_MESSAGE_LENGTH)
+    companion_mode: CompanionMode = Field(default="listen", alias="companionMode")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -32,6 +34,7 @@ class ConversationUpdateRequest(BaseModel):
     character_id: str | None = Field(default=None, alias="characterId")
     character_name: str | None = Field(default=None, alias="characterName")
     persona_prompt: str | None = Field(default=None, alias="personaPrompt", max_length=MAX_PERSONA_PROMPT_LENGTH)
+    companion_mode: CompanionMode | None = Field(default=None, alias="companionMode")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -45,6 +48,7 @@ class ChatSendRequest(BaseModel):
     persona_prompt: str | None = Field(default=None, alias="personaPrompt", max_length=MAX_PERSONA_PROMPT_LENGTH)
     character_id: str | None = Field(default=None, alias="characterId", max_length=100)
     character_name: str | None = Field(default=None, alias="characterName", max_length=120)
+    companion_mode: CompanionMode | None = Field(default=None, alias="companionMode")
     # Captured only after an explicit browser permission and user action. The
     # server analyzes it in memory and persists a report, never image pixels.
     camera_opt_in: bool = Field(default=False, alias="cameraOptIn")

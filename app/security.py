@@ -10,6 +10,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.access import has_entitlement, is_platform_admin
 from app.config import settings
 from app.database import parse_object_id, users_collection, utc_now
 
@@ -55,7 +56,9 @@ def decode_access_token(token: str) -> dict:
         ) from exc
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> dict:
+def _resolve_user(credentials: HTTPAuthorizationCredentials | None) -> dict | None:
+    if credentials is None:
+        return None
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,3 +90,35 @@ def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(
         )
 
     return user
+
+
+def get_optional_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> dict | None:
+    return _resolve_user(credentials)
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme)) -> dict:
+    user = _resolve_user(credentials)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized, no token",
+        )
+    return user
+
+
+def require_platform_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    if not is_platform_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator access required.")
+    return current_user
+
+
+def require_entitlement(entitlement: str):
+    def dependency(current_user: dict = Depends(get_current_user)) -> dict:
+        if not has_entitlement(current_user, entitlement):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Your current plan does not include {entitlement.replace('_', ' ')}. View Emora plans to upgrade.",
+            )
+        return current_user
+
+    return dependency

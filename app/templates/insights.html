@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block body_class %}app-body{% endblock %}
+{% block body_class %}app-body editorial-workspace editorial-insights{% endblock %}
 
 {% block content %}
 <div class="app-layout app-section-layout">
   <aside class="sidebar">
     <div class="sidebar-logo">
       <a class="logo" href="/">
-        <span class="logo-mark">AI</span>
+        <span class="logo-mark"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
         <span class="logo-name">Emora</span>
       </a>
     </div>
@@ -18,6 +18,7 @@
       <a class="nav-item" href="/your-emora"><span class="nav-item-icon">Y</span> Your Emora</a>
       <a class="nav-item" href="/chat"><span class="nav-item-icon">C</span> Companion <span class="nav-badge">Live</span></a>
       <a class="nav-item active" href="/insights"><span class="nav-item-icon">I</span> Insights</a>
+      <a class="nav-item" href="/focus-together"><span class="nav-item-icon">F</span> Focus Together <span class="nav-badge">Pro</span></a>
       <a class="nav-item" href="/community"><span class="nav-item-icon">M</span> Community</a>
     </div>
 
@@ -32,7 +33,7 @@
         <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
         <div class="user-pill-info">
           <h6 data-session-user-name>Mahesh Reddy</h6>
-          <span>Free plan</span>
+          <span data-session-plan>Free plan</span>
         </div>
       </div>
     </div>
@@ -40,19 +41,52 @@
 
   <main class="main-content">
     <div class="insights-header">
-      <h1 class="serif">Emotional Insights</h1>
-      <p>Understand your patterns - week by week, conversation by conversation</p>
+      <div class="insights-heading-copy">
+        <div class="insights-plan-mark"><span aria-hidden="true">✦</span><div><small>YOUR PRIVATE REFLECTION SPACE</small><strong id="insights-plan-name">Emora Insights</strong></div></div>
+        <h1 class="serif">Emotional Insights</h1>
+        <p>Understand your patterns—week by week, conversation by conversation.</p>
+      </div>
       <div class="date-range-pills" id="insight-range-picker">
         <button class="drp" type="button" data-insight-days="7">7D</button>
         <button class="drp active" type="button" data-insight-days="30">30D</button>
-        <button class="drp" type="button" data-insight-days="90">3M</button>
-        <button class="drp" type="button" data-insight-days="365">All time</button>
+        <button class="drp" type="button" data-insight-days="90" data-entitlement="look_back" data-plan-label="Plus">3M</button>
+        <button class="drp" type="button" data-insight-days="365" data-entitlement="advanced_insights" data-plan-label="Pro">All time</button>
       </div>
     </div>
 
     <div class="insights-body">
+      <section class="insights-premium-brief" data-entitlement="advanced_insights" data-plan-label="Pro" aria-labelledby="premium-brief-title">
+        <header>
+          <div><p class="workspace-kicker">PRO REFLECTION BRIEF</p><h2 class="serif" id="premium-brief-title">The shape of this chapter</h2></div>
+          <span id="premium-brief-range">Selected period</span>
+        </header>
+        <div class="premium-brief-grid">
+          <article><small>STRONGEST THEME</small><strong id="premium-dominant-mood">Waiting for history</strong><p id="premium-dominant-detail">Built only from your saved moments.</p></article>
+          <article><small>REFLECTION RHYTHM</small><strong id="premium-consistency">—</strong><p id="premium-consistency-detail">Active days in this period.</p></article>
+          <article><small>TONE MOVEMENT</small><strong id="premium-tone-direction">Still emerging</strong><p id="premium-tone-shift">A comparison within this period.</p></article>
+          <article><small>YOUR DAY</small><strong id="premium-strongest-day">Still emerging</strong><p>When you most often make room to reflect.</p></article>
+        </div>
+        <div class="premium-topic-thread"><span>THREADS YOU RETURN TO</span><p id="premium-topic-list">Your recurring topics will appear as your history grows.</p></div>
+      </section>
+
+      <section class="insights-period-reflection" data-entitlement="advanced_insights" data-plan-label="Pro" aria-labelledby="period-reflection-title">
+        <header><div><p class="workspace-kicker">PRIVATE PERIOD REFLECTION</p><h2 class="serif" id="period-reflection-title">Your chapter with Emora</h2></div><span>Generated from your real activity</span></header>
+        <div class="period-reflection-grid">
+          <article><small>YOU EXPLORED</small><p id="period-explored">Your recurring conversation themes will appear here.</p></article>
+          <article><small>YOU KEPT RETURNING TO</small><p id="period-returned">Still emerging.</p></article>
+          <article><small>YOU MADE PROGRESS ON</small><p id="period-progress">Completed goals will appear here.</p></article>
+          <article><small>YOU KEPT</small><p id="period-kept">Private journals and memories stay under your control.</p></article>
+        </div>
+        <blockquote><span>WORTH REVISITING</span><p id="period-revisit">A meaningful saved moment will appear when enough history exists.</p></blockquote>
+      </section>
+
+      <section class="insights-reflection-timeline" data-entitlement="advanced_insights" data-plan-label="Pro" aria-labelledby="reflection-timeline-title">
+        <header><div><p class="workspace-kicker">PERSONAL REFLECTION TIMELINE</p><h2 class="serif" id="reflection-timeline-title">The moments that shaped this period</h2></div><p>Conversations, arrivals, journals, and completed goals—kept private and shown without inventing history.</p></header>
+        <div id="reflection-timeline" class="reflection-timeline"><p class="muted text-sm">Your timeline will gather as you use Emora.</p></div>
+      </section>
+
       <div class="insights-grid-top">
-        <div class="card">
+        <div class="card" data-editorial-label="PATTERNS">
           <div class="card-header">
             <h3>Emotional tone over time</h3>
             <span class="text-sm muted" id="insights-timeline-meta">Daily average</span>
@@ -62,7 +96,7 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" data-editorial-label="REFLECTION">
           <div class="card-header">
             <h3>Mood distribution</h3>
             <span class="text-sm muted" id="insights-mood-meta">This month</span>
@@ -80,7 +114,7 @@
         </div>
       </div>
 
-      <div class="card insights-card-spacing">
+      <div class="card insights-card-spacing" data-editorial-label="RHYTHM">
         <div class="card-header">
           <h3>Session activity - past 84 days</h3>
           <span class="text-sm muted" id="insights-activity-meta">Each cell = one day</span>
@@ -102,7 +136,20 @@
       </div>
       <p class="muted text-sm" id="insights-notice" aria-live="polite"></p>
 
-      <div class="card insights-card-spacing">
+      <div class="card insights-card-spacing insights-lookback-card" data-editorial-label="LOOK BACK" data-entitlement="look_back" data-plan-label="Plus">
+        <div class="card-header">
+          <div><h3>How you have been arriving</h3><p class="text-sm muted">A private record of change, in your own words.</p></div>
+          <a class="text-sm" href="/journal">Write a reflection →</a>
+        </div>
+        <div class="card-body"><div class="insights-lookback" id="insights-lookback"><p class="muted text-sm">Your arrival check-ins will become a private timeline here.</p></div></div>
+      </div>
+
+      <div class="card insights-card-spacing" data-editorial-label="HISTORICAL OBSERVATIONS" data-entitlement="advanced_insights" data-plan-label="Pro">
+        <div class="card-header"><div><h3>What may be changing</h3><p class="text-sm muted">Plain-language observations from your selected period—not scores or diagnoses.</p></div></div>
+        <div class="card-body"><div class="historical-observations" id="historical-observations"><p class="muted text-sm">More observations appear as your private reflection history grows.</p></div></div>
+      </div>
+
+      <div class="card insights-card-spacing" data-editorial-label="CONTEXT">
         <div class="card-header">
           <h3>Optional camera check-ins</h3>
           <span class="text-sm muted" id="camera-checkin-meta">No camera check-ins yet</span>
@@ -112,7 +159,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" data-editorial-label="PROGRESS">
         <div class="card-header">
           <h3>Average emotional state by day of week</h3>
         </div>
@@ -126,5 +173,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/workspace-shell.js"></script>
+  <script type="module" src="/static/js/workspace-shell.js?v=20260822-premium-depth-v2"></script>
 {% endblock %}

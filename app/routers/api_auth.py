@@ -12,7 +12,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.audit import audit_event
 from app.avatar_catalog import (
@@ -21,8 +21,8 @@ from app.avatar_catalog import (
     list_avatar_presets,
 )
 from app.config import settings
-from app.database import as_utc, serialize_user, users_collection, utc_now
-from app.email_templates import build_otp_verification_email
+from app.database import as_utc, feature_collection, serialize_user, users_collection, utc_now
+from app.email_templates import OTP_EMAIL_LOGO_PATH, build_otp_verification_email
 from app.email_utils import send_email_html
 from app.models.schemas import (
     AvatarPresetUpdateRequest,
@@ -182,6 +182,12 @@ def register_user(payload: RegisterRequest) -> dict:
     email = normalize_email(payload.email)
     password = payload.password
 
+    # Owner allowlist addresses must not be claimable through the unverified
+    # local registration form. Existing provisioned accounts can still log in,
+    # and new owner accounts must use verified Google identity.
+    if email in settings.admin_email_set:
+        raise HTTPException(status_code=403, detail="This administrator address must use Google Sign-In or be provisioned by the server owner.")
+
     if not name or not email or not password:
         raise HTTPException(status_code=400, detail="Name, email, and password are required.")
 
@@ -223,6 +229,20 @@ def register_user(payload: RegisterRequest) -> dict:
             detail="An account with this email already exists. Please sign in or use another email.",
         ) from exc
     document["_id"] = inserted.inserted_id
+    if payload.starting_mood:
+        try:
+            feature_collection("daily_check_ins").insert_one({
+                "user_id": document["_id"],
+                "date": now.date().isoformat(),
+                "mood": payload.starting_mood,
+                "note": "Starting check-in from account creation.",
+                "created_at": now,
+                "updated_at": now,
+            })
+        except PyMongoError:
+            logger.exception("Could not save the optional registration check-in for user %s", document["_id"])
+            users.delete_one({"_id": document["_id"]})
+            raise HTTPException(status_code=503, detail="Your first check-in could not be saved, so no account was created. Please try again.")
     audit_event("auth.register.success", user_id=document["_id"], email=email)
     return build_auth_payload(document)
 
@@ -388,7 +408,13 @@ def send_otp(payload: SendOtpRequest) -> dict:
     )
 
     otp_html, otp_text = build_otp_verification_email(otp)
-    delivered = send_email_html(email, "Your Verification Code", otp_html, otp_text)
+    delivered = send_email_html(
+        email,
+        "Your Verification Code",
+        otp_html,
+        otp_text,
+        inline_images={"ai-companion-logo": OTP_EMAIL_LOGO_PATH},
+    )
 
     if not delivered:
         logger.warning("OTP for %s generated but email was not delivered because SMTP is not configured.", email)

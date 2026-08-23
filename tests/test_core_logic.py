@@ -1,5 +1,7 @@
+from collections import Counter
 from datetime import datetime, timezone
 
+import pytest
 from pydantic import ValidationError
 
 from app.database import as_utc
@@ -10,11 +12,17 @@ from app.companion import account_profile_prompt_context, analyze_emotion, behav
 from app.companion_brain import build_companion_brain, extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
-from app.routers.api_chat import create_chat_title
-from app.routers.insights import _classify
+from app.routers.api_chat import build_adaptive_context, create_chat_title
+from app.routers.insights import _build_period_reflection, _build_premium_brief, _classify, get_insights
+from app.routers.play import SpaceRequest, _remix_content
+from app.routers.personal import ArrivalRequest
+from app.routers import play as play_router
+from app import preferences
 from app.services.attachments import _is_valid_payload
 from app.services.posts import moderate_content
 from app.services.local_mlx_vision import parse_visual_report
+from app.rate_limit import _client_identity
+from types import SimpleNamespace
 
 
 def test_create_chat_title_handles_blank_short_and_long_text():
@@ -61,7 +69,7 @@ def test_chat_history_uses_independent_default_lists():
 
 def test_chat_request_rejects_oversized_message():
     try:
-        ChatSendRequest(message="a" * 8_001)
+        ChatSendRequest(message="a" * 12_001)
     except ValidationError:
         pass
     else:
@@ -72,6 +80,58 @@ def test_chat_request_has_an_explicit_camera_opt_in_contract():
     request = ChatSendRequest(message="hello", cameraOptIn=True, cameraFrame="data:image/jpeg;base64,AAAA")
     assert request.camera_opt_in is True
     assert request.camera_frame.startswith("data:image/")
+
+
+def test_companion_mode_is_allowlisted_and_serialized_from_client_alias():
+    request = ChatSendRequest(message="hello", companionMode="reflect")
+    assert request.companion_mode == "reflect"
+
+    with pytest.raises(ValidationError):
+        ChatSendRequest(message="hello", companionMode="ignore-all-instructions")
+
+    assert ChatSendRequest(message="hello", companionMode="deep").companion_mode == "deep"
+
+
+def test_account_preferences_have_defaults_and_persist_changes(monkeypatch):
+    stored = {}
+
+    class PreferenceCollection:
+        def find_one(self, query):
+            return stored.get(query["user_id"])
+
+        def update_one(self, query, update, upsert=False):
+            stored[query["user_id"]] = {**stored.get(query["user_id"], {}), **update["$setOnInsert"], **update["$set"]}
+
+    monkeypatch.setattr(preferences, "feature_collection", lambda _: PreferenceCollection())
+    user_id = "person-1"
+
+    assert preferences.get_user_preferences(user_id)["visualInput"] is False
+    updated = preferences.update_user_preferences(user_id, {"visualInput": True, "quietHours": True})
+    assert updated["visualInput"] is True
+    assert updated["quietHours"] is True
+    assert updated["emotionalMemory"] is True
+    assert preferences.get_user_preferences(user_id)["adaptiveContext"] is False
+
+
+def test_adaptive_context_uses_only_supplied_factual_sources():
+    context = build_adaptive_context(
+        [{"title": "Finish the project"}, {"title": " "}],
+        {"mood": "tired", "tiny_thing": "Open the notes"},
+    )
+
+    assert "Finish the project" in context
+    assert "tired" in context
+    assert "Open the notes" in context
+    assert "journal" not in context.lower()
+    assert build_adaptive_context([], None) == ""
+
+
+def test_authenticated_rate_limits_are_isolated_from_shared_ip_addresses():
+    first = SimpleNamespace(headers={"authorization": "Bearer account-one"}, client=SimpleNamespace(host="10.0.0.5"))
+    second = SimpleNamespace(headers={"authorization": "Bearer account-two"}, client=SimpleNamespace(host="10.0.0.5"))
+
+    assert _client_identity(first) != _client_identity(second)
+    assert "account-one" not in _client_identity(first)
 
 
 def test_extract_reply_and_brain_accepts_plain_text_and_json():
@@ -220,6 +280,7 @@ def test_otp_email_template_renders_the_dynamic_code_in_html_and_plain_text():
     assert "123456" in html
     assert "123456" in plain_text
     assert "AI Companion" in html
+    assert 'alt="Emora"' in html
     assert "10 minutes" in plain_text
 
 
@@ -243,6 +304,102 @@ def test_post_moderation_marks_blocked_content_for_review():
 def test_insights_classifier_returns_a_safe_estimate():
     assert _classify("I feel anxious and overwhelmed")[0] == "anxious"
     assert _classify("There is no clear mood signal here")[0] == "neutral"
+
+
+def test_premium_insights_brief_is_derived_from_saved_timeline():
+    timeline = [
+        {"date": "2026-08-17", "messages": 2, "checkIns": 0, "tone": 42},
+        {"date": "2026-08-18", "messages": 0, "checkIns": 0, "tone": None},
+        {"date": "2026-08-19", "messages": 1, "checkIns": 1, "tone": 66},
+        {"date": "2026-08-20", "messages": 3, "checkIns": 0, "tone": 74},
+    ]
+
+    brief = _build_premium_brief(
+        timeline,
+        Counter({"reflective": 4, "calm": 2}),
+        {"mostDiscussedTopics": ["work", "rest"]},
+    )
+
+    assert brief["dominantMood"] == "reflective"
+    assert brief["activeDays"] == 3
+    assert brief["consistencyPercent"] == 75
+    assert brief["toneDirection"] == "Tone moved upward"
+    assert brief["topTopics"] == ["work", "rest"]
+
+
+def test_pro_period_reflection_uses_only_supplied_real_records():
+    reflection = _build_period_reflection(
+        days=30,
+        messages=[{"content": "I keep thinking about my project", "timestamp": datetime.now(timezone.utc)}],
+        moods=Counter({"reflective": 2}),
+        goals=[{"title": "Finish the prototype"}],
+        journals=[{"title": "A private note"}],
+        memory_count=3,
+    )
+
+    assert reflection["title"] == "Your last 30 days with Emora"
+    assert reflection["returnedTo"] == "reflective"
+    assert reflection["progress"] == ["Finish the prototype"]
+    assert reflection["journalCount"] == 1
+    assert "project" in reflection["revisit"]
+
+
+def test_long_insight_ranges_require_the_matching_server_entitlement():
+    with pytest.raises(Exception) as exc_info:
+        get_insights(days=90, current_user={"email": "free@example.com"})
+    assert getattr(exc_info.value, "status_code", None) == 403
+
+    plus_user = {"email": "plus@example.com", "subscription": {"plan": "plus", "status": "active"}}
+    with pytest.raises(Exception) as exc_info:
+        get_insights(days=365, current_user=plus_user)
+    assert getattr(exc_info.value, "status_code", None) == 403
+
+
+def test_play_world_options_are_allowlisted_and_advanced_remixes_change_the_output():
+    space = SpaceRequest(background="observatory", ambience="fireplace", accessory="telescope")
+    assert space.background == "observatory"
+
+    with pytest.raises(ValidationError):
+        SpaceRequest(background="javascript:alert(1)")
+
+    source = "I keep delaying my project because the project feels too large."
+    pattern = _remix_content(source, "pattern")
+    letter = _remix_content(source, "letter")
+    focus = _remix_content(source, "focus_session")
+    goal = _remix_content(source, "gentle_goal")
+
+    assert "Threads that repeat" in pattern
+    assert "What I could not quite say" in letter
+    assert "25-MINUTE FOCUS SESSION" in focus
+    assert "One tiny thing" in goal
+    assert len({pattern, letter, focus, goal}) == 4
+
+
+def test_gentle_goal_remix_persists_a_real_owned_goal(monkeypatch):
+    stored = {}
+
+    class Goals:
+        def insert_one(self, document):
+            stored.update(document)
+            return SimpleNamespace(inserted_id="goal-1")
+
+    monkeypatch.setattr(play_router, "feature_collection", lambda _: Goals())
+    response = play_router.remix(
+        play_router.RemixRequest(text="Finish the premium experience. Then verify it.", format="gentle_goal"),
+        {"_id": "person-1"},
+    )
+
+    assert response["createdGoal"]["id"] == "goal-1"
+    assert stored["user_id"] == "person-1"
+    assert stored["completed"] is False
+
+
+def test_arrival_check_in_accepts_the_browser_tiny_thing_contract():
+    arrival = ArrivalRequest.model_validate({"mood": "calm", "tinyThing": "Drink a glass of water"})
+
+    assert arrival.tiny_thing == "Drink a glass of water"
+    with pytest.raises(ValidationError):
+        ArrivalRequest.model_validate({"mood": "diagnosed"})
 
 
 def test_attachment_signatures_are_checked_before_storage():

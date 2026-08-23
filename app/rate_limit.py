@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
+import hashlib
 from time import monotonic
 from time import time
 from typing import Callable
@@ -37,13 +38,24 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _client_identity(request: Request) -> str:
+    authorization = request.headers.get("authorization", "")
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and token.strip():
+        # Separate authenticated accounts sharing one household, campus, or
+        # office IP without retaining the bearer token itself in limiter keys.
+        digest = hashlib.sha256(token.strip().encode("utf-8")).hexdigest()[:24]
+        return f"session:{digest}"
+    return f"ip:{_client_ip(request)}"
+
+
 def rate_limit(limit: int, window_seconds: int, scope: str) -> Callable[[Request], None]:
     def dependency(request: Request) -> None:
         if not settings.rate_limit_enabled:
             return
 
         now = monotonic()
-        key = f"{scope}:{_client_ip(request)}"
+        key = f"{scope}:{_client_identity(request)}"
         redis_client = _get_redis_client()
         if redis_client is not None:
             now_epoch = time()

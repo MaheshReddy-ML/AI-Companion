@@ -1,6 +1,9 @@
 import asyncio
+import threading
+import pytest
 
 from app.services import companion_chat
+from app.services.inference_queue import InferenceQueue
 
 
 def test_local_companion_reply_requires_no_api_key(monkeypatch):
@@ -81,3 +84,56 @@ def test_thinking_mode_stays_fast_for_casual_turns_and_enables_for_complex_work(
 
     assert companion_chat.should_enable_thinking("Hey, what's up?") is False
     assert companion_chat.should_enable_thinking("Explain backpropagation step by step and compare two optimization tradeoffs.") is True
+
+
+def test_chat_queue_serves_priority_accounts_before_queued_standard_work():
+    queue = InferenceQueue(workers=1, max_pending=4)
+    started = threading.Event()
+    release = threading.Event()
+    order = []
+
+    def blocking_first():
+        started.set()
+        release.wait(timeout=2)
+        order.append("first")
+        return "first"
+
+    def record(value):
+        order.append(value)
+        return value
+
+    async def scenario():
+        first = asyncio.create_task(queue.submit(blocking_first))
+        await asyncio.to_thread(started.wait, 1)
+        standard = asyncio.create_task(queue.submit(lambda: record("standard")))
+        priority = asyncio.create_task(queue.submit(lambda: record("priority"), priority=True))
+        await asyncio.sleep(0.03)
+        release.set()
+        await asyncio.gather(first, standard, priority)
+
+    asyncio.run(scenario())
+    assert order == ["first", "priority", "standard"]
+
+
+def test_chat_queue_prevents_one_account_from_filling_shared_capacity(monkeypatch):
+    monkeypatch.setattr(companion_chat.settings, "chat_queue_wait_seconds", 0.03)
+    queue = InferenceQueue(workers=1, max_pending=4)
+    started = threading.Event()
+    release = threading.Event()
+
+    def blocking():
+        started.set()
+        release.wait(timeout=2)
+        return "done"
+
+    async def scenario():
+        first = asyncio.create_task(queue.submit(blocking, requester_id="account-a", requester_limit=1))
+        await asyncio.to_thread(started.wait, 1)
+        with pytest.raises(RuntimeError, match="this account"):
+            await queue.submit(lambda: "blocked", requester_id="account-a", requester_limit=1)
+        other = asyncio.create_task(queue.submit(lambda: "other", requester_id="account-b", requester_limit=1))
+        release.set()
+        assert await first == "done"
+        assert await other == "other"
+
+    asyncio.run(scenario())

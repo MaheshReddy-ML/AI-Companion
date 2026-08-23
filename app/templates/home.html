@@ -1,76 +1,93 @@
 {% extends "base.html" %}
 
-{% block body_class %}landing-body flagship-landing emora-home-v2{% endblock %}
+{% block body_class %}landing-body cinematic-home{% endblock %}
 
 {% block head_extra %}
-  <link rel="stylesheet" href="/static/css/home-flagship.css?v=20260713-v2" />
+  <link rel="preload" as="image" href="/static/images/emora-night-room-v1.webp" fetchpriority="high" />
+  <link rel="stylesheet" href="/static/css/home-flagship.css?v=20260822-emora-brand" />
   <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"}}
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}
   </script>
 {% endblock %}
 
 {% block content %}
-<div class="home-shell" data-home-shell>
-  <div class="home-grain" aria-hidden="true"></div>
-  <div class="home-cursor-glow" aria-hidden="true"></div>
+<div class="cinematic-site" data-cinematic-site>
+  <section class="cinematic-hero" id="play" aria-labelledby="cinematic-title">
+    <div class="cinematic-scene" id="cinematic-room" aria-hidden="true">
+      <div class="cinematic-scene-fallback"></div>
+      <div class="cinematic-scene-mount" data-cinematic-mount></div>
+      <div class="cinematic-vignette"></div>
+      <div class="cinematic-grain"></div>
+      <div class="cinematic-window-sheen"></div>
+      <div class="cinematic-curtain-shadow"></div>
+    </div>
 
-  <nav class="home-nav" aria-label="Main navigation">
-    <a class="home-brand" href="/"><img class="brand-symbol" src="/static/images/logo.svg" alt=""/><span>emora</span></a>
-    <div class="home-nav-links"><a href="#experience">Experience</a><a href="#play">Emora Play</a><a href="#principles">Principles</a></div>
-    <div class="home-nav-actions"><a href="/login" class="home-signin" data-guest-nav>Sign in</a><a href="/dashboard" class="home-signin" data-auth-nav hidden>Workspace</a><a href="/register" class="home-nav-cta" data-guest-nav>Begin your space <span>↗</span></a></div>
-  </nav>
-
-  <main>
-    <section class="home-hero">
-      <div class="hero-grid-lines" aria-hidden="true"></div>
-      <div class="hero-orb hero-orb-one" aria-hidden="true"></div><div class="hero-orb hero-orb-two" aria-hidden="true"></div>
-      <div class="hero-copy" data-home-reveal>
-        <p class="home-eyebrow"><span></span> A private companion space</p>
-        <h1>Life gets loud.<br><em>Come back to yourself.</em></h1>
-        <p class="home-lede">Emora makes a calm, beautiful place for the thoughts, rituals, and next small steps that are yours alone.</p>
-        <div class="home-hero-actions"><a class="home-primary" href="/register">Create your space <b>→</b></a><a class="home-secondary" href="#experience">See how it feels <b>↓</b></a></div>
-        <div class="home-trust"><div class="trust-avatars"><i>J</i><i>K</i><i>S</i><i>+</i></div><p>Made for quiet moments,<br>not endless scrolling.</p><span class="trust-line"></span><span class="trust-stat"><b>Private</b> by design</span></div>
+    <nav class="cinematic-nav" aria-label="Main navigation">
+      <a class="cinematic-brand" href="/">
+        <span class="cinematic-brand-mark" aria-hidden="true"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
+        <span>EMORA</span>
+      </a>
+      <div class="cinematic-nav-links">
+        <a href="#about">About</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="/login" data-guest-nav>Sign in</a>
+        <a href="/dashboard" data-auth-nav hidden>Workspace</a>
       </div>
+      <button class="cinematic-menu-button" type="button" aria-label="Open navigation" aria-expanded="false" data-cinematic-menu>
+        <span></span><span></span>
+      </button>
+    </nav>
 
-      <div class="hero-stage-wrap" data-home-reveal>
-        <div class="stage-floating-label label-welcome"><i>✦</i> Your companion is here</div>
-        <div class="stage-floating-label label-live"><span></span> Present with you</div>
-        <div class="hero-stage" id="landing-world" data-atmosphere-scene aria-label="A live Emora companion preview">
-          <div class="atmosphere-sky" aria-hidden="true"><div class="atmosphere-orb"></div><div class="atmosphere-cloud atmosphere-cloud-one"></div><div class="atmosphere-cloud atmosphere-cloud-two"></div><div class="atmosphere-stars"></div><div class="atmosphere-rain"></div><div class="atmosphere-mist"></div><div class="atmosphere-horizon atmosphere-horizon-back"></div><div class="atmosphere-horizon atmosphere-horizon-front"></div></div>
-          <div class="stage-grid" aria-hidden="true"></div><div class="stage-rings ring-a" aria-hidden="true"></div><div class="stage-rings ring-b" aria-hidden="true"></div>
-          <div class="stage-fireflies" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="landing-vrm-stage" id="landing-vrm-stage"><div class="landing-vrm-loading"><div class="landing-vrm-mark"><span></span><span></span><span></span></div><strong>Emora is arriving</strong><small>Preparing your companion space</small></div><div class="landing-vrm-loader" data-emora-avatar-loader>Preparing Emora</div></div>
-          <div class="stage-weather atmosphere-status" aria-live="polite"><span class="atmosphere-status-icon" data-atmosphere-icon>◌</span><span><strong data-atmosphere-title>A scene for your time</strong><small data-atmosphere-detail>Local atmosphere</small></span><button class="atmosphere-location-button" data-atmosphere-location type="button">Use location</button></div>
-          <div class="stage-feeling"><p>Today’s feeling</p><strong>Steady, with<br>room to grow</strong><span></span></div>
-          <div class="stage-ritual"><i>✦</i><span><small>Today</small><strong>One small ritual</strong></span><b>Done</b></div>
-        </div>
-        <p class="hero-stage-caption"><i></i> A living space that changes with your time and weather</p>
+    <div class="cinematic-copy" data-cinematic-copy>
+      <p class="cinematic-kicker"><i></i><span>01:47</span> A private world, still awake</p>
+      <h1 id="cinematic-title">The part of your day<br />you might look<br /><em>forward to.</em></h1>
+      <p class="cinematic-lede">Private quests, a garden that grows with your rituals,<br />and focus rooms that make progress feel personal —<br />not performed.</p>
+      <a class="cinematic-cta" href="/play"><span>Step into Play</span><i>→</i></a>
+    </div>
+
+    <div class="cinematic-meta" aria-label="Scene details">
+      <span><i class="cinematic-live-dot"></i> Scene live</span>
+      <span>Night room / 01</span>
+      <span>Move gently to look around</span>
+    </div>
+
+    <a class="cinematic-scroll" href="#how-it-works" aria-label="Explore how Emora works">
+      <span>Explore</span><i></i>
+    </a>
+
+    <div class="cinematic-loading" data-cinematic-loading><span></span><p>Letting your eyes adjust</p></div>
+  </section>
+
+  <main class="cinematic-editorial">
+    <section class="cinematic-how" id="how-it-works" data-cinematic-reveal>
+      <header>
+        <p>HOW IT WORKS / 02</p>
+        <h2 class="serif">A quieter way to<br /><em>keep moving.</em></h2>
+      </header>
+      <div class="cinematic-steps">
+        <article><span>01</span><h3>Choose one small ritual.</h3><p>Set an intention that fits the day you actually have—not the day you think you should have.</p></article>
+        <article><span>02</span><h3>Make progress feel personal.</h3><p>Enter a focus room, complete a private quest, or return to your companion when you need a reset.</p></article>
+        <article><span>03</span><h3>Watch your space respond.</h3><p>Your garden and reflections grow with the moments you choose to keep. There is no public score.</p></article>
       </div>
     </section>
 
-    <section class="home-marquee" aria-label="Emora features"><div><span>Reflect with clarity</span><i>✦</i><span>Build gentle momentum</span><i>✦</i><span>Keep what matters close</span><i>✦</i><span>Reflect with clarity</span><i>✦</i></div></section>
-
-    <section class="home-intro" id="experience" data-home-reveal><p class="home-eyebrow">NOT ANOTHER CHAT WINDOW</p><div><h2>A companion experience<br>for <em>returning to yourself.</em></h2><p>Every part of Emora is designed to hold a thought, make a hard day more navigable, or help you take one small next step.</p></div></section>
-
-    <section class="home-capabilities">
-      <article class="capability-card capability-reflect" data-home-reveal><span class="capability-index">01</span><div class="capability-art"><i class="art-orbit"></i><b>◌</b></div><p class="capability-label">A GENTLE START</p><h3>Arrive as you are.</h3><p>Start with a sentence, a voice note, or no agenda at all. Emora meets you where you are.</p><a href="/your-emora">Enter companion room <span>→</span></a></article>
-      <article class="capability-card capability-focus" data-home-reveal><span class="capability-index">02</span><div class="capability-art"><i class="art-spark"></i><b>✦</b></div><p class="capability-label">YOUR OWN RHYTHM</p><h3>Turn intention into motion.</h3><p>Use tiny rituals, focus rooms, and gentle goals to create momentum without pressure.</p><a href="/play">Explore Emora Play <span>→</span></a></article>
-      <article class="capability-card capability-memory" data-home-reveal><span class="capability-index">03</span><div class="capability-art"><i class="art-wave"></i><b>⌁</b></div><p class="capability-label">A THREAD TO RETURN TO</p><h3>Keep what matters.</h3><p>Notice patterns and return to conversations that still have something to teach you.</p><a href="/insights">View your insights <span>→</span></a></article>
+    <section class="cinematic-about" id="about" data-cinematic-reveal>
+      <div class="cinematic-about-index"><span>ABOUT / 03</span><i></i></div>
+      <blockquote class="serif">Not another feed asking for your attention. A place that gives some of it <em>back.</em></blockquote>
+      <div class="cinematic-about-copy"><p>Emora Play turns gentle routines into a private, living world. It is designed for reflection and momentum, never performance.</p><a href="/research">Our approach to care and privacy <span>↗</span></a></div>
     </section>
 
-    <section class="home-play" id="play" data-home-reveal><div class="play-copy"><p class="home-eyebrow">EMORA PLAY</p><h2>The part of your day<br>you might <em>look forward to.</em></h2><p>Private quests, a garden that grows with your rituals, and focus rooms that make progress feel personal—not performed.</p><a class="home-primary" href="/play">Step into Play <b>→</b></a><div class="play-mini-proof"><span>✦</span> Small rituals, real momentum</div></div><div class="play-garden" aria-label="A living animated garden"><div class="garden-sun"></div><div class="garden-cloud cloud-one"></div><div class="garden-cloud cloud-two"></div><div class="garden-pollen"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-hill hill-back"></div><div class="garden-hill hill-front"></div><div class="garden-plant garden-plant-left"></div><div class="garden-plant garden-plant-middle"></div><div class="garden-plant garden-plant-right"></div><div class="garden-ritual-card"><span>✦</span><div><small>RITUAL COMPLETE</small><strong>Watered your garden</strong></div><b>+10</b></div></div></section>
-
-    <section class="home-principles" id="principles"><div class="principles-copy" data-home-reveal><p class="home-eyebrow">THE EMORA PROMISE</p><h2>Warm by design.<br><em>Clear in its boundaries.</em></h2><p>Emora is a private companion space—not a replacement for professional care, meaningful relationships, or the wider world.</p></div><div class="principles-list" data-home-reveal><article><span>01</span><div><h3>Your space stays yours</h3><p>Control your memories, exports, history, and account from one place.</p></div><i>↗</i></article><article><span>02</span><div><h3>Support, never substitution</h3><p>Emora makes room for qualified care, real people, and the wider world.</p></div><i>↗</i></article><article><span>03</span><div><h3>Small is meaningful</h3><p>Built around gentle returns, not streaks that punish you.</p></div><i>↗</i></article></div></section>
-
-    <section class="home-close" data-home-reveal><div class="close-orb close-orb-a"></div><div class="close-orb close-orb-b"></div><p class="home-eyebrow">MAKE A LITTLE ROOM</p><h2>Your next quiet moment<br>can start <em>here.</em></h2><a class="home-primary" href="/register">Create your Emora space <b>→</b></a></section>
+    <section class="cinematic-closing" data-cinematic-reveal>
+      <p>YOUR ROOM IS READY</p>
+      <h2 class="serif">Step out of the noise.<br /><em>Come back to your pace.</em></h2>
+      <div><a class="cinematic-cta cinematic-cta-light" href="/register"><span>Create your space</span><i>→</i></a><a href="/login" class="cinematic-text-link">I already have a space</a></div>
+    </section>
   </main>
 
-  <footer class="home-footer"><a class="home-brand" href="/"><img class="brand-symbol" src="/static/images/logo.svg" alt=""/><span>emora</span></a><p>Built for reflection, not replacement.</p><div><a href="/research">Research & safety</a><a href="/help">Help center</a><a href="/login">Sign in</a></div></footer>
+  <footer class="cinematic-footer"><span>© 2026 EMORA</span><span>Private by design. Human in spirit.</span><div><a href="/help">Help</a><a href="/research">Safety</a><a href="/payment">Plans</a></div></footer>
 </div>
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/atmosphere.js?v=20260713"></script>
-  <script type="module" src="/static/js/home.js?v=20260713-v2"></script>
-  <script type="module" src="/static/js/home-avatar.js?v=20260710"></script>
+  <script type="module" src="/static/js/home.js?v=20260822-cinematic-room"></script>
 {% endblock %}

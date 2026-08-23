@@ -4,6 +4,7 @@ const form = document.getElementById("forgot-form");
 const emailInput = document.getElementById("forgot-email");
 const statusElement = document.getElementById("forgot-status");
 const submitButton = document.getElementById("forgot-submit");
+const submitButtonLabel = submitButton.innerHTML;
 
 initChrome();
 
@@ -18,6 +19,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Sending...";
 
   try {
@@ -30,6 +32,7 @@ form.addEventListener("submit", async (event) => {
     showStatus(statusElement, error.message || "Failed to send OTP.");
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = "Send OTP";
+    submitButton.removeAttribute("aria-busy");
+    submitButton.innerHTML = submitButtonLabel;
   }
 });

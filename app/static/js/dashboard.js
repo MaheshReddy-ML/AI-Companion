@@ -1,5 +1,6 @@
 import {
   COMPANION_PROFILES,
+  accessDisplayForUser,
   apiRequest,
   buildShareText,
   copyText,
@@ -11,6 +12,7 @@ import {
   formatSidebarTime,
   getConversationDraftKey,
   getToken,
+  guardEntitlement,
   getStoredUser,
   initChrome,
   openExternal,
@@ -39,6 +41,7 @@ const elements = {
   chatStage: document.getElementById("chat-stage"),
   chatEmptyCopy: document.getElementById("chat-empty-copy"),
   activeChatTitle: document.getElementById("active-chat-title"),
+  pinChatLabel: document.getElementById("pin-chat-label"),
   activeChatMeta: document.getElementById("active-chat-meta"),
   chatMessages: document.getElementById("chat-messages"),
   chatToast: document.getElementById("chat-toast"),
@@ -51,6 +54,8 @@ const elements = {
   cameraRow: document.getElementById("camera-row"),
   cameraPreview: document.getElementById("camera-preview"),
   cameraStopButton: document.getElementById("camera-stop-button"),
+  addContextButton: document.getElementById("add-context-button"),
+  contextMenu: document.getElementById("context-menu"),
   attachmentRow: document.getElementById("attachment-row"),
   attachmentName: document.getElementById("attachment-name"),
   clearAttachment: document.getElementById("clear-attachment"),
@@ -60,9 +65,25 @@ const elements = {
   shareChatButton: document.getElementById("share-chat-button"),
   exportChatButton: document.getElementById("export-chat-button"),
   postcardButton: document.getElementById("postcard-button"),
+  companionToolsButton: document.getElementById("companion-tools-button"),
+  companionTools: document.getElementById("companion-tools"),
+  companionToolsClose: document.getElementById("companion-tools-close"),
+  companionArrivalStatus: document.getElementById("companion-arrival-status"),
+  companionAmbience: document.getElementById("companion-ambience"),
+  companionMemoryList: document.getElementById("companion-memory-list"),
+  companionMemoryCount: document.getElementById("companion-memory-count"),
+  companionMemoryForm: document.getElementById("companion-memory-form"),
+  companionMemoryInput: document.getElementById("companion-memory-input"),
+  companionMemoryStatus: document.getElementById("companion-memory-status"),
+  companionModeStatus: document.getElementById("companion-mode-status"),
+  messageLimit: document.getElementById("chat-message-limit"),
+  remixJournalButton: document.getElementById("remix-journal-button"),
+  sessionReflectionButton: document.getElementById("session-reflection-button"),
+  sessionReflectionOutput: document.getElementById("session-reflection-output"),
   deleteChatButton: document.getElementById("delete-chat-button"),
   premiumButton: document.getElementById("premium-button"),
   settingsButton: document.getElementById("settings-button"),
+  settingsShortcut: document.querySelector(".sidebar-settings-shortcut"),
   policyButton: document.getElementById("policy-button"),
   settingsModal: document.getElementById("settings-modal"),
   policyModal: document.getElementById("policy-modal"),
@@ -87,11 +108,20 @@ const state = {
   listening: false,
   recognition: null,
   requestController: null,
+  space: { background: "forest", ambience: "none", accessory: "none" },
+  preferences: {},
+  pendingCompanionMode: "listen",
 };
+
+const MODE_LABELS = { listen: "Just listen", think: "Help me think", reflect: "Reflect with me", plan: "Gentle plan", quiet: "Quiet presence", deep: "Deep Conversation" };
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 async function startCameraCheckIn() {
+  if (!state.preferences.visualInput) {
+    showToast("Enable Visual emotion input in Profile settings first.", "warning");
+    return;
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
     showToast("Camera access is not available in this browser.", "error");
     return;
@@ -280,11 +310,12 @@ function renderSidebarMeta() {
   const userEmail = state.user?.email || "Signed in workspace";
   const conversationCount = state.conversations.length;
   const activeConversation = getActiveConversation();
+  const accessDisplay = accessDisplayForUser(state.user);
 
   elements.sidebarUserName.textContent = userName;
-  elements.sidebarUserEmail.textContent = userEmail;
+  elements.sidebarUserEmail.textContent = accessDisplay.compact;
   renderUserAvatar(elements.sidebarUserAvatar, state.user, userName);
-  elements.sidebarPlanBadge.textContent = "Free Plan";
+  elements.sidebarPlanBadge.textContent = state.user?.access?.isAdmin ? "FULL ACCESS" : `${accessDisplay.planName} Plan`;
   elements.sidebarWorkspaceBadge.textContent =
     activeConversation?.characterName
       ? `${activeConversation.characterName} active`
@@ -340,7 +371,7 @@ function renderChatHeader() {
     elements.activeChatTitle.textContent = "Emora";
     elements.activeChatMeta.textContent = "Present and ready to listen.";
     elements.pinChatButton.disabled = true;
-    elements.pinChatButton.textContent = "Pin";
+    elements.pinChatLabel.textContent = "Pin";
     elements.shareChatButton.disabled = true;
     elements.exportChatButton.disabled = true;
     elements.postcardButton.disabled = true;
@@ -351,8 +382,7 @@ function renderChatHeader() {
   elements.activeChatTitle.textContent = activeConversation.title;
   elements.activeChatMeta.textContent = `${activeConversation.characterName || "AI Companion"} • ${activeConversation.messages?.length || 0} messages`;
   elements.pinChatButton.disabled = false;
-  const pinSvg = elements.pinChatButton.querySelector("svg")?.outerHTML || "";
-  elements.pinChatButton.innerHTML = `${pinSvg} ${activeConversation.pinned ? "Unpin" : "Pin"}`;
+  elements.pinChatLabel.textContent = activeConversation.pinned ? "Unpin" : "Pin";
   elements.shareChatButton.disabled = false;
   elements.exportChatButton.disabled = false;
   elements.postcardButton.disabled = false;
@@ -450,6 +480,14 @@ function render() {
   elements.chatStage.dataset.companionState = companionState;
   elements.stopButton.hidden = !state.isThinking;
   elements.micButton.dataset.active = state.listening ? "true" : "false";
+  const mode = getActiveConversation()?.companionMode || state.pendingCompanionMode;
+  elements.chatStage.dataset.companionMode = mode;
+  document.querySelectorAll("[data-companion-mode]").forEach((button) => {
+    const selected = button.dataset.companionMode === mode;
+    button.setAttribute("aria-pressed", String(selected));
+    button.classList.toggle("active", selected);
+  });
+  if (elements.companionModeStatus) elements.companionModeStatus.textContent = MODE_LABELS[mode] || MODE_LABELS.listen;
 }
 
 async function fetchConversations() {
@@ -581,6 +619,7 @@ async function shareConversation(conversation) {
 }
 
 async function exportConversation(conversation) {
+  if (!guardEntitlement("conversation_export")) return;
   if (!conversation?.id) {
     showToast("Choose a saved conversation to export.", "error");
     return;
@@ -639,6 +678,7 @@ async function downloadAttachment(attachmentId) {
 }
 
 async function playPostcard(conversation) {
+  if (!guardEntitlement("voice_postcards")) return;
   if (!conversation?.id) throw new Error("Choose a conversation first.");
   const response = await fetch(`/api/play/postcard/${encodeURIComponent(conversation.id)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
   if (!response.ok) throw new Error("A voice postcard is not available for this conversation.");
@@ -647,6 +687,44 @@ async function playPostcard(conversation) {
   audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
   await audio.play();
   showToast("Playing your companion postcard.", "success");
+}
+
+function setCompanionToolsOpen(open) {
+  if (!elements.companionTools) return;
+  elements.companionTools.hidden = !open;
+  elements.companionToolsButton?.setAttribute("aria-expanded", String(open));
+}
+
+async function loadCompanionTools() {
+  const [memoryData, spaceData, preferenceData] = await Promise.all([
+    apiRequest("/api/companion/memories", { auth: true }),
+    apiRequest("/api/play/space", { auth: true }),
+    apiRequest("/api/personal/preferences", { auth: true }),
+  ]);
+  state.preferences = preferenceData.preferences || {};
+  const memories = memoryData.memories || [];
+  elements.companionMemoryCount.textContent = `${memories.length} held with care`;
+  elements.companionMemoryList.innerHTML = memories.length
+    ? memories.slice(0, 8).map((memory) => `<article><p>${escapeHtml(memory.value)}</p><button type="button" data-edit-memory="${escapeHtml(memory.id)}" data-memory-value="${escapeHtml(memory.value)}">Edit</button><button type="button" data-forget-memory="${escapeHtml(memory.id)}">Forget</button></article>`).join("")
+    : "<p>Nothing saved yet. Emora only keeps explicit, useful details.</p>";
+  state.space = { ...state.space, ...(spaceData.space || {}) };
+  elements.companionAmbience.value = state.space.ambience || "none";
+  elements.chatStage.dataset.ambience = state.space.ambience || "none";
+  if (elements.cameraButton) elements.cameraButton.hidden = !state.preferences.visualInput;
+  if (!state.preferences.visualInput) stopCameraCheckIn();
+  if (elements.companionMemoryInput) elements.companionMemoryInput.disabled = !state.preferences.emotionalMemory;
+  if (elements.companionMemoryForm) elements.companionMemoryForm.querySelector("button").disabled = !state.preferences.emotionalMemory;
+  if (!state.preferences.emotionalMemory && elements.companionMemoryStatus) elements.companionMemoryStatus.textContent = "Memory is paused in Profile settings.";
+}
+
+async function remixConversationToJournal() {
+  if (!guardEntitlement("conversation_remix")) return;
+  const conversation = getActiveConversation();
+  const transcript = (conversation?.messages || []).map((message) => `${message.role === "assistant" ? "Emora" : "Me"}: ${message.content}`).join("\n\n").slice(0, 8000);
+  if (!transcript) throw new Error("Have a conversation first, then bring it into your journal.");
+  const remix = await apiRequest("/api/play/remix", { method: "POST", auth: true, body: { text: transcript, format: "journal" } });
+  sessionStorage.setItem("emora:journal-remix", JSON.stringify({ title: conversation.title || "A conversation worth keeping", content: remix.content || transcript }));
+  window.location.assign("/journal");
 }
 
 async function shareToChannel(conversation, channel) {
@@ -723,6 +801,7 @@ async function handleSend(promptOverride = null) {
         attachmentId: attachment?.id || null,
         personaPrompt: activeConversation.personaPrompt || null,
         characterName: activeConversation.characterName || null,
+        companionMode: activeConversation.companionMode || state.pendingCompanionMode,
         cameraOptIn: Boolean(cameraFrame),
         cameraFrame,
       },
@@ -752,6 +831,12 @@ async function handleSend(promptOverride = null) {
 }
 
 function bindStaticEvents() {
+  const closeContextMenu = () => {
+    if (!elements.contextMenu || !elements.addContextButton) return;
+    elements.contextMenu.hidden = true;
+    elements.addContextButton.setAttribute("aria-expanded", "false");
+  };
+
   const setSidebarCollapsed = (collapsed, { persist = true } = {}) => {
     elements.chatLayout?.classList.toggle("sidebar-collapsed", collapsed);
     elements.sidebarToggle?.setAttribute("aria-expanded", String(!collapsed));
@@ -763,6 +848,36 @@ function bindStaticEvents() {
   setSidebarCollapsed(localStorage.getItem(SIDEBAR_STATE_KEY) === "true", { persist: false });
   elements.sidebarToggle?.addEventListener("click", () => {
     setSidebarCollapsed(!elements.chatLayout?.classList.contains("sidebar-collapsed"));
+  });
+
+  elements.addContextButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = Boolean(elements.contextMenu?.hidden);
+    if (elements.contextMenu) elements.contextMenu.hidden = !willOpen;
+    elements.addContextButton.setAttribute("aria-expanded", String(willOpen));
+  });
+  elements.contextMenu?.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", closeContextMenu);
+  elements.settingsShortcut?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isOpen = elements.sidebar?.classList.toggle("utility-menu-open") || false;
+    elements.settingsShortcut.setAttribute("aria-expanded", String(isOpen));
+  });
+  document.querySelector(".companion-secondary-actions")?.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", () => {
+    elements.sidebar?.classList.remove("utility-menu-open");
+    elements.settingsShortcut?.setAttribute("aria-expanded", "false");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeContextMenu();
+      elements.sidebar?.classList.remove("utility-menu-open");
+      elements.settingsShortcut?.setAttribute("aria-expanded", "false");
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      elements.conversationSearch?.focus();
+    }
   });
 
   elements.messageInput.addEventListener("input", () => {
@@ -796,6 +911,124 @@ function bindStaticEvents() {
     });
   });
 
+  elements.companionToolsButton?.addEventListener("click", async () => {
+    const open = Boolean(elements.companionTools?.hidden);
+    setCompanionToolsOpen(open);
+    if (open) {
+      try { await loadCompanionTools(); } catch (error) { showToast(error.message || "Could not load companion options.", "error"); }
+    }
+  });
+  elements.companionToolsClose?.addEventListener("click", () => setCompanionToolsOpen(false));
+  document.querySelectorAll("[data-companion-mode]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextMode = button.dataset.companionMode || "listen";
+      if (nextMode === "deep" && !guardEntitlement("deep_conversation")) return;
+      const conversation = getActiveConversation();
+      const previousMode = conversation?.companionMode || state.pendingCompanionMode;
+      state.pendingCompanionMode = nextMode;
+      if (conversation) conversation.companionMode = nextMode;
+      render();
+      try {
+        if (conversation) {
+          const updated = await apiRequest(`/api/chat/conversations/${conversation.id}`, { method: "PATCH", auth: true, body: { companionMode: nextMode } });
+          replaceConversation(updated);
+        }
+        showToast(`${MODE_LABELS[nextMode]} mode selected.`, "success");
+      } catch (error) {
+        state.pendingCompanionMode = previousMode;
+        if (conversation) conversation.companionMode = previousMode;
+        showToast(error.message || "Could not change response mode.", "error");
+      }
+      render();
+    });
+  });
+  document.querySelectorAll("[data-arrival-mood]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      document.querySelectorAll("[data-arrival-mood]").forEach((item) => item.classList.toggle("selected", item === button));
+      elements.companionArrivalStatus.textContent = "Saving…";
+      try {
+        await apiRequest("/api/personal/check-ins", { method: "POST", auth: true, body: { mood: button.dataset.arrivalMood } });
+        elements.companionArrivalStatus.textContent = "Saved privately. You can talk, or simply stay here.";
+      } catch (error) {
+        elements.companionArrivalStatus.textContent = error.message || "Could not save this check-in.";
+      }
+    });
+  });
+  elements.companionAmbience?.addEventListener("change", async () => {
+    if (!guardEntitlement("ambient_rooms")) return;
+    state.space.ambience = elements.companionAmbience.value;
+    try {
+      await apiRequest("/api/play/space", { method: "PUT", auth: true, body: state.space });
+      elements.chatStage.dataset.ambience = state.space.ambience;
+      showToast("Room atmosphere saved.", "success");
+    } catch (error) {
+      showToast(error.message || "Could not save the room atmosphere.", "error");
+    }
+  });
+  elements.companionMemoryList?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("[data-edit-memory]");
+    if (editButton) {
+      const value = window.prompt("Update what Emora remembers:", editButton.dataset.memoryValue || "")?.trim();
+      if (!value || value === editButton.dataset.memoryValue) return;
+      try {
+        await apiRequest(`/api/companion/memories/${editButton.dataset.editMemory}`, { method: "PATCH", auth: true, body: { value } });
+        showToast("Memory updated.", "success");
+        await loadCompanionTools();
+      } catch (error) {
+        showToast(error.message || "Could not update this memory.", "error");
+      }
+      return;
+    }
+    const button = event.target.closest("[data-forget-memory]");
+    if (!button) return;
+    try {
+      await apiRequest(`/api/companion/memories/${button.dataset.forgetMemory}`, { method: "DELETE", auth: true });
+      await loadCompanionTools();
+    } catch (error) {
+      showToast(error.message || "Could not remove this memory.", "error");
+    }
+  });
+  elements.companionMemoryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!guardEntitlement("companion_memory")) return;
+    const value = elements.companionMemoryInput.value.trim();
+    if (!value) return;
+    const button = event.currentTarget.querySelector("button");
+    button.disabled = true;
+    elements.companionMemoryStatus.textContent = "Saving…";
+    try {
+      await apiRequest("/api/companion/memories", { method: "POST", auth: true, body: { value } });
+      elements.companionMemoryInput.value = "";
+      elements.companionMemoryStatus.textContent = "Saved. You can forget it at any time.";
+      await loadCompanionTools();
+    } catch (error) {
+      elements.companionMemoryStatus.textContent = error.message || "Could not save this memory.";
+    } finally {
+      button.disabled = !state.preferences.emotionalMemory;
+    }
+  });
+  elements.remixJournalButton?.addEventListener("click", async () => {
+    try { await remixConversationToJournal(); } catch (error) { showToast(error.message || "Could not create a journal draft.", "error"); }
+  });
+  elements.sessionReflectionButton?.addEventListener("click", async () => {
+    if (!guardEntitlement("session_reflection")) return;
+    const conversation = getActiveConversation();
+    if (!conversation?.id || !(conversation.messages || []).some((message) => message.role === "user")) {
+      showToast("Have a conversation first, then ask Emora to reflect it back.", "warning");
+      return;
+    }
+    elements.sessionReflectionButton.disabled = true;
+    elements.sessionReflectionOutput.textContent = "Reflecting only what was actually said…";
+    try {
+      const result = await apiRequest("/api/companion/reflections", { method: "POST", auth: true, body: { conversationId: conversation.id } });
+      elements.sessionReflectionOutput.textContent = result.reflection;
+    } catch (error) {
+      elements.sessionReflectionOutput.textContent = error.message || "This reflection could not be created right now.";
+    } finally {
+      elements.sessionReflectionButton.disabled = false;
+    }
+  });
+
   elements.sendButton.addEventListener("click", () => handleSend());
   elements.stopButton.addEventListener("click", () => {
     state.requestController?.abort();
@@ -804,6 +1037,7 @@ function bindStaticEvents() {
     showToast("Companion interrupted.", "info");
   });
   elements.micButton.addEventListener("click", () => {
+    if (!guardEntitlement("voice")) return;
     if (!SpeechRecognition) { showToast("Voice input is not supported in this browser.", "warning"); return; }
     if (!state.recognition) {
       state.recognition = new SpeechRecognition();
@@ -821,6 +1055,7 @@ function bindStaticEvents() {
     render();
   });
   elements.cameraButton?.addEventListener("click", () => {
+    closeContextMenu();
     if (state.cameraStream) stopCameraCheckIn();
     else startCameraCheckIn();
   });
@@ -838,6 +1073,11 @@ function bindStaticEvents() {
   });
 
   elements.fileInput.addEventListener("change", () => {
+    if (!guardEntitlement("extended_chat")) {
+      elements.fileInput.value = "";
+      return;
+    }
+    closeContextMenu();
     state.selectedFile = elements.fileInput.files?.[0] || null;
     renderAttachment();
   });
@@ -894,7 +1134,7 @@ function bindStaticEvents() {
   });
 
   elements.premiumButton.addEventListener("click", () => {
-    openModal("premium");
+    window.location.assign("/payment");
   });
 
   elements.clearDraftsButton.addEventListener("click", () => {
@@ -913,8 +1153,7 @@ function bindStaticEvents() {
   });
 
   elements.premiumRequestButton.addEventListener("click", () => {
-    showToast("Premium access request noted. Wire billing or upgrade handling next.", "info");
-    closeModal("premium");
+    window.location.assign("/payment");
   });
 
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
@@ -989,12 +1228,33 @@ function bindStaticEvents() {
 
   state.user = getStoredUser();
   state.drafts = loadDrafts();
+  const messageCharacters = Number(state.user?.access?.limits?.chatMessageCharacters || 2000);
+  elements.messageInput.maxLength = messageCharacters;
+  if (elements.messageLimit) elements.messageLimit.textContent = `${state.user?.access?.planName || "Free"} messages up to ${messageCharacters.toLocaleString()} characters`;
 
   bindStaticEvents();
-
-  await fetchConversations();
+  // The core composer must not depend on optional memory, ambience, or
+  // preference endpoints. Render and accept input while those panels load.
   render();
-  await maybeConsumeStarterCharacter();
+
+  const [conversationsResult, toolsResult] = await Promise.allSettled([
+    fetchConversations(),
+    loadCompanionTools(),
+  ]);
+  if (conversationsResult.status === "rejected") {
+    console.error("Could not load saved conversations.", conversationsResult.reason);
+    showToast("Saved conversations could not load, but you can still start a new chat.", "warning");
+  }
+  if (toolsResult.status === "rejected") {
+    console.error("Could not load companion tools.", toolsResult.reason);
+  }
+
+  try {
+    await maybeConsumeStarterCharacter();
+  } catch (error) {
+    console.error("Could not prepare the selected companion.", error);
+    showToast(error.message || "Could not prepare the selected companion.", "warning");
+  }
 
   if (!state.activeConversationId && state.conversations.length > 0) {
     state.activeConversationId = getOrderedConversations()[0].id;

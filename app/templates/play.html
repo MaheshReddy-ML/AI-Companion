@@ -1,25 +1,109 @@
 {% extends "base.html" %}
-{% block body_class %}app-body play-body{% endblock %}
+
+{% block body_class %}app-body play-body play-cinematic-body{% endblock %}
+
+{% block head_extra %}
+  <link rel="preload" as="image" href="/static/images/emora-night-room-v1.webp" fetchpriority="high" />
+  <link rel="stylesheet" href="/static/css/play-cinematic.css?v=20260822-premium-depth-v2" />
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"}}
+  </script>
+{% endblock %}
+
 {% block content %}
-<main class="play-shell">
-  <section class="play-hero"><div class="play-sparkles" id="play-sparkles" aria-hidden="true"></div>
-    <div class="play-orb play-orb-one"></div><div class="play-orb play-orb-two"></div>
-    <a class="play-back" href="/dashboard">← Back to workspace</a>
-    <div class="play-hero-grid">
-      <div><p class="eyebrow">EMORA PLAY / PRIVATE BY DESIGN</p><h1 class="serif">Make your inner world<br><em>feel alive.</em></h1><p class="play-lede">Tiny rituals, soft focus, and playful momentum—crafted to help you come back to yourself.</p><div class="play-hero-actions"><a class="btn btn-primary" href="#quests">See today’s quests</a><a class="btn btn-outline" href="/your-emora">Enter companion room</a></div></div>
-      <aside class="garden-preview"><div class="garden-grid"></div><div class="garden-glow"></div><div class="garden-moon"></div><div class="garden-hills hill-back"></div><div class="garden-hills hill-front"></div><div class="garden-stem stem-one"><i></i><i></i></div><div class="garden-stem stem-two"><i></i><i></i></div><div class="garden-stem stem-three"><i></i><i></i></div><div class="garden-caption"><p id="garden-stage">Your garden is waking up…</p><small id="garden-copy"></small></div></aside>
+<main class="play-world" data-play-world>
+  <section class="play-cinematic-hero" aria-labelledby="play-world-title">
+    <div class="play-room-scene" aria-hidden="true">
+      <div class="play-room-fallback"></div>
+      <div class="play-room-mount" data-play-room-mount></div>
+      <div class="play-room-vignette"></div>
+      <div class="play-room-grain"></div>
     </div>
-  </section>
-  <section class="play-content">
-    <div class="play-section-heading" id="quests"><div><p class="eyebrow">TODAY’S RITUALS</p><h2 class="serif">Small wins, real momentum.</h2></div><span class="play-kicker">Complete a quest to tend your garden</span></div>
-    <div id="quest-list" class="quest-grid"></div>
-    <div class="play-feature-grid">
-      <section class="play-panel memory-panel"><div class="play-panel-top"><span class="panel-icon">✦</span><div><p class="eyebrow">REMEMBER</p><h3>Keep the good details close.</h3></div></div><p>Save a preference, a goal, or a tiny truth you want your companion to remember.</p><form id="memory-form" class="play-inline-form"><input id="memory-input" maxlength="300" placeholder="I feel most focused in the mornings…"/><button type="submit" aria-label="Save memory">+</button></form><div id="memory-list" class="memory-list"></div></section>
-      <section class="play-panel focus-panel"><div class="play-panel-top"><span class="panel-icon">◷</span><div><p class="eyebrow">FOCUS TOGETHER</p><h3>Bring a friend into the flow.</h3></div></div><p>Make a small, invite-only focus room. No feeds. No pressure. Just time held together.</p><form id="room-form" class="play-stack-form"><input id="room-name" value="Focus room" maxlength="60"/><div class="duration-row"><span>Session length</span><input id="room-minutes" type="number" min="5" max="120" value="25"/><span>minutes</span></div><button class="btn btn-primary btn-sm" type="submit">Create invite room</button></form><div class="join-row"><input id="room-code" placeholder="Invite code"/><button id="room-join" class="btn btn-outline btn-sm" type="button">Join</button></div><p id="room-status" class="panel-status"></p></section>
-      <section class="play-panel space-panel"><div class="play-panel-top"><span class="panel-icon">⌂</span><div><p class="eyebrow">YOUR SPACE</p><h3>Set the scene.</h3></div></div><p>Choose a room feeling that makes returning to Emora feel like a small exhale.</p><form id="space-form" class="space-controls"><label>Backdrop<select id="space-background"><option value="forest">Forest glow</option><option value="garden">Moon garden</option><option value="room">Cozy room</option></select></label><label>Ambience<select id="space-ambience"><option value="none">Quiet</option><option value="rain">Soft rain</option><option value="lofi">Lo-fi glow</option></select></label><label>Detail<select id="space-accessory"><option value="none">Minimal</option><option value="plant">Growing plant</option><option value="lamp">Warm lamp</option></select></label><button class="btn btn-outline btn-sm" type="submit">Save my space</button></form></section>
+
+    <nav class="play-world-nav" aria-label="Emora Play navigation">
+      <a class="play-world-brand" href="/dashboard"><img class="brand-symbol" src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /> EMORA PLAY</a>
+      <div><a href="#play-about">About</a><a href="#rituals">Rituals</a><a href="#premium-worlds">Premium worlds</a><a href="/focus-together">Focus Together</a><a href="/payment" data-play-plan-name>Plans</a><a href="/dashboard">Workspace</a></div>
+    </nav>
+
+    <div class="play-world-copy">
+      <p class="play-world-kicker">PRIVATE BY DESIGN</p>
+      <h1 id="play-world-title" class="serif">Make your inner<br />world<br /><em>feel alive.</em></h1>
+      <p>Tiny rituals, soft focus, and playful momentum—<br />crafted to help you come back to yourself.</p>
+      <div class="play-world-actions"><a href="#rituals">See today’s quests <span>→</span></a><a href="/your-emora">Enter companion room</a></div>
     </div>
-    <section class="remix-studio"><div><p class="eyebrow">CONVERSATION REMIX</p><h2 class="serif">Turn a thought into its next shape.</h2><p>Plans, journal entries, reflection questions, and task lists—made from words that already matter to you.</p><div class="remix-chips"><span>Plan</span><span>Journal</span><span>Quiz</span><span>Tasks</span></div></div><form id="remix-form"><textarea id="remix-input" rows="6" placeholder="Paste a thought, an idea, or a meaningful part of a conversation…"></textarea><div class="remix-form-footer"><select id="remix-format"><option value="plan">Make a plan</option><option value="journal">Write a journal entry</option><option value="quiz">Make reflection questions</option><option value="tasks">Make a task list</option></select><button class="btn btn-primary" type="submit">Remix it ✦</button></div><pre id="remix-output"></pre></form></section>
+
+    <aside class="play-garden-state" aria-live="polite">
+      <span class="play-garden-sigil">✦</span>
+      <div><p id="garden-stage">Your garden is waking up…</p><small id="garden-copy">Gathering today’s rituals</small></div>
+      <b id="garden-count">+0</b>
+    </aside>
+
+    <div class="play-scene-meta"><span><i></i> Room awake</span><span>Moon phase / quiet</span><span>Move gently to look around</span></div>
+    <a class="play-world-scroll" href="#rituals" aria-label="Scroll to today's rituals"><span>Today’s rituals</span><i></i></a>
+    <div class="play-plan-seal" aria-label="Current Emora access"><span id="play-plan-kicker">YOUR ACCESS</span><strong id="play-plan-seal">Checking plan…</strong></div>
   </section>
+
+  <section class="play-ritual-archive" data-entitlement="look_back" data-plan-label="Plus" aria-labelledby="ritual-archive-title">
+    <header><div><p class="play-section-index">RITUAL ARCHIVE / PLUS</p><h2 class="serif" id="ritual-archive-title">See the rhythm<br /><em>you are building.</em></h2></div><p>Your private archive turns completed rituals into a gentle record of continuity—never a public score.</p></header>
+    <div class="play-archive-metrics"><article><small>ACTIVE DAYS</small><strong id="archive-active-days">—</strong></article><article><small>RITUALS KEPT</small><strong id="archive-completed">—</strong></article><article><small>CURRENT RHYTHM</small><strong id="archive-streak">—</strong></article><article><small>YOUR ANCHOR</small><strong id="archive-strongest">Still emerging</strong></article></div>
+    <div class="play-archive-list" id="ritual-archive-list"><p>Your completed rituals will gather here.</p></div>
+  </section>
+
+  <section class="play-depth" id="rituals">
+    <header class="play-ritual-heading">
+      <div><p class="play-section-index">TODAY’S RITUALS / 01</p><h2 class="serif">Small wins,<br /><em>real momentum.</em></h2></div>
+      <p>Complete one quiet quest and your private world responds. No public score, no pressure.</p>
+    </header>
+    <div id="quest-list" class="play-ritual-grid" aria-live="polite"></div>
+  </section>
+
+  <section class="play-interactions" id="play-about">
+    <div class="play-interaction-intro">
+      <p class="play-section-index">YOUR PRIVATE WORLD / 02</p>
+      <h2 class="serif">Leave something<br /><em>worth returning to.</em></h2>
+      <p>The room holds only what you choose: a detail, shared focus, or an atmosphere that helps you settle in.</p>
+    </div>
+
+    <section class="play-memory-fragment play-world-panel">
+      <div class="play-panel-heading"><span>✦</span><div><p>REMEMBER</p><h3 class="serif">Keep the good details close.</h3></div></div>
+      <p class="play-panel-copy">Save a preference, a goal, or a tiny truth you want your companion to remember.</p>
+      <form id="memory-form" class="play-memory-form"><label class="sr-only" for="memory-input">A detail to remember</label><input id="memory-input" maxlength="300" placeholder="I feel most focused in the mornings…"/><button type="submit" aria-label="Save memory">Leave note <span>→</span></button></form>
+      <div id="memory-list" class="memory-list play-memory-list"></div>
+    </section>
+
+    <section class="play-space-maker play-world-panel" id="premium-worlds" data-space-preview="forest">
+      <div class="play-space-preview" aria-hidden="true"><i></i><i></i><span>YOUR ROOM / LIVE PREVIEW</span></div>
+      <div class="play-space-content">
+        <div class="play-panel-heading"><span>⌂</span><div><p>YOUR SPACE</p><h3 class="serif">Design the room you return to.</h3></div></div>
+        <p class="play-panel-copy">Shift the environment itself. Choose the view, sound, and one detail that makes the space yours.</p>
+        <form id="space-form" class="play-space-controls" data-entitlement="ambient_rooms" data-plan-label="Pro">
+          <label><span>Backdrop</span><select id="space-background"><option value="forest">Forest glow</option><option value="garden">Moon garden</option><option value="room">Cozy room</option><option value="observatory">Starlit observatory</option><option value="coast">Midnight coast</option><option value="library">After-hours library</option></select></label>
+          <label><span>Ambience</span><select id="space-ambience"><option value="none">Quiet</option><option value="rain">Soft rain</option><option value="lofi">Lo-fi glow</option><option value="fireplace">Fireplace hush</option><option value="night_wind">Night wind</option><option value="ocean">Distant ocean</option></select></label>
+          <label><span>One detail</span><select id="space-accessory"><option value="none">Minimal</option><option value="plant">Growing plant</option><option value="lamp">Warm lamp</option><option value="candles">Candle trio</option><option value="telescope">Brass telescope</option><option value="books">Bedside books</option></select></label>
+          <button type="submit">Save my space <span>→</span></button>
+        </form>
+        <p id="space-status" class="play-panel-status" aria-live="polite"></p>
+      </div>
+    </section>
+  </section>
+
+  <section class="play-remix-world" id="remix">
+    <div class="play-remix-copy"><p class="play-section-index">CONVERSATION REMIX / PRO</p><h2 class="serif">Turn a thought into<br /><em>its next shape.</em></h2><p>Write something into the room. Each selected shape changes the underlying transformation—not just its label.</p><div class="play-remix-modes"><span>Find the pattern</span><span>Unsent letter</span><span>Gentle Goal</span><span>Focus session</span></div></div>
+    <form id="remix-form" class="play-remix-desk" data-entitlement="conversation_remix" data-plan-label="Pro">
+      <label class="sr-only" for="remix-input">Thought to remix</label>
+      <textarea id="remix-input" rows="8" placeholder="Leave a thought, an idea, or a meaningful part of a conversation here…"></textarea>
+      <div><label><span>Shape it into</span><select id="remix-format"><option value="plan">A clear plan</option><option value="journal">A journal entry</option><option value="quiz">Reflection questions</option><option value="tasks">A task list</option><option value="pattern">Find the pattern</option><option value="letter">Write what I couldn’t say</option><option value="questions">Ask me better questions</option><option value="gentle_goal">Create a Gentle Goal</option><option value="focus_session">Create a focus session</option></select></label><button type="submit">Remix it <span>✦</span></button></div>
+      <pre id="remix-output" aria-live="polite"></pre>
+    </form>
+  </section>
+
+  <section class="play-voice-keepsake" data-entitlement="voice_postcards" data-plan-label="Complete" aria-labelledby="voice-keepsake-title">
+    <div><p class="play-section-index">VOICE KEEPSAKE / COMPLETE</p><h2 class="serif" id="voice-keepsake-title">Keep one reply<br /><em>in Emora’s voice.</em></h2><p>Choose one of your conversations. Complete turns its latest companion reply into a private voice keepsake using the existing local voice pipeline.</p></div>
+    <div class="play-keepsake-controls"><label for="keepsake-conversation">Conversation</label><select id="keepsake-conversation"><option value="">Choose a conversation</option></select><button id="keepsake-create" type="button">Create voice keepsake <span>→</span></button><p id="keepsake-status" aria-live="polite"></p></div>
+  </section>
+
+  <footer class="play-world-footer"><a href="/dashboard">← Workspace</a><span>EMORA PLAY · PRIVATE BY DESIGN</span><a href="/your-emora">Companion room →</a></footer>
 </main>
 {% endblock %}
-{% block scripts %}<script type="module" src="/static/js/play.js"></script>{% endblock %}
+
+{% block scripts %}<script type="module" src="/static/js/play.js?v=20260822-premium-depth-v2"></script>{% endblock %}

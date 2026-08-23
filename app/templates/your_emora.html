@@ -8,7 +8,7 @@
       "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
         "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"
+        "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js"
       }
     }
   </script>
@@ -66,7 +66,7 @@
 
         <aside class="emora-utility-rail" aria-label="Companion controls">
           <button id="emora-camera-button" type="button"><i>◉</i><span>View</span><strong>Allow view</strong></button>
-          <button id="emora-mic-button" type="button"><i>⌁</i><span>Voice</span><strong>Allow voice</strong></button>
+          <button id="emora-mic-button" type="button" data-entitlement="voice" data-plan-label="Plus"><i>⌁</i><span>Voice</span><strong>Allow voice</strong></button>
           <button id="emora-new-session" type="button"><i>＋</i><span>Reset</span><strong>New session</strong></button>
         </aside>
 
@@ -104,5 +104,5 @@
 
 {% block scripts %}
   <script type="module" src="/static/js/atmosphere.js?v=20260713"></script>
-  <script type="module" src="/static/js/your-emora.js?v=20260811-living-companion"></script>
+  <script type="module" src="/static/js/your-emora.js?v=20260822-runtime-recovery-v1"></script>
 {% endblock %}

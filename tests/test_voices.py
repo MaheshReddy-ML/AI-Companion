@@ -3,6 +3,7 @@ import threading
 from pathlib import Path
 
 import numpy as np
+from bson import ObjectId
 
 from app.routers import voices
 from app.tts_text import PronunciationPreprocessor
@@ -12,6 +13,10 @@ from app.voice_manager import VoiceManager
 class FakeRequest:
     async def is_disconnected(self):
         return False
+
+
+def voice_user(plan="plus"):
+    return {"_id": ObjectId(), "email": "voice@example.com", "subscription": {"plan": plan, "status": "active"}}
 
 
 def test_speak_passes_text_to_tts_queue_as_a_keyword(monkeypatch, tmp_path):
@@ -30,7 +35,7 @@ def test_speak_passes_text_to_tts_queue_as_a_keyword(monkeypatch, tmp_path):
             # A stale or malicious browser voice must not override Yuna's profile.
             voices.SpeakRequest(text="Hello from Emora", character_id="Yuna", voice_id="am_adam"),
             FakeRequest(),
-            {},
+            voice_user(),
         )
     )
 
@@ -49,11 +54,14 @@ def test_streaming_speak_returns_pcm_without_waiting_for_a_wav(monkeypatch):
         yield b"\x00\x00\x01\x00"
 
     monkeypatch.setattr(voices, "stream_pcm", fake_stream_pcm)
+    async def fake_reserve_tts_capacity(**kwargs):
+        return []
+    monkeypatch.setattr(voices, "reserve_tts_capacity", fake_reserve_tts_capacity)
     response = asyncio.run(
         voices.speak(
             voices.SpeakRequest(text="Hello from Emora", character_id="Yuna", voice_id="af_heart", stream=True),
             FakeRequest(),
-            {},
+            voice_user(),
         )
     )
 
@@ -121,3 +129,38 @@ def test_qwen_inference_receives_the_configured_character_speaker(monkeypatch, t
     assert received["speaker"] == "Serena"
     assert received["language"] == "English"
     assert received["stream"] is True
+
+
+def test_qwen_voice_runtime_serializes_concurrent_users(monkeypatch, tmp_path):
+    manager = VoiceManager(models_dir=tmp_path / "models", cache_dir=tmp_path / "cache")
+    active = 0
+    maximum_active = 0
+    state_lock = threading.Lock()
+
+    class FakeResult:
+        audio = np.zeros(16, dtype=np.float32)
+
+    class FakeQwenModel:
+        def get_supported_speakers(self):
+            return ["Serena"]
+
+        def generate_custom_voice(self, **kwargs):
+            nonlocal active, maximum_active
+            with state_lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            try:
+                threading.Event().wait(0.04)
+                yield FakeResult()
+            finally:
+                with state_lock:
+                    active -= 1
+
+    monkeypatch.setattr(manager, "_qwen_model", lambda: FakeQwenModel())
+    profile = manager._build_speech_profile(None, "Yuna", None, None)
+    voice = manager.find_voice("af_heart")
+    workers = [threading.Thread(target=lambda: list(manager._iter_qwen_audio("Hello.", voice, profile, threading.Event()))) for _ in range(3)]
+    for worker in workers: worker.start()
+    for worker in workers: worker.join()
+
+    assert maximum_active == 1

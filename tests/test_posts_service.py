@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from bson import ObjectId
 
+from app.database import utc_now
 from app.models.schemas import PostCreateRequest, PostUpdateRequest
 from app.services import posts as post_service
 
@@ -129,3 +130,46 @@ def test_user_can_relate_to_a_post_only_once(monkeypatch):
         pass
     else:
         raise AssertionError("a user should not be able to relate to the same post twice")
+
+
+def test_feed_shows_visible_posts_from_other_users_and_legacy_posts(monkeypatch):
+    posts = FakePostsCollection()
+    monkeypatch.setattr(post_service, "posts_collection", lambda: posts)
+    monkeypatch.setattr(post_service, "users_collection", lambda: FakeUsersCollection())
+
+    owner = {"_id": ObjectId(), "anonymous_id": "60414bfb-cb8f-4ef8-8866-c646b3dc1998"}
+    reader = {"_id": ObjectId(), "anonymous_id": "0ec96a99-ca8a-4f0a-ae2c-24b6311d6f10"}
+    post_service.create_post(PostCreateRequest(content="A current shared post"), owner)
+    posts.documents.append(
+        {
+            "_id": ObjectId(),
+            "content": "A legacy shared post",
+            "anonymous_id": "cf386383-2e07-435b-b286-34651c63a33e",
+            "created_at": utc_now(),
+            "updated_at": None,
+            "likes": 0,
+            "liked_by": [],
+        }
+    )
+    posts.documents.append(
+        {
+            "_id": ObjectId(),
+            "content": "A post awaiting review",
+            "anonymous_id": "797d0e98-3f83-4236-b423-524506786923",
+            "created_at": utc_now(),
+            "updated_at": None,
+            "likes": 0,
+            "liked_by": [],
+            "moderation_status": "needs_review",
+        }
+    )
+
+    feed = post_service.list_posts(reader)
+
+    assert feed["total"] == 2
+    assert {post["content"] for post in feed["posts"]} == {
+        "A current shared post",
+        "A legacy shared post",
+    }
+    assert all(post["owned_by_current_user"] is False for post in feed["posts"])
+    assert all(post["moderation_status"] == "visible" for post in feed["posts"])

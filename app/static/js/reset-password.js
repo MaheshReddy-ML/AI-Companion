@@ -10,6 +10,7 @@ const confirmPasswordInput = document.getElementById("reset-confirm-password");
 const statusElement = document.getElementById("reset-status");
 const submitButton = document.getElementById("reset-submit");
 const togglePasswordButton = document.getElementById("reset-toggle-password");
+const submitButtonLabel = submitButton.innerHTML;
 
 initChrome();
 
@@ -24,6 +25,7 @@ togglePasswordButton.addEventListener("click", () => {
   passwordInput.type = nextType;
   confirmPasswordInput.type = nextType;
   togglePasswordButton.textContent = nextType === "password" ? "Show" : "Hide";
+  togglePasswordButton.setAttribute("aria-label", `${nextType === "password" ? "Show" : "Hide"} passwords`);
 });
 
 form.addEventListener("submit", async (event) => {
@@ -44,6 +46,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Resetting...";
 
   try {
@@ -59,6 +62,7 @@ form.addEventListener("submit", async (event) => {
     showStatus(statusElement, error.message || "Password reset failed.");
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = "Reset password";
+    submitButton.removeAttribute("aria-busy");
+    submitButton.innerHTML = submitButtonLabel;
   }
 });

@@ -75,6 +75,10 @@ def list_posts(user: dict, page: int = 1, limit: int = 20) -> dict:
     query = {
         "$or": [
             {"moderation_status": "visible"},
+            # Posts created before moderation metadata was introduced were
+            # already treated as visible by serialize_post. Include those
+            # legacy documents in the database query as well.
+            {"moderation_status": None},
             {"anonymous_id": anonymous_id},
         ]
     }
@@ -104,8 +108,11 @@ def like_post(post_id: str, user: dict) -> dict:
     anonymous_id = get_or_create_anonymous_id_for_user(user)
     query = {
         "_id": object_id,
-        "moderation_status": "visible",
         "liked_by": {"$ne": anonymous_id},
+        "$or": [
+            {"moderation_status": "visible"},
+            {"moderation_status": None},
+        ],
     }
     updated_post = posts_collection().find_one_and_update(
         query,

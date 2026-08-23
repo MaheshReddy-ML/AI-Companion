@@ -23,15 +23,17 @@ const elements = {
   editButton: document.getElementById("profile-edit-button"),
   avatarStudio: document.querySelector(".avatar-studio"),
   preferenceButtons: Array.from(document.querySelectorAll("[data-profile-preference]")),
+  streakBadge: document.getElementById("profile-streak-badge"),
+  sessionBadge: document.getElementById("profile-session-badge"),
+  memberSince: document.getElementById("profile-member-since"),
 };
-
-const PREFERENCE_PREFIX = "ai-companion:profile-preference:";
 
 const state = {
   presets: [],
   filter: "all",
   user: null,
   busy: false,
+  preferences: {},
 };
 
 function getCurrentName() {
@@ -82,6 +84,12 @@ function renderCurrentMeta() {
     user?.avatarSource === "custom"
       ? "You can keep your upload, switch back to a preset anytime, or upload another image."
       : "A default avatar is assigned automatically. You can swap to any preset or upload your own image.";
+  if (elements.memberSince) {
+    const createdAt = user?.createdAt ? new Date(user.createdAt) : null;
+    elements.memberSince.textContent = createdAt && !Number.isNaN(createdAt.getTime())
+      ? `Member since ${createdAt.toLocaleDateString([], { month: "long", year: "numeric" })}`
+      : "Member";
+  }
 }
 
 function renderFilterState() {
@@ -229,17 +237,26 @@ function bindEvents() {
 
   elements.preferenceButtons.forEach((button) => {
     const key = button.dataset.profilePreference;
-    const stored = key ? localStorage.getItem(`${PREFERENCE_PREFIX}${key}`) : null;
-    const enabled = stored === null ? button.classList.contains("on") : stored === "true";
-    button.classList.toggle("on", enabled);
-    button.setAttribute("aria-checked", String(enabled));
-    button.addEventListener("click", () => {
-      const nextValue = !button.classList.contains("on");
+    button.disabled = true;
+    button.addEventListener("click", async () => {
+      if (!key || button.disabled) return;
+      const previousValue = Boolean(state.preferences[key]);
+      const nextValue = !previousValue;
       button.classList.toggle("on", nextValue);
       button.setAttribute("aria-checked", String(nextValue));
-      if (key) localStorage.setItem(`${PREFERENCE_PREFIX}${key}`, String(nextValue));
+      button.disabled = true;
       button.animate([{ transform: "scale(.82)" }, { transform: "scale(1.08)" }, { transform: "scale(1)" }], { duration: 360, easing: "cubic-bezier(.2,.9,.25,1)" });
-      showStatus(elements.status, `${button.getAttribute("aria-label")?.replace("Toggle ", "") || "Preference"} ${nextValue ? "enabled" : "paused"} on this device.`, "success");
+      try {
+        const response = await apiRequest("/api/personal/preferences", { method: "PATCH", auth: true, body: { [key]: nextValue } });
+        state.preferences = response.preferences || {};
+        showStatus(elements.status, `${button.getAttribute("aria-label")?.replace("Toggle ", "") || "Preference"} ${nextValue ? "enabled" : "paused"} for your account.`, "success");
+      } catch (error) {
+        button.classList.toggle("on", previousValue);
+        button.setAttribute("aria-checked", String(previousValue));
+        showStatus(elements.status, error.message || "Could not save this preference.");
+      } finally {
+        button.disabled = false;
+      }
     });
   });
 
@@ -313,6 +330,26 @@ async function loadPresets() {
   state.presets = Array.isArray(response?.presets) ? response.presets : [];
 }
 
+async function loadPreferences() {
+  const response = await apiRequest("/api/personal/preferences", { auth: true });
+  state.preferences = response.preferences || {};
+  elements.preferenceButtons.forEach((button) => {
+    const enabled = Boolean(state.preferences[button.dataset.profilePreference]);
+    button.classList.toggle("on", enabled);
+    button.setAttribute("aria-checked", String(enabled));
+    button.disabled = false;
+  });
+}
+
+async function loadProfileSummary() {
+  const response = await apiRequest("/api/companion/dashboard", { auth: true });
+  const dashboard = response.dashboard || {};
+  const streak = Number(dashboard.dailyStreak || 0);
+  const activeDays = Number(dashboard.conversationFrequency || 0);
+  if (elements.streakBadge) elements.streakBadge.textContent = streak ? `${streak}-day rhythm` : "Rhythm starts with a check-in";
+  if (elements.sessionBadge) elements.sessionBadge.textContent = activeDays ? `${activeDays} active day${activeDays === 1 ? "" : "s"} this week` : "No sessions this week";
+}
+
 (async () => {
   const session = await ensureSession({ redirectTo: "/login" });
   if (!session?.verified) {
@@ -326,9 +363,9 @@ async function loadPresets() {
   renderFilterState();
 
   try {
-    await loadPresets();
+    await Promise.all([loadPresets(), loadPreferences(), loadProfileSummary()]);
     renderGallery();
   } catch (error) {
-    showStatus(elements.status, error.message || "Could not load avatar presets.");
+    showStatus(elements.status, error.message || "Could not load profile settings.");
   }
 })();

@@ -40,7 +40,9 @@ class LocalMLXChatProvider:
                 from mlx_lm.sample_utils import make_sampler
             except ImportError as exc:
                 raise RuntimeError(
-                    "Local MLX chat is not installed. Run `pip install -r requirements.txt`."
+                    "Local MLX chat is not installed in the Python environment running the server. "
+                    "Start Emora with `../.venv/bin/python -m uvicorn app.main:app --reload`, "
+                    "or install requirements into that interpreter."
                 ) from exc
 
             try:
