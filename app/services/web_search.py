@@ -33,7 +33,7 @@ CURRENT_TERMS = re.compile(r"\b(?:latest|today|yesterday|current(?:ly)?|recent(?
 DYNAMIC_TERMS = re.compile(
     r"\b(?:weather|forecast|temperature|score|schedule|fixture|stock|share price|bitcoin|crypto|exchange rate|"
     r"price|availability|admissions?|applications?|deadline|news|election|policy|law|version|release|"
-    r"documentation|opening hours?|CEO|president)\b",
+    r"documentation|opening hours?|CEO|president|models?)\b",
     re.I,
 )
 RECENT_EVENT = re.compile(r"\b(?:did .* happen|what happened|announc(?:e|ed|ement)|released?|launched?|changed?)\b", re.I)
@@ -351,8 +351,6 @@ def decide_web_search(message: str, history: list[dict[str, Any]] | None = None)
     if CURRENT_TERMS.search(clean) and DYNAMIC_TERMS.search(clean):
         reason = "price" if re.search(r"\b(?:price|worth|stock|bitcoin|crypto|exchange rate)\b", clean, re.I) else "time_sensitive"
         decision = decision or SearchDecision(True, reason, focused_search_query(clean), recency or 7)
-    elif CURRENT_TERMS.search(clean):
-        decision = decision or SearchDecision(True, "current_information", focused_search_query(clean), recency or 30)
     elif DYNAMIC_TERMS.search(clean) and re.search(r"\b(?:now|when|where|which|accepting|available|worth)", clean, re.I):
         decision = decision or SearchDecision(True, "availability", focused_search_query(clean), recency)
     elif RECENT_EVENT.search(clean) and re.search(r"\b(?:recently|lately|now|OpenAI|company|university)\b", clean, re.I):

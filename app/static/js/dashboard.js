@@ -512,13 +512,13 @@ function render() {
   if (elements.companionModeStatus) elements.companionModeStatus.textContent = MODE_LABELS[mode] || MODE_LABELS.listen;
 }
 
-async function fetchConversations() {
+async function fetchConversations({ selectMostRecent = true } = {}) {
   const params = new URLSearchParams({ limit: "50" });
   if (state.conversationSearch.trim()) {
     params.set("search", state.conversationSearch.trim());
   }
   state.conversations = await apiRequest(`/api/chat?${params.toString()}`, { auth: true });
-  if (!state.activeConversationId && state.conversations.length > 0) {
+  if (selectMostRecent && !state.activeConversationId && state.conversations.length > 0) {
     state.activeConversationId = getOrderedConversations()[0].id;
   } else if (state.activeConversationId && !state.conversations.some((item) => item.id === state.activeConversationId)) {
     state.activeConversationId = state.conversations[0]?.id || null;
@@ -534,6 +534,9 @@ async function createConversation(payload = {}) {
 
   replaceConversation(conversation);
   state.activeConversationId = conversation.id;
+  if (new URLSearchParams(window.location.search).get("new") === "1") {
+    window.history.replaceState({}, "", "/chat");
+  }
   render();
   return conversation;
 }
@@ -1270,8 +1273,9 @@ function bindStaticEvents() {
   // preference endpoints. Render and accept input while those panels load.
   render();
 
+  const shouldStartFresh = new URLSearchParams(window.location.search).get("new") === "1";
   const [conversationsResult, toolsResult] = await Promise.allSettled([
-    fetchConversations(),
+    fetchConversations({ selectMostRecent: !shouldStartFresh }),
     loadCompanionTools(),
   ]);
   if (conversationsResult.status === "rejected") {
@@ -1289,7 +1293,7 @@ function bindStaticEvents() {
     showToast(error.message || "Could not prepare the selected companion.", "warning");
   }
 
-  if (!state.activeConversationId && state.conversations.length > 0) {
+  if (!shouldStartFresh && !state.activeConversationId && state.conversations.length > 0) {
     state.activeConversationId = getOrderedConversations()[0].id;
   }
 

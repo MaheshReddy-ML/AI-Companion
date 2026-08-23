@@ -19,10 +19,22 @@ def test_search_router_avoids_stable_and_emotional_turns(monkeypatch):
     assert web_search.decide_web_search("Give me ideas for a journal entry.").needs_web is False
 
 
+def test_today_in_personal_conversation_does_not_inherit_web_search(monkeypatch):
+    enable_search(monkeypatch)
+    prior_search = [
+        {"role": "user", "content": "What is today's USD price in INR?"},
+        {"role": "assistant", "content": "I checked the current rate for you."},
+    ]
+
+    assert web_search.decide_web_search("oh great, u know what happened today", prior_search).needs_web is False
+    assert web_search.decide_web_search("It went really great for me today", prior_search).needs_web is False
+    assert web_search.decide_web_search("What's the latest Qwen model?", prior_search).needs_web is True
+
+
 def test_search_router_catches_current_explicit_price_and_recent_questions(monkeypatch):
     enable_search(monkeypatch)
 
-    assert web_search.decide_web_search("What is the latest Qwen model?").reason == "current_information"
+    assert web_search.decide_web_search("What is the latest Qwen model?").reason == "time_sensitive"
     assert web_search.decide_web_search("Search the web for the latest Qwen release.").reason == "user_requested"
     assert web_search.decide_web_search("What is Bitcoin worth right now?").reason == "price"
     assert web_search.decide_web_search("Did something happen with OpenAI recently?").needs_web is True
@@ -267,3 +279,24 @@ def test_browser_contract_has_real_search_state_sources_and_cancellation():
     assert 'publishEmoraPresence(state.speaking ? "SPEAKING" : state.searching ? "SEARCHING"' in live_room
     assert "chatAbortController?.abort" in live_room
     assert "Web sources" in live_room
+
+
+def test_chat_navigation_starts_fresh_without_hiding_saved_history():
+    dashboard = open("app/static/js/dashboard.js", encoding="utf-8").read()
+    templates = "\n".join(
+        open(path, encoding="utf-8").read()
+        for path in (
+            "app/templates/base.html",
+            "app/templates/chat.html",
+            "app/templates/dashboard.html",
+            "app/templates/insights.html",
+            "app/templates/community.html",
+            "app/templates/profile.html",
+        )
+    )
+
+    assert 'get("new") === "1"' in dashboard
+    assert "fetchConversations({ selectMostRecent: !shouldStartFresh })" in dashboard
+    assert "if (!shouldStartFresh && !state.activeConversationId" in dashboard
+    assert templates.count('href="/chat?new=1" aria-label="Chat with Emora using text"') == 6
+    assert 'href="/chat">Open conversation history' in templates
