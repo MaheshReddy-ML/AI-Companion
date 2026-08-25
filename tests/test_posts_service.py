@@ -3,7 +3,7 @@ from __future__ import annotations
 from bson import ObjectId
 
 from app.database import utc_now
-from app.models.schemas import PostCreateRequest, PostUpdateRequest
+from app.models.schemas import PostCreateRequest, PostReportRequest, PostUpdateRequest
 from app.services import posts as post_service
 
 
@@ -173,3 +173,29 @@ def test_feed_shows_visible_posts_from_other_users_and_legacy_posts(monkeypatch)
     }
     assert all(post["owned_by_current_user"] is False for post in feed["posts"])
     assert all(post["moderation_status"] == "visible" for post in feed["posts"])
+
+
+def test_user_can_privately_report_another_post_only_once(monkeypatch):
+    posts = FakePostsCollection()
+    monkeypatch.setattr(post_service, "posts_collection", lambda: posts)
+    monkeypatch.setattr(post_service, "users_collection", lambda: FakeUsersCollection())
+
+    owner = {"_id": ObjectId(), "anonymous_id": "60414bfb-cb8f-4ef8-8866-c646b3dc1998"}
+    reader = {"_id": ObjectId(), "anonymous_id": "0ec96a99-ca8a-4f0a-ae2c-24b6311d6f10"}
+    created = post_service.create_post(PostCreateRequest(content="A post needing a safety review"), owner)
+
+    post_service.report_post(created["_id"], PostReportRequest(reason="unsafe"), reader)
+    stored = posts.documents[0]
+    assert stored["report_count"] == 1
+    assert stored["report_reasons"] == ["unsafe"]
+    assert stored["reported_by"] == [reader["anonymous_id"]]
+
+    try:
+        post_service.report_post(created["_id"], PostReportRequest(reason="other"), reader)
+    except LookupError:
+        pass
+    else:
+        raise AssertionError("a user should not be able to report the same post twice")
+
+    assert "reported_by" not in created
+    assert "report_reasons" not in created

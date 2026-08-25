@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block body_class %}app-body{% endblock %}
+{% block body_class %}app-body profile-settings-page{% endblock %}
 
 {% block content %}
 <div class="app-layout app-section-layout">
@@ -18,6 +18,7 @@
     </div>
     <div class="nav-group"><div class="nav-group-label">Reflect</div><a class="nav-item" href="/insights"><span class="nav-item-icon">↗</span> Insights</a><a class="nav-item" href="/journal"><span class="nav-item-icon">▣</span> Journal</a><a class="nav-item" href="/goals"><span class="nav-item-icon">◎</span> Gentle Goals</a></div>
     <div class="nav-group"><div class="nav-group-label">Connect</div><a class="nav-item" href="/community"><span class="nav-item-icon">◉</span> Community</a></div>
+    {% include "_sidebar_plan.html" %}
     </div>
 
     <div class="sidebar-footer">
@@ -43,8 +44,12 @@
       </div>
     </div>
 
+    <nav class="workspace-section-nav profile-section-nav" aria-label="Profile settings sections">
+      <a href="#profile-identity">Identity</a><a href="#profile-companion">Companion</a><a href="#profile-accessibility">Accessibility</a><a href="#profile-continuity">Check-ins</a><a href="#profile-security">Security</a><a href="#profile-privacy">Privacy</a>
+    </nav>
+
     <div class="profile-wrap">
-      <div class="profile-header">
+      <div class="profile-header" id="profile-identity">
         <div class="profile-avatar-lg" data-session-avatar data-session-user-initial>M</div>
         <div class="profile-info">
           <h2 class="serif" data-session-user-name>Mahesh Reddy</h2>
@@ -84,10 +89,10 @@
               <h3>Built-in avatar presets</h3>
               <p>Pick from the starter avatar pack. Your selection becomes the default across the app.</p>
             </div>
-            <div class="avatar-filter-row">
-              <button class="avatar-filter active" type="button" data-avatar-filter="all">All</button>
-              <button class="avatar-filter" type="button" data-avatar-filter="female">Female</button>
-              <button class="avatar-filter" type="button" data-avatar-filter="male">Male</button>
+            <div class="avatar-filter-row" role="tablist" aria-label="Filter avatar presets">
+              <button class="avatar-filter active" type="button" role="tab" aria-selected="true" tabindex="0" data-avatar-filter="all">All</button>
+              <button class="avatar-filter" type="button" role="tab" aria-selected="false" tabindex="-1" data-avatar-filter="female">Female</button>
+              <button class="avatar-filter" type="button" role="tab" aria-selected="false" tabindex="-1" data-avatar-filter="male">Male</button>
             </div>
           </div>
           <div id="avatar-gallery" class="avatar-gallery"></div>
@@ -95,7 +100,7 @@
       </section>
 
       <div class="settings-grid">
-        <div class="settings-section">
+        <div class="settings-section" id="profile-companion">
           <div class="settings-section-header"><h3>Companion preferences</h3></div>
           <div class="settings-list">
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Emotional memory</h4><p>Let Emora save and use helpful details across conversations</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle emotional memory" data-profile-preference="emotionalMemory"></button></div>
@@ -103,10 +108,23 @@
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Gentle connection prompts</h4><p>Allow an occasional in-app suggestion to reconnect with someone</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle gentle connection prompts" data-profile-preference="connectionReminders"></button></div>
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Quiet hours</h4><p>Keep Overview nudges and Companion responses calm and user-led</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle quiet hours" data-profile-preference="quietHours"></button></div>
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Adaptive context <span class="badge badge-gold">Pro</span></h4><p>Let Emora use your active goals and latest check-in when they are relevant. Journal entries stay private.</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle adaptive context" data-profile-preference="adaptiveContext" data-entitlement="adaptive_companion" data-plan-label="Pro"></button></div>
+            <div class="settings-row profile-setting-stack profile-response-controls" data-entitlement="personalization" data-plan-label="Plus">
+              <div class="settings-row-label"><h4>How Emora responds</h4><p>Explicit controls only—Emora never guesses sensitive traits or diagnoses you.</p></div>
+              <div class="profile-preference-selects">
+                <label><span>Response style</span><select data-profile-select="responseStyle"><option value="concise">Concise</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option></select></label>
+                <label><span>Humor</span><select data-profile-select="humor"><option value="none">None</option><option value="gentle">Gentle</option><option value="playful">Playful</option></select></label>
+                <label><span>Energy</span><select data-profile-select="energy"><option value="calm">Calm</option><option value="balanced">Balanced</option><option value="bright">Bright</option></select></label>
+                <label><span>Depth</span><select data-profile-select="depth"><option value="light">Light</option><option value="moderate">Moderate</option><option value="deep">Deep</option></select></label>
+              </div>
+            </div>
+            <div class="settings-row profile-setting-stack profile-space-control">
+              <div class="settings-row-label"><h4>Personal Emora space</h4><p>Choose an environment included in your plan. It follows your account across refreshes.</p></div>
+              <label class="profile-space-select"><span>Environment</span><select id="profile-environment"></select></label>
+            </div>
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" id="profile-reflections">
           <div class="settings-section-header"><h3>In-app reflections</h3></div>
           <div class="settings-list">
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Weekly reflection</h4><p>Show your recent Look Back moments on Overview</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle weekly reflection" data-profile-preference="weeklyReflection"></button></div>
@@ -114,7 +132,29 @@
           </div>
         </div>
 
-        <div class="settings-section">
+        <div class="settings-section" id="profile-accessibility">
+          <div class="settings-section-header"><h3>Accessibility & comfort</h3></div>
+          <div class="settings-list">
+            <div class="settings-row profile-setting-stack"><div class="settings-row-label"><h4>Reading and motion</h4><p>Use your system defaults or choose an explicit workspace preference. Locked experiences are unchanged.</p></div><div class="profile-preference-selects"><label><span>Text size</span><select data-profile-select="textSize"><option value="system">System</option><option value="large">Large</option><option value="extra-large">Extra large</option></select></label><label><span>Motion</span><select data-profile-select="motion"><option value="system">System</option><option value="reduced">Reduced</option><option value="full">Full</option></select></label><label><span>Contrast</span><select data-profile-select="contrast"><option value="system">System</option><option value="strong">Stronger</option><option value="standard">Standard</option></select></label></div></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Calmer visual effects</h4><p>Reduce atmospheric glow and decorative movement in the normal workspace.</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle calmer visual effects" data-profile-preference="calmEffects"></button></div>
+            <div class="settings-row profile-setting-stack"><button class="btn btn-outline btn-sm" id="accessibility-reset-button" type="button">Reset accessibility to system</button></div>
+          </div>
+        </div>
+
+        <div class="settings-section" id="profile-continuity">
+          <div class="settings-section-header"><h3>Gentle check-in schedule</h3></div>
+          <form class="settings-list profile-schedule-form" id="check-in-schedule-form">
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Scheduled check-ins</h4><p>Off by default. Emora never infers when you need a reminder.</p></div><button class="toggle" id="schedule-enabled" type="button" role="switch" aria-checked="false" aria-label="Enable scheduled check-ins"></button></div>
+            <div class="settings-row profile-setting-stack"><div class="profile-preference-selects"><label><span>Channel</span><select id="schedule-channel"><option value="in_app">In-app only</option><option value="email">Email</option></select></label><label><span>Time</span><input id="schedule-time" type="time" value="18:00" required></label><label><span>Timezone</span><input id="schedule-timezone" maxlength="80" value="UTC" required></label><label><span>Days</span><select id="schedule-days" multiple size="4"><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option></select></label><label><span>Quiet from</span><input id="schedule-quiet-start" type="time" value="21:00"></label><label><span>Quiet until</span><input id="schedule-quiet-end" type="time" value="08:00"></label></div><button class="btn btn-primary btn-sm" type="submit">Save schedule</button><p id="schedule-status" role="status" aria-live="polite"></p></div>
+          </form>
+        </div>
+
+        <div class="settings-section" id="profile-security">
+          <div class="settings-section-header"><h3>Sessions & security activity</h3></div>
+          <div class="settings-list"><div class="settings-row profile-setting-stack"><div class="settings-row-label"><h4>Signed-in browsers</h4><p>Approximate device labels only—no invasive fingerprinting or exact IP address display.</p></div><button class="btn btn-outline btn-sm" id="revoke-other-sessions" type="button">Sign out other sessions</button><div class="profile-session-list" id="profile-session-list"><p>Loading sessions…</p></div></div><div class="settings-row profile-setting-stack"><div class="settings-row-label"><h4>Recent security activity</h4><p>Sign-ins, exports, password resets, restores, and session revocations.</p></div><div class="profile-security-events" id="profile-security-events"><p>Loading activity…</p></div></div></div>
+        </div>
+
+        <div class="settings-section" id="profile-privacy">
           <div class="settings-section-header"><h3>Privacy & data</h3></div>
           <div class="settings-list">
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Data minimisation mode</h4><p>Use camera observations for the current reply without saving them</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle data minimisation mode" data-profile-preference="dataMinimisation"></button></div>
@@ -123,6 +163,8 @@
               <div class="settings-row-label"><h4>Download my data</h4><p>Export all your sessions and emotional history</p></div>
               <button class="btn btn-outline btn-sm" id="account-export-button" type="button">Download data</button>
             </div>
+            <div class="settings-row profile-setting-stack"><div class="settings-row-label"><h4>What Emora stores</h4><p>Real account counts and clear device-local versus server-synced boundaries.</p></div><div class="privacy-count-grid" id="privacy-count-grid"><p>Loading your storage summary…</p></div><div class="privacy-storage-copy" id="privacy-storage-copy"></div></div>
+            <div class="settings-row profile-setting-stack"><div class="settings-row-label"><h4>Restore an Emora export</h4><p>The file is validated in memory and never stored. Preview performs no writes.</p></div><input id="account-restore-file" type="file" accept="application/json,.json"><div class="restore-controls"><select id="account-restore-mode"><option value="merge">Merge with current data</option><option value="replace">Replace restorable data</option></select><button class="btn btn-outline btn-sm" id="account-restore-preview" type="button">Preview restore</button></div><div id="account-restore-preview-output" role="status" aria-live="polite"></div><button class="btn btn-primary btn-sm" id="account-restore-commit" type="button" hidden>Restore selected data</button></div>
           </div>
         </div>
 

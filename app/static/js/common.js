@@ -116,11 +116,14 @@ const ENTITLEMENT_EXPLANATIONS = {
   extended_chat: { plan: "Plus", title: "Bring more context into the conversation", copy: "Plus supports longer messages and private file context for conversations that need more room." },
   conversation_export: { plan: "Plus", title: "Keep a copy of meaningful conversations", copy: "Plus lets you export a conversation as text or JSON without changing the original." },
   look_back: { plan: "Plus", title: "Return to moments worth revisiting", copy: "Plus uses your real conversation history to surface gentle Look Back reflections." },
+  personalization: { plan: "Plus", title: "Choose how Emora meets you", copy: "Plus adds explicit response-style controls. Emora follows what you choose and never guesses sensitive traits." },
+  weekly_story: { plan: "Plus", title: "See your real week take shape", copy: "Plus turns your actual conversations, goals, moments, and journals into a private weekly reflection." },
   conversation_remix: { plan: "Pro", title: "Turn a conversation into something useful", copy: "Pro can transform an existing conversation into a real journal draft, plan, or other supported format." },
   ambient_rooms: { plan: "Pro", title: "Shape a calmer conversation space", copy: "Pro saves ambient room choices to your account for a more immersive Companion experience." },
   focus_rooms: { plan: "Pro", title: "Hold a quiet focus room together", copy: "Pro adds private invite-only focus rooms with a chosen duration and no public feed." },
   advanced_insights: { plan: "Pro", title: "See the bigger picture", copy: "Pro adds deeper patterns built only from your actual activity, check-ins, goals, and conversations." },
   adaptive_companion: { plan: "Pro", title: "Let Emora understand the bigger picture", copy: "With your permission, Pro can use active goals and your latest check-in when they are relevant. Journal entries remain private." },
+  personal_constellation: { plan: "Pro", title: "Explore what is beginning to connect", copy: "Pro opens the full Personal Constellation built only from goals, memories, and moments you created." },
   voice_postcards: { plan: "Complete", title: "Keep a conversation in voice", copy: "Complete can create a private voice postcard from a conversation you choose." },
 };
 
@@ -359,15 +362,20 @@ export function syncChrome() {
   const accessDisplay = accessDisplayForUser(user);
   document.body.dataset.accessPlan = plan;
   document.body.dataset.accessPaid = String(isPaid);
-  document.querySelectorAll(".global-premium-access").forEach((element) => {
-    element.setAttribute("aria-label", access.isAdmin ? "Open administrator access controls" : isPaid ? `Manage ${access.planName} access` : "View Emora plans");
+  document.querySelectorAll("[data-sidebar-plan-access]").forEach((element) => {
+    element.setAttribute("aria-label", access.isAdmin ? "Open administrator access controls" : isPaid ? `Manage ${access.planName} access` : "View Emora Pro plans");
     if (access.isAdmin) element.href = "/payment#billing-admin";
   });
-  document.querySelectorAll("[data-global-plan-kicker]").forEach((element) => {
-    element.textContent = accessDisplay.kicker;
+  document.querySelectorAll("[data-sidebar-plan-kicker]").forEach((element) => {
+    element.textContent = access.isAdmin ? "PLATFORM ADMIN" : isPaid ? `${accessDisplay.planName.toUpperCase()} SPACE` : "EMORA PRO";
   });
-  document.querySelectorAll("[data-global-plan-label]").forEach((element) => {
-    element.textContent = accessDisplay.label;
+  document.querySelectorAll("[data-sidebar-plan-label]").forEach((element) => {
+    element.textContent = access.isAdmin ? "Full platform access" : isPaid ? `${accessDisplay.planName} access` : "Unlock deeper insights";
+  });
+  document.querySelectorAll("[data-sidebar-plan-note]").forEach((element) => {
+    element.textContent = access.isAdmin || access.entitlements?.includes("advanced_insights")
+      ? "Your behavior summary is active."
+      : "Behavior summaries and deeper patterns.";
   });
   document.querySelectorAll("[data-entitlement]").forEach((element) => {
     const allowed = Boolean(access.isAdmin || access.entitlements?.includes(element.dataset.entitlement));
@@ -449,7 +457,8 @@ function normalizeErrorMessage(data) {
     return "";
   }
 
-  return data.message || data.detail || data.error || "";
+  const value = data.message || data.detail || data.error || "";
+  return typeof value === "object" ? value.message || "Request could not be completed." : value;
 }
 
 export async function apiRequest(path, options = {}) {

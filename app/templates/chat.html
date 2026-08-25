@@ -4,7 +4,7 @@
 
 {% block head_extra %}
   <link rel="preload" as="image" href="/static/images/emora-night-room-v1.webp" fetchpriority="high" />
-  <link rel="stylesheet" href="/static/css/companion-chat.css?v=20260823-responsive-room-v3" />
+  <link rel="stylesheet" href="/static/css/companion-chat.css?v=20260824-atmospheres-v1" />
 {% endblock %}
 
 {% block content %}
@@ -71,11 +71,8 @@
         <span class="nav-item-icon">T</span>
         Terms
       </button>
-      <button class="nav-item nav-item-button" id="premium-button" type="button">
-        <span class="nav-item-icon">+</span>
-        View plans
-      </button>
     </div>
+    {% include "_sidebar_plan.html" %}
     </div>
 
     <div class="sidebar-footer">
@@ -128,9 +125,11 @@
           <aside class="companion-tools" id="companion-tools" hidden aria-label="Companion options">
             <header><div><span>ARRIVE</span><h2>Meet the moment gently.</h2></div><button id="companion-tools-close" type="button" aria-label="Close companion options">×</button></header>
             <section><h3>How are you arriving?</h3><div class="tool-choice-grid" data-arrival-choices><button type="button" data-arrival-mood="calm">Calm</button><button type="button" data-arrival-mood="hopeful">Hopeful</button><button type="button" data-arrival-mood="tired">Tired</button><button type="button" data-arrival-mood="anxious">Anxious</button><button type="button" data-arrival-mood="low">Low</button><button type="button" data-arrival-mood="unsure">Unsure</button></div><p id="companion-arrival-status" aria-live="polite"></p></section>
-            <section><div class="tool-section-heading"><h3>Choose how Emora responds</h3><span id="companion-mode-status" aria-live="polite">Just listen</span></div><div class="tool-mode-list"><button type="button" data-companion-mode="listen" aria-pressed="true">Just listen</button><button type="button" data-companion-mode="think" aria-pressed="false">Help me think</button><button type="button" data-companion-mode="reflect" aria-pressed="false">Reflect with me</button><button type="button" data-companion-mode="plan" aria-pressed="false">Gentle plan</button><button type="button" data-companion-mode="deep" data-entitlement="deep_conversation" data-plan-label="Pro" aria-pressed="false">Deep Conversation</button></div><button class="quiet-presence" type="button" data-companion-mode="quiet" aria-pressed="false">I don’t want to talk</button><p class="deep-conversation-note">Deep Conversation uses more of this thread and gives reflection more room. It is still the same Emora.</p></section>
-            <section data-entitlement="ambient_rooms" data-plan-label="Pro"><label for="companion-ambience"><h3>Room atmosphere</h3></label><select id="companion-ambience"><option value="none">Quiet room</option><option value="rain">Soft rain</option><option value="cafe">Distant café</option><option value="fireplace">Warm fireplace</option></select></section>
+            <section><div class="tool-section-heading"><h3>Choose how Emora responds</h3><span id="companion-mode-status" aria-live="polite">Just listen</span></div><div class="tool-mode-list"><button type="button" data-companion-mode="listen" aria-pressed="true">Just listen</button><button type="button" data-companion-mode="think" aria-pressed="false">Help me think</button><button type="button" data-companion-mode="reflect" aria-pressed="false">Reflect with me</button><button type="button" data-companion-mode="plan" aria-pressed="false">Gentle plan</button><button type="button" data-companion-mode="distract" aria-pressed="false">Distract me</button><button type="button" data-companion-mode="laugh" aria-pressed="false">Make me laugh</button><button type="button" data-companion-mode="honest" aria-pressed="false">Be honest</button><button type="button" data-companion-mode="focus" aria-pressed="false">Help me focus</button><button type="button" data-companion-mode="deep" data-entitlement="deep_conversation" data-plan-label="Pro" aria-pressed="false">Deep Conversation</button></div><button class="quiet-presence" type="button" data-companion-mode="quiet" aria-pressed="false">I don’t want to talk</button><p class="deep-conversation-note">Each mode changes the context Emora receives. Deep Conversation also uses more of this thread.</p></section>
+            <section class="companion-environment-section"><div class="tool-section-heading"><div><h3>Conversation atmosphere</h3><p>Choose the visual tone around this conversation.</p></div><span id="companion-environment-status" aria-live="polite">Loading your space…</span></div><div class="companion-environment-grid" id="companion-environment-grid" role="radiogroup" aria-label="Conversation background"></div><p class="deep-conversation-note">Included environments follow your account across Overview, Profile, and Chat.</p></section>
+            <section><label for="companion-ambience"><h3>Ambient sound</h3></label><select id="companion-ambience"><option value="none">Quiet room</option><option value="night_wind">Soft white noise</option><option value="rain" data-ambient-tier="plus">Soft rain · Plus</option><option value="ocean" data-ambient-tier="plus">Ocean hush · Plus</option><option value="lofi" data-ambient-tier="pro">Distant café · Pro</option><option value="fireplace" data-ambient-tier="pro">Warm fireplace · Pro</option></select><p class="deep-conversation-note">Sound is generated locally in your browser and stops when you choose Quiet room or leave.</p></section>
             <section><div class="tool-section-heading"><h3>What Emora remembers</h3><span id="companion-memory-count">0 held with care</span></div><form id="companion-memory-form" class="companion-memory-form" data-entitlement="companion_memory" data-plan-label="Plus"><label class="sr-only" for="companion-memory-input">A detail Emora should remember</label><input id="companion-memory-input" maxlength="300" required placeholder="Remember that…"><button type="submit">Save</button></form><p id="companion-memory-status" aria-live="polite"></p><div class="companion-memory-list" id="companion-memory-list"><p>Loading your private memories…</p></div></section>
+            <section class="conversation-collections"><div class="tool-section-heading"><div><h3>Conversation collections</h3><p>Group saved threads without moving or duplicating them.</p></div></div><form id="collection-form" class="companion-memory-form"><label class="sr-only" for="collection-input">New collection name</label><input id="collection-input" maxlength="60" required placeholder="e.g. Career clarity"><button type="submit">Create</button></form><div id="collection-list" class="collection-list"><p>Loading collections…</p></div></section>
             <footer data-entitlement="session_reflection" data-plan-label="Pro"><button id="session-reflection-button" type="button">Before you go, reflect this back <span>→</span></button><p id="session-reflection-output" aria-live="polite"></p><small>Generated only when you ask, from this conversation, and not saved as memory.</small></footer>
             <footer data-entitlement="conversation_remix" data-plan-label="Pro"><button id="remix-journal-button" type="button">Remix this conversation into a journal draft <span>→</span></button><small>You will review the draft before anything is saved.</small></footer>
           </aside>
@@ -296,5 +295,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/js/dashboard.js?v=20260823-fresh-chat-v2"></script>
+  <script type="module" src="/static/js/dashboard.js?v=20260824-atmospheres-v1"></script>
 {% endblock %}

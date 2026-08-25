@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from pymongo import DESCENDING, ReturnDocument
 
 from app.database import parse_object_id, posts_collection, serialize_post, users_collection, utc_now
-from app.models.schemas import PostCreateRequest, PostUpdateRequest
+from app.models.schemas import PostCreateRequest, PostReportRequest, PostUpdateRequest
 
 
 BLOCKED_TERMS = {
@@ -123,6 +123,37 @@ def like_post(post_id: str, user: dict) -> dict:
         raise LookupError("Post not found or already related to.")
 
     return serialize_post(updated_post, current_anonymous_id=anonymous_id)
+
+
+def report_post(post_id: str, payload: PostReportRequest, user: dict) -> None:
+    object_id = parse_object_id(post_id)
+    if object_id is None:
+        raise ValueError("Invalid post id.")
+
+    anonymous_id = get_or_create_anonymous_id_for_user(user)
+    query = {
+        "_id": object_id,
+        "anonymous_id": {"$ne": anonymous_id},
+        "reported_by": {"$ne": anonymous_id},
+        "$or": [
+            {"moderation_status": "visible"},
+            {"moderation_status": None},
+        ],
+    }
+    updated_post = posts_collection().find_one_and_update(
+        query,
+        {
+            "$inc": {"report_count": 1},
+            "$addToSet": {
+                "reported_by": anonymous_id,
+                "report_reasons": payload.reason,
+            },
+            "$set": {"last_reported_at": utc_now()},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated_post is None:
+        raise LookupError("Post not found, already reported, or owned by current user.")
 
 
 def update_post(post_id: str, payload: PostUpdateRequest, user: dict) -> dict:

@@ -22,6 +22,7 @@
     </div>
     <div class="nav-group"><div class="nav-group-label">Reflect</div><a class="nav-item" href="/insights"><span class="nav-item-icon">↗</span> Insights</a><a class="nav-item" href="/journal"><span class="nav-item-icon">▣</span> Journal</a><a class="nav-item" href="/goals"><span class="nav-item-icon">◎</span> Gentle Goals</a></div>
     <div class="nav-group"><div class="nav-group-label">Connect</div><a class="nav-item active" href="/community"><span class="nav-item-icon">◉</span> Community</a></div>
+    {% include "_sidebar_plan.html" %}
     </div>
 
     <div class="sidebar-footer">
@@ -40,31 +41,82 @@
     <div class="top-bar">
       <div class="top-bar-left">
         <h1 class="serif">Community</h1>
-        <p>Anonymous reflections from the Emora community</p>
+        <p>A private-feeling commons for honest, anonymous reflection</p>
       </div>
       <div class="top-bar-right">
         <button class="btn btn-primary btn-sm" id="community-focus-compose" type="button">Share reflection</button>
       </div>
     </div>
 
-    <div class="sub-tabs">
-      <div class="sub-tab active">Reflections</div>
-      <div class="sub-tab">Anonymous by default</div>
-      <div class="sub-tab">Supportive space</div>
+    <div class="sub-tabs community-principle-tabs" role="tablist" aria-label="Community principles">
+      <button class="sub-tab active" id="community-tab-commons" type="button" role="tab" aria-selected="true" aria-controls="community-panel-commons" tabindex="0" data-community-principle="commons">Quiet commons</button>
+      <button class="sub-tab" id="community-tab-privacy" type="button" role="tab" aria-selected="false" aria-controls="community-panel-privacy" tabindex="-1" data-community-principle="privacy">Anonymous by design</button>
+      <button class="sub-tab" id="community-tab-support" type="button" role="tab" aria-selected="false" aria-controls="community-panel-support" tabindex="-1" data-community-principle="support">Human support, not advice</button>
     </div>
 
     <div class="community-wrap">
+      <section class="community-intro community-principle-panel" id="community-panel-commons" role="tabpanel" aria-labelledby="community-tab-commons" data-community-principle-panel="commons">
+        <div class="community-intro-copy">
+          <p class="community-kicker">THE QUIET COMMONS / OPEN</p>
+          <h2 class="serif" id="community-intro-title">You do not have to<br />carry it <em>alone.</em></h2>
+          <p>Leave one honest thought, recognize yourself in someone else, or simply read. There are no profiles to perform and no popularity score to chase.</p>
+        </div>
+        <div class="community-pulse" aria-label="Live community pulse">
+          <span>COMMUNITY PULSE</span>
+          <div><strong id="community-pulse-reflections">—</strong><small>reflections shared</small></div>
+          <div><strong id="community-pulse-support">—</strong><small>recognitions in view</small></div>
+          <p><i></i> Identities remain hidden</p>
+        </div>
+      </section>
+
+      <section class="community-principle-panel community-principle-detail" id="community-panel-privacy" role="tabpanel" aria-labelledby="community-tab-privacy" data-community-principle-panel="privacy" hidden>
+        <div class="community-principle-copy">
+          <p class="community-kicker">PRIVACY / BUILT IN</p>
+          <h2 class="serif">Your reflection travels.<br /><em>Your identity does not.</em></h2>
+          <p>Community posts never include your name, profile picture, email, or account details. A private server-side identifier lets you edit or delete your own writing without revealing who you are to anyone else.</p>
+          <div class="community-principle-actions"><button class="btn btn-primary" type="button" data-community-panel-compose>Share privately</button><a class="btn btn-ghost" href="/profile">Review privacy settings</a></div>
+        </div>
+        <ol class="community-trust-sequence" aria-label="How anonymous posting works">
+          <li><span>01</span><div><strong>You write</strong><p>Only the reflection enters the public feed.</p></div></li>
+          <li><span>02</span><div><strong>Emora separates identity</strong><p>Your account details never enter the post response.</p></div></li>
+          <li><span>03</span><div><strong>You stay in control</strong><p>Edit or remove your own reflection at any time.</p></div></li>
+        </ol>
+      </section>
+
+      <section class="community-principle-panel community-principle-detail" id="community-panel-support" role="tabpanel" aria-labelledby="community-tab-support" data-community-principle-panel="support" hidden>
+        <div class="community-principle-copy">
+          <p class="community-kicker">CARE / CLEAR BOUNDARIES</p>
+          <h2 class="serif">Recognition can help.<br /><em>Advice can harm.</em></h2>
+          <p>Relate when a reflection resonates. Respond through your own experience—not by diagnosing, prescribing, or taking responsibility for someone else’s wellbeing.</p>
+          <div class="community-principle-actions"><button class="btn btn-primary" type="button" data-community-panel-compose>Write from experience</button><button class="btn btn-ghost" type="button" data-community-show-guidelines>Read community agreements</button></div>
+        </div>
+        <div class="community-support-boundaries">
+          <article><span>WELCOME HERE</span><p>“I have felt something similar.”<br />“This helped me today.”<br />“Thank you for sharing this.”</p></article>
+          <article><span>NOT FOR THIS SPACE</span><p>Diagnosis, treatment instructions, pressure, judgment, or requests for identifying information.</p></article>
+          <aside><strong>If a post feels unsafe</strong><p>Use <em>Report privately</em>. Reports are hidden from authors and sent for review.</p></aside>
+        </div>
+      </section>
+
       <div class="community-grid">
         <section class="post-feed">
+          <header class="community-feed-head">
+            <div><p class="community-kicker">REFLECTIONS / NOW</p><h2 class="serif">What people are carrying</h2></div>
+            <div class="community-feed-filters" role="tablist" aria-label="Filter community reflections">
+              <button class="active" type="button" role="tab" aria-selected="true" data-community-filter="latest">Latest</button>
+              <button type="button" role="tab" aria-selected="false" data-community-filter="related">Related first</button>
+              <button type="button" role="tab" aria-selected="false" data-community-filter="mine">My reflections</button>
+            </div>
+          </header>
+
           <div class="community-banner">
-            All posts are anonymous. Emora's community is a space for sharing, not diagnosing. Nothing here replaces professional support.
+            <strong>Privacy promise.</strong> Posts show no name, avatar, profile, or account detail. This is a place for sharing—not diagnosing—and never replaces professional support.
           </div>
 
           <div id="community-feed-status" class="status" hidden></div>
 
           <div id="community-empty-state" class="community-empty card" hidden>
             <h3>No reflections yet</h3>
-            <p>Be the first to share something honest. Your post will show only your anonymous ID, never your profile details.</p>
+            <p id="community-filter-empty-copy">Be the first to share something honest. Your post will never reveal your profile details.</p>
             <button class="btn btn-outline btn-sm" id="community-empty-compose" type="button">Write the first reflection</button>
           </div>
 
@@ -77,11 +129,17 @@
             <div class="card-header">
               <div>
                 <h3>Share anonymously</h3>
-                <p class="card-sub">Your identity stays hidden from other users and is handled only on the server.</p>
+                <p class="card-sub">A small truth is enough. Your identity stays private.</p>
               </div>
             </div>
             <div class="card-body">
               <p id="community-anonymous-hint" class="community-anonymous-hint mono">Posting as Anonymous. Your private identifier is never shown to users.</p>
+
+              <div class="community-prompt-list" aria-label="Reflection starters">
+                <button type="button" data-community-prompt="Something I am learning to be gentler with is…">I’m learning…</button>
+                <button type="button" data-community-prompt="A small thing that helped me today was…">What helped</button>
+                <button type="button" data-community-prompt="I wonder if anyone else has been feeling…">Anyone else?</button>
+              </div>
 
               <form id="community-post-form" class="community-compose-form">
                 <label class="sr-only" for="community-post-input">Write your reflection</label>
@@ -105,33 +163,54 @@
             </div>
           </section>
 
-          <section class="card">
-            <div class="card-header"><h3>Community guidelines</h3></div>
+          <section class="card community-agreements">
+            <div class="card-header"><div><p class="community-kicker">BEFORE YOU SHARE</p><h3>How we hold this space</h3></div></div>
             <div class="card-body">
               <div class="guideline-list">
-                <div class="guideline-item">All posts are anonymous by default</div>
-                <div class="guideline-item">No diagnosis, no medical advice</div>
-                <div class="guideline-item">Support, do not counsel</div>
-                <div class="guideline-item">If someone is in crisis, direct them to professional help</div>
+                <div class="guideline-item"><span>01</span>Share from your own experience</div>
+                <div class="guideline-item"><span>02</span>Recognize, do not diagnose</div>
+                <div class="guideline-item"><span>03</span>Support, do not counsel</div>
+                <div class="guideline-item"><span>04</span>Keep personal details private</div>
               </div>
             </div>
           </section>
 
-          <section class="card">
-            <div class="card-header"><h3>This week's topic</h3></div>
+          <section class="card community-weekly-note">
+            <div class="card-header"><div><p class="community-kicker">WEEKLY LETTER</p><h3>What became lighter?</h3></div></div>
             <div class="card-body">
-              <p class="text-sm muted-copy">How has a pattern you discovered in Emora's insights changed how you approach a day or relationship?</p>
-              <button class="btn btn-outline w-full btn-sm community-write-btn" id="community-topic-compose" type="button">Write a reflection</button>
+              <p class="text-sm muted-copy">What did you stop asking yourself to carry perfectly this week?</p>
+              <button class="btn btn-outline w-full btn-sm community-write-btn" id="community-topic-compose" type="button" data-community-topic-prompt="Something that became lighter when I stopped carrying it perfectly was…">Respond to this letter</button>
             </div>
           </section>
+
+          <a class="community-focus-invite" href="/focus-together">
+            <span>QUIET COMPANY</span><strong class="serif">Prefer presence<br />without posting?</strong><small>Enter Focus Together →</small>
+          </a>
         </aside>
       </div>
     </div>
   </main>
 </div>
+
+<dialog class="community-report-dialog" id="community-report-dialog" aria-labelledby="community-report-title">
+  <form method="dialog" id="community-report-form">
+    <button class="community-report-close" value="cancel" type="submit" aria-label="Close report dialog">×</button>
+    <p class="community-kicker">PRIVATE SAFETY NOTE</p>
+    <h2 class="serif" id="community-report-title">What should we review?</h2>
+    <p>Your report is private. The author will not see who sent it.</p>
+    <fieldset>
+      <label><input type="radio" name="reason" value="unsafe" required /> Unsafe or crisis content</label>
+      <label><input type="radio" name="reason" value="unkind" /> Unkind or harassing</label>
+      <label><input type="radio" name="reason" value="medical_advice" /> Diagnosis or medical advice</label>
+      <label><input type="radio" name="reason" value="personal_information" /> Personal information</label>
+      <label><input type="radio" name="reason" value="other" /> Something else</label>
+    </fieldset>
+    <div class="community-report-actions"><button class="btn btn-ghost" value="cancel" type="submit">Cancel</button><button class="btn btn-primary" id="community-report-submit" type="submit" value="submit">Send privately</button></div>
+  </form>
+</dialog>
 {% endblock %}
 
 {% block scripts %}
   <script type="module" src="/static/js/workspace-shell.js"></script>
-  <script type="module" src="/static/js/community.js?v=20260822-community-feed-v1"></script>
+  <script type="module" src="/static/js/community.js?v=20260824-community-premium-v2"></script>
 {% endblock %}

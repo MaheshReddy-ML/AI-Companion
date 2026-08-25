@@ -55,10 +55,10 @@ Most chatbots reset when a tab closes. Emora is designed around continuity: it k
 
 | Space | Built for |
 | --- | --- |
-| **Overview** | Live activity rhythm, memory count, recent threads, and gentle conversation-driven nudges. |
+| **Overview** | Live activity rhythm, a persisted Daily Emora Drop, Teach Emora controls, recent threads, weekly-story preview, constellation preview, and gentle conversation-driven nudges. |
 | **Companion** | Persistent chat, file attachments, conversation pinning/search/export, and character-specific personas. |
 | **Meet Emora** | A live VRM room with auto-framing camera, speech recognition, Qwen3-TTS streaming, lip sync, and responsive motion. |
-| **Insights** | Tone trends and activity for everyone, with longer Look Back ranges, Pro reflection briefs, a real-data period reflection, and a private cross-source timeline when entitled. |
+| **Insights** | Tone trends, user-saved Moments, weekly story, real-data constellation, longer Look Back ranges, Pro reflection briefs, and a private cross-source timeline when entitled. |
 | **Emora Play** | Daily quests and a private garden, plus a paid Ritual Archive, persistent World Atelier, nine real Remix transformations, and Complete voice keepsakes. |
 | **Focus Together** | A dedicated Pro space for timed or open-ended invitation-only rooms, live participant presence, refresh recovery, and a shared `@emora` conversation. The transcript is cleared when the room ends. |
 | **Personal space** | Journal entries, Gentle Goals, arrival check-ins, quiet hours, and user-controlled companion memories. |
@@ -70,10 +70,10 @@ Emora keeps the existing **Free**, **Plus**, **Pro**, and **Complete** plan stru
 
 | Plan | Product outcome | Working capabilities |
 | --- | --- | --- |
-| **Free** | Start building a private space. | Text companion, journal, Gentle Goals, daily quests and garden, community, 7/30-day insights, memory review/removal, and privacy controls. |
-| **Plus** | Make Emora more personal. | Voice, longer messages and attachments, expanded companion memory, conversation export, 90-day Look Back, and a private Play Ritual Archive derived from completed quests. |
-| **Pro** | Let Emora understand the bigger picture. | Everything in Plus, opt-in Adaptive Context, persistent World Atelier choices, timed or unlimited Focus Together rooms with live presence and shared `@emora` replies, nine functional Conversation Remix shapes, all-time insights, a Pro Reflection Brief, period reflection, and a personal timeline built from real conversations, arrivals, journals, goals, and memories. |
-| **Complete** | Use every current Emora capability. | Everything in Pro, private Voice Keepsakes generated from an owned conversation, higher chat/TTS limits, priority local generation, and early access. |
+| **Free** | Start building a private space. | Text companion, journal, Gentle Goals, Daily Drop, limited editable Moments and Teach Emora details, starter environments, basic local ambient sound, daily quests, community, insights, and privacy controls. |
+| **Plus** | Make Emora more personal. | Everything in Free, voice, longer messages and attachments, expanded memory/Moments, explicit response-style controls, weekly story, more environments and soundscapes, conversation export, and 90-day Look Back. |
+| **Pro** | Let Emora understand the bigger picture. | Everything in Plus, full Personal Constellation, evolving opt-in preferences, Adaptive Context, World Atelier, Focus Together, nine Remix shapes, all-time insights, period reflection, and a cross-source timeline. |
+| **Complete** | Use every current Emora capability. | Everything in Pro, historical constellation/long-term story depth, complete personalization limits, Voice Keepsakes, higher chat/TTS limits, priority local generation, and early access. |
 
 The project does not pretend a payment succeeded when it has not. The existing billing route records a pending checkout request; subscription activation remains controlled by the configured billing/admin workflow. Owner allowlisted accounts receive administrator access through the same centralized access resolver.
 
@@ -253,6 +253,7 @@ Copy `.env.example`; it documents every available setting. These are the setting
 | **Security** | `JWT_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_DAYS`, `ADMIN_API_KEY` | Use a strong unique secret; only enable diagnostics deliberately. |
 | **Database** | `MONGO_URI`, `MONGO_SERVER_SELECTION_TIMEOUT_MS` | A Mongo database is required for accounts, chat, memory, and community data. |
 | **Chat** | `CHAT_MLX_MODEL`, `CHAT_MLX_MAX_TOKENS`, `CHAT_MLX_TEMPERATURE`, `CHAT_MLX_THINKING_MODE` | Local Qwen3 MLX chat on Apple Silicon; `auto` keeps casual turns direct and reserves private reasoning for complex requests. |
+| **Provider fallback** | `LLM_PROVIDER`, `MLX_ENABLED`, `LOCAL_LLM_*`, `CLOUD_LLM_*`, `PROVIDER_HEALTH_TTL_SECONDS` | `auto` checks the real MLX package and cached model first, then uses only explicitly enabled OpenAI-compatible fallbacks. Credentials remain server-side. |
 | **Developer telemetry** | `COMPANION_DEBUG` | Opt-in local Brain/render/request telemetry; always disabled in production. |
 | **Optional camera** | `VISION_MLX_MODEL`, `VISION_MLX_MAX_TOKENS` | Local-only MLX-VLM check-ins; image pixels are never persisted. |
 | **Voice** | `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING`, `TTS_PRONUNCIATION_DICTIONARY` | The default engine is `qwen3-mlx`; set `kokoro` to force the fallback. |
@@ -288,6 +289,10 @@ All account-scoped endpoints require `Authorization: Bearer <token>` unless note
 | Chat | `GET` | `/api/chat/conversations/{id}/export?format=json\|text` | Export an owned conversation. |
 | Memory | `GET` | `/api/companion/memories` | Review saved, non-expired memories. |
 | Memory | `DELETE` | `/api/companion/memories/{memory_id}` | Remove one owned memory. |
+| Personal depth | `GET` / `POST` / `PATCH` / `DELETE` | `/api/experiences/moments` | Manage conversation-backed Emora Moments. |
+| Personal depth | `GET` / `POST` / `PATCH` / `DELETE` | `/api/experiences/taught-memories` | Teach Emora through the existing user-owned memory store. |
+| Personal depth | `GET` | `/api/experiences/daily-drop` · `/api/experiences/weekly-story` · `/api/experiences/constellation` | Read persisted daily and real-activity reflection experiences. |
+| Personal depth | `GET` / `PUT` | `/api/experiences/space` | Read available environments or persist an entitled choice. |
 | Companion | `GET` | `/api/companion/dashboard` | Read conversation-derived companion metrics. |
 | Insights | `GET` | `/api/insights?days=30` | Read reflective timeline and mood data. |
 | Emora Play | `GET` | `/api/play/ritual-history` | Read the Plus private ritual archive. |

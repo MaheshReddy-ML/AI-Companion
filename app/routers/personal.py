@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.access import has_entitlement
 from app.database import feature_collection, parse_object_id, utc_now
-from app.preferences import get_user_preferences, update_user_preferences
+from app.preferences import get_preference_version, get_user_preferences, update_user_preferences
 from app.security import get_current_user
 
 
@@ -16,11 +16,17 @@ class JournalRequest(BaseModel):
     title: str = Field(default="Untitled reflection", min_length=1, max_length=120)
     content: str = Field(min_length=1, max_length=6000)
     mood: str = Field(default="reflective", max_length=30)
+    expected_version: int | None = Field(default=None, alias="expectedVersion", ge=1)
+
+    model_config = {"populate_by_name": True}
 
 
 class GoalRequest(BaseModel):
     title: str = Field(min_length=2, max_length=160)
     note: str = Field(default="", max_length=500)
+    expected_version: int | None = Field(default=None, alias="expectedVersion", ge=1)
+
+    model_config = {"populate_by_name": True}
 
 
 class ArrivalRequest(BaseModel):
@@ -39,27 +45,44 @@ class PreferencesRequest(BaseModel):
     quietHours: bool | None = None
     dataMinimisation: bool | None = None
     adaptiveContext: bool | None = None
+    responseStyle: str | None = Field(default=None, pattern="^(concise|balanced|detailed)$")
+    humor: str | None = Field(default=None, pattern="^(none|gentle|playful)$")
+    energy: str | None = Field(default=None, pattern="^(calm|balanced|bright)$")
+    depth: str | None = Field(default=None, pattern="^(light|moderate|deep)$")
+    textSize: str | None = Field(default=None, pattern="^(system|large|extra-large)$")
+    motion: str | None = Field(default=None, pattern="^(system|reduced|full)$")
+    contrast: str | None = Field(default=None, pattern="^(system|strong|standard)$")
+    calmEffects: bool | None = None
+    expectedVersion: int | None = Field(default=None, ge=1)
 
 
 def _serialize_journal(item: dict) -> dict:
-    return {"id": str(item["_id"]), "title": item["title"], "content": item["content"], "mood": item["mood"], "createdAt": item["created_at"].isoformat(), "updatedAt": item.get("updated_at", item["created_at"]).isoformat()}
+    return {"id": str(item["_id"]), "title": item["title"], "content": item["content"], "mood": item["mood"], "version": int(item.get("version", 1)), "createdAt": item["created_at"].isoformat(), "updatedAt": item.get("updated_at", item["created_at"]).isoformat()}
 
 
 def _serialize_goal(item: dict) -> dict:
-    return {"id": str(item["_id"]), "title": item["title"], "note": item["note"], "completed": bool(item.get("completed")), "isTinyThing": bool(item.get("is_tiny_thing")), "createdAt": item["created_at"].isoformat(), "completedAt": item.get("completed_at").isoformat() if item.get("completed_at") else None}
+    return {"id": str(item["_id"]), "title": item["title"], "note": item["note"], "completed": bool(item.get("completed")), "isTinyThing": bool(item.get("is_tiny_thing")), "version": int(item.get("version", 1)), "createdAt": item["created_at"].isoformat(), "completedAt": item.get("completed_at").isoformat() if item.get("completed_at") else None}
 
 
 @router.get("/preferences")
 def read_preferences(current_user: dict = Depends(get_current_user)) -> dict:
-    return {"preferences": get_user_preferences(current_user["_id"])}
+    return {"preferences": get_user_preferences(current_user["_id"]), "version": get_preference_version(current_user["_id"])}
 
 
 @router.patch("/preferences")
 def save_preferences(payload: PreferencesRequest, current_user: dict = Depends(get_current_user)) -> dict:
     changes = payload.model_dump(exclude_none=True)
+    expected_version = changes.pop("expectedVersion", None)
     if changes.get("adaptiveContext") is True and not has_entitlement(current_user, "adaptive_companion"):
         raise HTTPException(status_code=403, detail="Adaptive context is included with Pro.")
-    return {"preferences": update_user_preferences(current_user["_id"], changes)}
+    if any(key in changes for key in ("responseStyle", "humor", "energy", "depth")) and not has_entitlement(current_user, "personalization"):
+        raise HTTPException(status_code=403, detail="Expanded interaction preferences are included with Plus.")
+    try:
+        preferences = update_user_preferences(current_user["_id"], changes, expected_version=expected_version) if expected_version is not None else update_user_preferences(current_user["_id"], changes)
+    except RuntimeError as exc:
+        if str(exc) != "preferences_conflict": raise
+        raise HTTPException(status_code=409, detail={"message": "Preferences changed on another device.", "current": get_user_preferences(current_user["_id"]), "version": get_preference_version(current_user["_id"])}) from exc
+    return {"preferences": preferences, "version": get_preference_version(current_user["_id"])}
 
 
 def _serialize_arrival(item: dict) -> dict:
@@ -137,7 +160,7 @@ def list_journal(current_user: dict = Depends(get_current_user)) -> dict:
 @router.post("/journal", status_code=201)
 def create_journal(payload: JournalRequest, current_user: dict = Depends(get_current_user)) -> dict:
     now = utc_now()
-    document = {"user_id": current_user["_id"], "title": payload.title.strip() or "Untitled reflection", "content": payload.content.strip(), "mood": payload.mood.strip() or "reflective", "created_at": now, "updated_at": now}
+    document = {"user_id": current_user["_id"], "title": payload.title.strip() or "Untitled reflection", "content": payload.content.strip(), "mood": payload.mood.strip() or "reflective", "created_at": now, "updated_at": now, "version": 1}
     result = feature_collection("journal_entries").insert_one(document)
     document["_id"] = result.inserted_id
     return {"entry": _serialize_journal(document)}
@@ -146,12 +169,18 @@ def create_journal(payload: JournalRequest, current_user: dict = Depends(get_cur
 @router.patch("/journal/{entry_id}")
 def update_journal(entry_id: str, payload: JournalRequest, current_user: dict = Depends(get_current_user)) -> dict:
     object_id = parse_object_id(entry_id)
+    query = {"_id": object_id, "user_id": current_user["_id"]}
+    if payload.expected_version is not None:
+        query["$or"] = [{"version": payload.expected_version}, {"version": {"$exists": False}}] if payload.expected_version == 1 else [{"version": payload.expected_version}]
     entry = feature_collection("journal_entries").find_one_and_update(
-        {"_id": object_id, "user_id": current_user["_id"]},
-        {"$set": {"title": payload.title.strip() or "Untitled reflection", "content": payload.content.strip(), "mood": payload.mood.strip() or "reflective", "updated_at": utc_now()}},
+        query,
+        {"$set": {"title": payload.title.strip() or "Untitled reflection", "content": payload.content.strip(), "mood": payload.mood.strip() or "reflective", "updated_at": utc_now()}, "$inc": {"version": 1}},
         return_document=True,
     ) if object_id else None
     if not entry:
+        current = feature_collection("journal_entries").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if current and payload.expected_version is not None:
+            raise HTTPException(status_code=409, detail={"message": "This journal entry changed on another device.", "current": _serialize_journal(current)})
         raise HTTPException(status_code=404, detail="Journal entry not found.")
     return {"entry": _serialize_journal(entry)}
 
@@ -172,45 +201,57 @@ def list_goals(current_user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/goals", status_code=201)
 def create_goal(payload: GoalRequest, current_user: dict = Depends(get_current_user)) -> dict:
-    document = {"user_id": current_user["_id"], "title": payload.title.strip(), "note": payload.note.strip(), "completed": False, "created_at": utc_now()}
+    document = {"user_id": current_user["_id"], "title": payload.title.strip(), "note": payload.note.strip(), "completed": False, "created_at": utc_now(), "version": 1}
     result = feature_collection("goals").insert_one(document)
     document["_id"] = result.inserted_id
     return {"goal": _serialize_goal(document)}
 
 
 @router.patch("/goals/{goal_id}/complete")
-def complete_goal(goal_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+def complete_goal(goal_id: str, expected_version: int | None = Query(default=None, alias="expectedVersion", ge=1), current_user: dict = Depends(get_current_user)) -> dict:
     object_id = parse_object_id(goal_id)
-    goal = feature_collection("goals").find_one_and_update({"_id": object_id, "user_id": current_user["_id"]}, {"$set": {"completed": True, "completed_at": utc_now(), "is_tiny_thing": False}}, return_document=True) if object_id else None
+    query = {"_id": object_id, "user_id": current_user["_id"]}
+    if expected_version is not None: query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
+    goal = feature_collection("goals").find_one_and_update(query, {"$set": {"completed": True, "completed_at": utc_now(), "is_tiny_thing": False}, "$inc": {"version": 1}}, return_document=True) if object_id else None
     if not goal:
+        current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
         raise HTTPException(status_code=404, detail="Goal not found.")
     return {"goal": _serialize_goal(goal)}
 
 
 @router.patch("/goals/{goal_id}/reopen")
-def reopen_goal(goal_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+def reopen_goal(goal_id: str, expected_version: int | None = Query(default=None, alias="expectedVersion", ge=1), current_user: dict = Depends(get_current_user)) -> dict:
     object_id = parse_object_id(goal_id)
+    query = {"_id": object_id, "user_id": current_user["_id"]}
+    if expected_version is not None: query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
     goal = feature_collection("goals").find_one_and_update(
-        {"_id": object_id, "user_id": current_user["_id"]},
-        {"$set": {"completed": False, "is_tiny_thing": False}, "$unset": {"completed_at": ""}},
+        query,
+        {"$set": {"completed": False, "is_tiny_thing": False}, "$unset": {"completed_at": ""}, "$inc": {"version": 1}},
         return_document=True,
     ) if object_id else None
     if not goal:
+        current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
         raise HTTPException(status_code=404, detail="Goal not found.")
     return {"goal": _serialize_goal(goal)}
 
 
 @router.patch("/goals/{goal_id}/tiny-thing")
-def choose_tiny_thing(goal_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+def choose_tiny_thing(goal_id: str, expected_version: int | None = Query(default=None, alias="expectedVersion", ge=1), current_user: dict = Depends(get_current_user)) -> dict:
     object_id = parse_object_id(goal_id)
     collection = feature_collection("goals")
-    goal = collection.find_one({"_id": object_id, "user_id": current_user["_id"], "completed": False}) if object_id else None
+    lookup = {"_id": object_id, "user_id": current_user["_id"], "completed": False}
+    if expected_version is not None: lookup["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
+    goal = collection.find_one(lookup) if object_id else None
     if not goal:
+        current = collection.find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
         raise HTTPException(status_code=404, detail="Active goal not found.")
     collection.update_many({"user_id": current_user["_id"]}, {"$set": {"is_tiny_thing": False}})
     goal = collection.find_one_and_update(
         {"_id": object_id, "user_id": current_user["_id"]},
-        {"$set": {"is_tiny_thing": True, "tiny_thing_at": utc_now()}},
+        {"$set": {"is_tiny_thing": True, "tiny_thing_at": utc_now()}, "$inc": {"version": 1}},
         return_document=True,
     )
     return {"goal": _serialize_goal(goal)}

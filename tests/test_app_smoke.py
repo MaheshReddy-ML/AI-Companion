@@ -68,6 +68,7 @@ def test_core_static_assets_are_served():
         "/static/css/focus-together.css",
         "/static/js/focus-together.js",
         "/static/css/workspace-editorial.css",
+        "/static/css/light-theme.css",
         "/static/css/auth-doorway.css",
     ]:
         response = client.get(path)
@@ -90,6 +91,23 @@ def test_development_responses_cannot_reuse_stale_localhost_assets():
     assert "etag" not in static_response.headers
     assert "last-modified" not in static_response.headers
     assert page_response.headers["clear-site-data"] == '"cache"'
+
+
+def test_browser_security_headers_cover_pages_static_assets_and_private_apis():
+    client = TestClient(app)
+    for path in ["/", "/chat", "/static/js/common.js", "/api/account/export"]:
+        response = client.get(path)
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+        assert response.headers["x-permitted-cross-domain-policies"] == "none"
+        assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+        assert response.headers["permissions-policy"] == "camera=(self), microphone=(self), geolocation=()"
+        assert len(response.headers["x-request-id"]) == 32
+
+    api_response = client.get("/api/account/export")
+    assert api_response.status_code == 401
+    assert api_response.headers["cache-control"] == "private, no-store"
+    assert "strict-transport-security" not in client.get("/").headers
 
 
 def test_home_uses_the_cinematic_emora_play_scene():
@@ -166,13 +184,17 @@ def test_focus_together_is_a_dedicated_entitlement_protected_section():
     assert 'id="focus-room-create-form"' not in community
 
 
-def test_workspace_pages_expose_upgrade_access():
-    response = TestClient(app).get("/your-emora")
+def test_workspace_upgrade_access_lives_in_sidebars_not_floating_over_pages():
+    client = TestClient(app)
 
-    assert 'class="global-premium-access"' in response.text
-    assert 'href="/payment"' in response.text
-    assert "ACCOUNT ACCESS" in response.text
-    assert "Checking access…" in response.text
+    for path in ["/dashboard", "/chat", "/insights", "/community", "/profile"]:
+        response = client.get(path)
+        assert 'class="sidebar-plan-access"' in response.text
+        assert 'href="/payment"' in response.text
+        assert "Unlock deeper insights" in response.text
+
+    for path in ["/dashboard", "/chat", "/insights", "/community", "/profile", "/your-emora", "/play"]:
+        assert 'class="global-premium-access"' not in client.get(path).text
 
 
 def test_admin_access_copy_is_explicit_in_shared_chrome_assets():
@@ -193,6 +215,19 @@ def test_editorial_workspace_is_scoped_away_from_locked_emora_pages():
         assert "editorial-workspace" not in client.get(path).text
 
 
+def test_light_theme_contract_is_loaded_last_and_scoped_away_from_locked_pages():
+    client = TestClient(app)
+    dashboard = client.get("/dashboard").text
+    light_theme = client.get("/static/css/light-theme.css").text
+
+    assert dashboard.index("workspace-editorial.css") < dashboard.index("light-theme.css")
+    assert ".light body.editorial-overview" in light_theme
+    assert ".light body.profile-settings-page" in light_theme
+    assert ".light body.focus-together-body" in light_theme
+    assert ".light .play-world" not in light_theme
+    assert ".light .your-emora" not in light_theme
+
+
 def test_product_depth_stays_inside_existing_sections():
     client = TestClient(app)
 
@@ -203,8 +238,26 @@ def test_product_depth_stays_inside_existing_sections():
     assert 'id="dashboard-emora"' in dashboard
     assert 'id="dashboard-memory"' in dashboard
     assert 'value="heavy"' in dashboard
+    assert "YOUR SPACE IS QUIET" in dashboard
+    assert "Welcome back," in dashboard
+    assert "No prompt, no pressure." in dashboard
+    assert 'data-dashboard-flow' in dashboard
+    assert 'data-dashboard-orbit-goals' in dashboard
+    assert 'data-dashboard-ambient' in dashboard
+    assert 'data-dashboard-insight-lock' in dashboard
+    assert 'data-dashboard-insight-period' in dashboard
+    assert "30-day summary" in dashboard
+    assert 'id="daily-emora-drop"' in dashboard
+    assert 'id="weekly-story-summary"' in dashboard
+    assert 'id="constellation-preview"' in dashboard
+    assert "TEACH EMORA" in dashboard
 
     companion = client.get("/chat").text
+    assert 'data-companion-mode="distract"' in companion
+    assert 'data-companion-mode="laugh"' in companion
+    assert 'data-companion-mode="honest"' in companion
+    assert 'data-companion-mode="focus"' in companion
+    assert 'value="night_wind"' in companion
     assert 'id="companion-tools"' in companion
     assert 'data-companion-mode' in companion
     assert 'data-companion-mode="reflect"' in companion
@@ -215,6 +268,8 @@ def test_product_depth_stays_inside_existing_sections():
     assert 'id="remix-journal-button"' in companion
     assert 'data-companion-mode="deep"' in companion
     assert 'id="session-reflection-button"' in companion
+    assert 'id="companion-environment-grid" role="radiogroup"' in companion
+    assert 'id="companion-environment-status" aria-live="polite"' in companion
 
     assert "Meet Emora" in dashboard
     assert "Chat with Emora" in dashboard
@@ -248,6 +303,14 @@ def test_product_depth_stays_inside_existing_sections():
     companion_css = client.get("/static/css/companion-chat.css").text
     shell_css = client.get("/static/css/emora-overrides.css").text
     assert ".light .editorial-workspace" in editorial_css
+    assert ".editorial-overview .dashboard-glance" in editorial_css
+    assert "dashboardPresenceBreath" in editorial_css
+    assert ".orbit-insight-lock" in editorial_css
+    workspace_js = client.get("/static/js/workspace-shell.js").text
+    assert 'apiRequest("/api/insights?days=30"' in workspace_js
+    assert "insights?.access?.advancedInsights" in workspace_js
+    assert "brief.consistencyPercent" in workspace_js
+    assert "insights.historicalObservations" in workspace_js
     assert ".light .editorial-companion" in companion_css
     assert ".sidebar-scroll-region" in shell_css
     assert "overflow-y: hidden" in shell_css
@@ -257,6 +320,64 @@ def test_product_depth_stays_inside_existing_sections():
         assert 'href="/mood"' not in html
         assert 'href="/memories"' not in html
         assert 'href="/reflection"' not in html
+
+
+def test_community_has_premium_privacy_first_feed_controls():
+    client = TestClient(app)
+    community = client.get("/community").text
+    community_js = client.get("/static/js/community.js").text
+    community_css = client.get("/static/css/workspace-editorial.css").text
+
+    assert 'id="community-pulse-reflections"' in community
+    assert 'id="community-pulse-support"' in community
+    assert 'data-community-filter="latest"' in community
+    assert 'data-community-filter="related"' in community
+    assert 'data-community-filter="mine"' in community
+    assert 'role="tab" aria-selected="false" aria-controls="community-panel-privacy"' in community
+    assert 'role="tab" aria-selected="false" aria-controls="community-panel-support"' in community
+    assert 'data-community-principle-panel="privacy"' in community
+    assert 'data-community-principle-panel="support"' in community
+    assert 'data-community-prompt=' in community
+    assert 'id="community-report-dialog"' in community
+    assert 'name="reason" value="medical_advice"' in community
+    assert 'href="/focus-together"' in community
+    assert 'apiRequest(`/posts/${state.reportingPostId}/report`' in community_js
+    assert "getFilteredPosts" in community_js
+    assert "activatePrinciple" in community_js
+    assert 'event.key === "ArrowRight"' in community_js
+    assert ".editorial-community .community-intro" in community_css
+    assert ".editorial-community .community-pulse" in community_css
+
+
+def test_workspace_sections_expose_working_selection_and_empty_state_contracts():
+    client = TestClient(app)
+    insights = client.get("/insights").text
+    profile = client.get("/profile").text
+    focus = client.get("/focus-together").text
+    help_page = client.get("/help").text
+    workspace_js = client.get("/static/js/workspace-shell.js").text
+    profile_js = client.get("/static/js/profile.js").text
+    focus_js = client.get("/static/js/focus-together.js").text
+    personal_js = client.get("/static/js/personal.js").text
+    library_js = client.get("/static/js/library.js").text
+    payment_js = client.get("/static/js/payment.js").text
+
+    assert 'id="insight-range-picker" role="radiogroup"' in insights
+    assert 'class="workspace-section-nav" aria-label="Insights sections"' in insights
+    assert 'id="insights-patterns"' in insights
+    assert 'aria-pressed="false" data-mood="calm"' in insights
+    assert 'class="workspace-section-nav profile-section-nav"' in profile
+    assert 'role="tab" aria-selected="true" tabindex="0" data-avatar-filter="all"' in profile
+    assert 'id="profile-companion"' in profile
+    assert 'class="focus-presets" role="radiogroup"' in focus
+    assert 'id="help-search-state" role="status"' in help_page
+    assert 'id="help-search-empty" hidden' in help_page
+    assert 'setAttribute("aria-checked"' in workspace_js
+    assert 'setAttribute("aria-selected"' in profile_js
+    assert 'focusDurationButtons' in focus_js
+    assert 'class="personal-empty"' in personal_js
+    assert 'filterHelpTopics' in library_js
+    assert 'bindChoiceKeyboard(".payment-methods"' in payment_js
 
 
 def test_health_and_admin_diagnostics_protection():
@@ -304,8 +425,27 @@ def test_companion_room_uses_compact_spacing_for_laptop_height():
     page = client.get("/chat").text
     styles = client.get("/static/css/companion-chat.css").text
 
-    assert "companion-chat.css?v=20260823-responsive-room-v3" in page
+    assert "companion-chat.css?v=20260824-atmospheres-v1" in page
     assert "@media (max-height: 920px) and (min-width: 901px)" in styles
+
+
+def test_chat_environment_picker_is_persistent_accessible_and_overview_aligned():
+    client = TestClient(app)
+    runtime = client.get("/static/js/dashboard.js").text
+    companion = client.get("/static/css/companion-chat.css").text
+    workspace = client.get("/static/css/workspace-editorial.css").text
+    light_theme = client.get("/static/css/light-theme.css").text
+
+    assert 'apiRequest("/api/experiences/space", { auth: true })' in runtime
+    assert 'apiRequest("/api/experiences/space", { method: "PUT"' in runtime
+    assert 'document.documentElement.dataset.emoraEnvironment = state.environment' in runtime
+    assert 'role="radio" aria-checked=' in runtime
+    assert '"ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"' in runtime
+    for environment in ("midnight", "dawn", "rainy-window", "quiet-forest", "deep-ocean", "observatory", "fireplace", "space", "aurora"):
+        assert f'data-emora-environment="{environment}"' in companion
+    assert "One workspace color standard: Overview is the reference palette." in workspace
+    assert "--editorial-teal: #81aef7" in workspace
+    assert "--light-accent: #4c72c9" in light_theme
 
 
 def test_final_responsive_light_and_icon_regressions_are_present():
@@ -324,7 +464,11 @@ def test_final_responsive_light_and_icon_regressions_are_present():
     assert 'url("/static/images/emora-night-room-v1.webp")' in companion
     assert 'url("/static/images/emora-companion-room-v1.webp")' not in companion
     assert '.sidebar .nav-item-icon::after' in workspace
-    assert '.light body[data-access-paid="true"] .global-premium-access' in overrides
+    assert 'env(safe-area-inset-bottom,0px)' in workspace
+    assert 'body:is(.editorial-workspace,.profile-settings-page,.focus-together-body,.library-body)' in workspace
+    assert '.play-world' not in workspace.split("Mobile comfort:", 1)[-1]
+    assert '.your-emora' not in workspace.split("Mobile comfort:", 1)[-1]
+    assert 'body[data-access-paid="true"] .sidebar-plan-access' in overrides
     assert 'repeat(8, minmax(56px, 1fr))' in polish
     assert '.light :is(.profile-header,.settings-section' in profile
     assert '.focus-chat-composer' in focus and 'grid-template-columns: 1fr' in focus

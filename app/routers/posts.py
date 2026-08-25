@@ -8,12 +8,13 @@ from app.models.schemas import (
     PostCreateResponse,
     PostLikeResponse,
     PostListResponse,
+    PostReportRequest,
     PostUpdateRequest,
     PostUpdateResponse,
 )
 from app.rate_limit import rate_limit
 from app.security import get_current_user
-from app.services.posts import create_post, delete_post, like_post, list_posts, update_post
+from app.services.posts import create_post, delete_post, like_post, list_posts, report_post, update_post
 
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -57,6 +58,23 @@ def like_post_route(post_id: str, current_user: dict = Depends(get_current_user)
         "message": "Post liked successfully.",
         "post": post,
     }
+
+
+@router.post("/{post_id}/report", dependencies=[Depends(rate_limit(12, 300, "posts-report"))])
+def report_post_route(
+    post_id: str,
+    payload: PostReportRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    try:
+        report_post(post_id, payload, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    audit_event("posts.report.success", user_id=current_user["_id"], post_id=post_id, reason=payload.reason)
+    return {"message": "Thank you. This reflection was privately sent for review."}
 
 
 @router.patch("/{post_id}", response_model=PostUpdateResponse, dependencies=[Depends(rate_limit(20, 300, "posts-update"))])

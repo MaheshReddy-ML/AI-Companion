@@ -136,8 +136,19 @@ def ensure_indexes() -> None:
         get_database()["goals"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         get_database()["daily_check_ins"].create_index([("user_id", ASCENDING), ("date", DESCENDING)], unique=True)
         get_database()["user_preferences"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["emora_moments"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["emora_moments"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
+        get_database()["daily_drops"].create_index([("user_id", ASCENDING), ("date", DESCENDING)], unique=True)
+        get_database()["constellation_hidden"].create_index([("user_id", ASCENDING), ("node_id", ASCENDING)], unique=True)
         get_database()["billing_requests"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         get_database()["billing_requests"].create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("token_hash", ASCENDING)], unique=True)
+        get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("last_activity_at", DESCENDING)])
+        get_database()["security_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["conversation_collections"].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["response_feedback"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
+        get_database()["research_shelf"].create_index([("user_id", ASCENDING), ("url", ASCENDING)], unique=True)
+        get_database()["check_in_schedules"].create_index([("user_id", ASCENDING)], unique=True)
     except PyMongoError as exc:
         raise RuntimeError(
             f"MongoDB is not reachable at {settings.mongo_uri}. "
@@ -195,6 +206,7 @@ def serialize_conversation(document: dict[str, Any]) -> dict[str, Any]:
         "characterName": document.get("character_name"),
         "personaPrompt": document.get("persona_prompt"),
         "companionMode": document.get("companion_mode", "listen"),
+        "version": int(document.get("version", 1)),
         "messages": [serialize_message(message) for message in document.get("messages", [])],
         "createdAt": to_iso(document.get("created_at")),
         "updatedAt": to_iso(document.get("updated_at")),

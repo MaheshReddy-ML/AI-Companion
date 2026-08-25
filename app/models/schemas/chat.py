@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 MAX_CHAT_MESSAGE_LENGTH = 12_000
 MAX_CONVERSATION_TITLE_LENGTH = 120
 MAX_PERSONA_PROMPT_LENGTH = 4_000
-CompanionMode = Literal["listen", "think", "reflect", "plan", "quiet", "deep"]
+CompanionMode = Literal["listen", "think", "reflect", "plan", "quiet", "distract", "laugh", "honest", "focus", "deep"]
 
 
 class ChatHistoryMessage(BaseModel):
@@ -35,6 +35,7 @@ class ConversationUpdateRequest(BaseModel):
     character_name: str | None = Field(default=None, alias="characterName")
     persona_prompt: str | None = Field(default=None, alias="personaPrompt", max_length=MAX_PERSONA_PROMPT_LENGTH)
     companion_mode: CompanionMode | None = Field(default=None, alias="companionMode")
+    expected_version: int | None = Field(default=None, alias="expectedVersion", ge=1)
 
     model_config = ConfigDict(populate_by_name=True)
 

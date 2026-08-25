@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from app.audit import audit_event
 from app.access import has_entitlement, usage_limits_for_user
-from app.companion import account_profile_prompt_context, analyze_emotion, behavior_report, companion_emotion_for_avatar, memory_prompt_context, vision_prompt_context
+from app.companion import analyze_emotion, behavior_report, companion_emotion_for_avatar, vision_prompt_context
 from app.config import settings
 from app.companion_brain import build_companion_brain
 from app.database import attachments_collection, conversations_collection, feature_collection, parse_object_id, serialize_conversation, serialize_message, utc_now
@@ -31,6 +31,7 @@ from app.services.web_search import (
     web_search_tool,
 )
 from app.preferences import get_user_preferences
+from app.user_context import authoritative_account_reply, build_user_context
 
 # provider-selected implementations
 local_mlx_chat = get_chat_provider()
@@ -49,6 +50,10 @@ COMPANION_MODE_PROMPTS = {
     "reflect": "Reflect back the meaning and emotional pattern you hear without diagnosing.",
     "plan": "Help choose one small, pressure-free, concrete next step.",
     "quiet": "Offer quiet presence. Be brief, do not press for an explanation, and do not ask a question.",
+    "distract": "Gently change the channel with a light, interactive distraction. Do not force reflection or advice.",
+    "laugh": "Be playful and try to make the user laugh without cruelty, stereotypes, or pretending to be human.",
+    "honest": "Be candid, respectful, and specific. Do not flatter, diagnose, or become harsh.",
+    "focus": "Help the user focus on one concrete task, reduce scope, and choose the next doable action.",
     "deep": "Enter Deep Conversation mode. Use the full relevant history, reflect patterns carefully, stay grounded in what the user actually said, and ask only one unhurried question at a time.",
 }
 
@@ -123,6 +128,7 @@ def build_conversation_document(user_id, payload: ConversationCreateRequest) -> 
         "messages": messages,
         "created_at": now,
         "updated_at": messages[-1]["timestamp"] if messages else now,
+        "version": 1,
     }
 
 
@@ -214,8 +220,15 @@ def update_conversation(
         updates["companion_mode"] = payload.companion_mode
 
     updates["updated_at"] = utc_now()
-    conversations_collection().update_one({"_id": conversation["_id"]}, {"$set": updates})
+    query = {"_id": conversation["_id"], "user_id": current_user["_id"]}
+    if payload.expected_version is not None:
+        query["$or"] = [{"version": payload.expected_version}, {"version": {"$exists": False}}] if payload.expected_version == 1 else [{"version": payload.expected_version}]
+    result = conversations_collection().update_one(query, {"$set": updates, "$inc": {"version": 1}})
+    if not result.matched_count:
+        current = get_user_conversation_or_404(conversation_id, current_user["_id"])
+        raise HTTPException(status_code=409, detail={"message": "This conversation changed on another device.", "current": serialize_conversation(current)})
     conversation.update(updates)
+    conversation["version"] = int(conversation.get("version", 1)) + 1
     audit_event("chat.conversation.update", user_id=current_user["_id"], conversation_id=conversation["_id"])
     return serialize_conversation(conversation)
 
@@ -356,6 +369,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             "messages": [],
             "created_at": now,
             "updated_at": now,
+            "version": 1,
         }
 
     if payload.character_name is not None:
@@ -385,16 +399,23 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     search_decision = decide_web_search(outgoing_content, history_source)
     search_outcome: SearchOutcome | None = None
     companion_context = "\n\n".join(filter(None, [
-        account_profile_prompt_context(current_user),
-        memory_prompt_context(relevant_memories, user_analysis),
-        adaptive_context,
+        build_user_context(
+            current_user,
+            preferences=preferences,
+            interaction_mode=conversation.get("companion_mode") or "listen",
+            memories=relevant_memories,
+            adaptive_context=adaptive_context,
+        ),
         vision_prompt_context(vision),
         f"Current response mode: {COMPANION_MODE_PROMPTS.get(conversation.get('companion_mode') or 'listen', COMPANION_MODE_PROMPTS['listen'])}",
         "Quiet hours are active. Stay user-led and do not suggest reminders or proactive outreach." if preferences["quietHours"] else None,
     ]))
 
+    authoritative_reply = authoritative_account_reply(current_user, outgoing_content)
     try:
-        if search_decision.needs_web:
+        if authoritative_reply:
+            assistant_text, raw_brain, resolved_model = authoritative_reply, {}, "application-authority"
+        elif search_decision.needs_web:
             assistant_text, raw_brain, resolved_model, search_outcome = await get_web_grounded_companion_reply(
                 message=outgoing_content,
                 decision=search_decision,
@@ -455,6 +476,7 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         }
     conversation["messages"].append(assistant_message)
     conversation["updated_at"] = assistant_message["timestamp"]
+    conversation["version"] = int(conversation.get("version", 1)) + 1
 
     if conversation.get("_id"):
         conversations.replace_one({"_id": conversation["_id"]}, conversation)

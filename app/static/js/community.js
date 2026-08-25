@@ -18,6 +18,20 @@ const elements = {
   emptyComposeButton: document.getElementById("community-empty-compose"),
   composeCard: document.getElementById("community-compose-card"),
   loadMoreButton: document.getElementById("community-load-more"),
+  filterButtons: [...document.querySelectorAll("[data-community-filter]")],
+  promptButtons: [...document.querySelectorAll("[data-community-prompt]")],
+  topicPromptButton: document.querySelector("[data-community-topic-prompt]"),
+  emptyCopy: document.getElementById("community-filter-empty-copy"),
+  pulseReflections: document.getElementById("community-pulse-reflections"),
+  pulseSupport: document.getElementById("community-pulse-support"),
+  reportDialog: document.getElementById("community-report-dialog"),
+  reportForm: document.getElementById("community-report-form"),
+  reportSubmit: document.getElementById("community-report-submit"),
+  principleTabs: [...document.querySelectorAll("[data-community-principle]")],
+  principlePanels: [...document.querySelectorAll("[data-community-principle-panel]")],
+  panelComposeButtons: [...document.querySelectorAll("[data-community-panel-compose]")],
+  guidelinesButton: document.querySelector("[data-community-show-guidelines]"),
+  agreements: document.querySelector(".community-agreements"),
 };
 
 const state = {
@@ -25,8 +39,12 @@ const state = {
   page: 1,
   limit: 20,
   hasMore: false,
+  total: 0,
+  filter: "latest",
   isSubmitting: false,
   likeInFlight: new Set(),
+  reportingPostId: "",
+  reportInFlight: false,
 };
 
 function isCommunityPage() {
@@ -126,14 +144,81 @@ function renderAnonymousHint() {
   elements.anonymousHint.textContent = "Posting as Anonymous. Your private identifier is never shown to users.";
 }
 
+function getFilteredPosts() {
+  const posts = [...state.posts];
+  if (state.filter === "related") {
+    return posts.sort((left, right) => Number(right.likes || 0) - Number(left.likes || 0));
+  }
+  if (state.filter === "mine") {
+    return posts.filter((post) => Boolean(post.owned_by_current_user || post.ownedByCurrentUser));
+  }
+  return posts;
+}
+
+function renderPulse() {
+  if (elements.pulseReflections) {
+    elements.pulseReflections.textContent = new Intl.NumberFormat().format(state.total || state.posts.length);
+  }
+  if (elements.pulseSupport) {
+    const supportCount = state.posts.reduce((total, post) => total + Number(post.likes || 0), 0);
+    elements.pulseSupport.textContent = new Intl.NumberFormat().format(supportCount);
+  }
+}
+
+function renderFilterState() {
+  elements.filterButtons.forEach((button) => {
+    const isActive = button.dataset.communityFilter === state.filter;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function activatePrinciple(name, { moveFocus = false } = {}) {
+  const selectedTab = elements.principleTabs.find((tab) => tab.dataset.communityPrinciple === name);
+  if (!selectedTab) {
+    return;
+  }
+
+  elements.principleTabs.forEach((tab) => {
+    const isSelected = tab === selectedTab;
+    tab.classList.toggle("active", isSelected);
+    tab.setAttribute("aria-selected", String(isSelected));
+    tab.tabIndex = isSelected ? 0 : -1;
+  });
+  elements.principlePanels.forEach((panel) => {
+    panel.hidden = panel.dataset.communityPrinciplePanel !== name;
+  });
+  if (moveFocus) {
+    selectedTab.focus();
+  }
+}
+
+function movePrincipleTab(currentTab, direction) {
+  const currentIndex = elements.principleTabs.indexOf(currentTab);
+  if (currentIndex < 0 || elements.principleTabs.length === 0) {
+    return;
+  }
+  const nextIndex = (currentIndex + direction + elements.principleTabs.length) % elements.principleTabs.length;
+  activatePrinciple(elements.principleTabs[nextIndex].dataset.communityPrinciple || "commons", { moveFocus: true });
+}
+
 function renderPosts() {
   if (!elements.postList || !elements.emptyState) {
     return;
   }
 
-  elements.emptyState.hidden = state.posts.length > 0;
-  elements.postList.innerHTML = state.posts
-    .map((post) => {
+  const visiblePosts = getFilteredPosts();
+  elements.emptyState.hidden = visiblePosts.length > 0;
+  if (elements.emptyCopy) {
+    elements.emptyCopy.textContent = state.filter === "mine"
+      ? "You have not shared a reflection in the loaded feed yet. When you do, it will remain anonymous to everyone else."
+      : "Be the first to share something honest. Your post will never reveal your profile details.";
+  }
+  if (elements.emptyComposeButton) {
+    elements.emptyComposeButton.textContent = state.filter === "mine" ? "Share a reflection" : "Write the first reflection";
+  }
+  elements.postList.innerHTML = visiblePosts
+    .map((post, index) => {
       const postId = getPostId(post);
       const anonymousLabel = getAnonymousLabel();
       const avatarClass = getAvatarClass(postId);
@@ -146,14 +231,16 @@ function renderPosts() {
 
       return `
         <article class="post-card" data-post-id="${escapeHtml(postId)}">
+          <span class="post-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
           <div class="post-header">
             <div class="post-author-avatar ${avatarClass}">${escapeHtml(avatarLabel)}</div>
             <div class="post-author">
               <h4>${escapeHtml(anonymousLabel)}</h4>
-              <span>${escapeHtml(formatRelativeTime(post.created_at))}</span>
+              <span>${escapeHtml(formatRelativeTime(post.created_at))}${post.updated_at ? " · edited" : ""}</span>
             </div>
+            <span class="post-privacy-mark">IDENTITY HIDDEN</span>
           </div>
-          <p class="post-body">${escapeHtml(post.content)}</p>
+          <blockquote class="post-body">${escapeHtml(post.content)}</blockquote>
           <div class="post-footer">
             <div class="post-actions">
               <button
@@ -167,11 +254,10 @@ function renderPosts() {
               ${isOwner ? `
                 <button class="post-action post-action-button" type="button" data-edit-post-id="${escapeHtml(postId)}">Edit</button>
                 <button class="post-action post-action-button" type="button" data-delete-post-id="${escapeHtml(postId)}">Delete</button>
-              ` : ""}
-              <span class="post-action">Anonymous only</span>
+              ` : `<button class="post-action post-action-button" type="button" data-report-post-id="${escapeHtml(postId)}">Report privately</button>`}
               ${isOwner && moderationStatus !== "visible" ? `<span class="post-action">In review</span>` : ""}
             </div>
-            <span class="community-pill">${escapeHtml(anonymousLabel)}</span>
+            <span class="community-pill">No profile attached</span>
           </div>
         </article>
       `;
@@ -181,6 +267,8 @@ function renderPosts() {
   if (elements.loadMoreButton) {
     elements.loadMoreButton.hidden = !state.hasMore;
   }
+  renderFilterState();
+  renderPulse();
 }
 
 async function loadPosts({ append = false } = {}) {
@@ -194,6 +282,7 @@ async function loadPosts({ append = false } = {}) {
     const posts = Array.isArray(response) ? response : response.posts || [];
     state.posts = append ? [...state.posts, ...posts] : posts;
     state.hasMore = Array.isArray(response) ? false : Boolean(response.has_more || response.hasMore);
+    state.total = Array.isArray(response) ? state.posts.length : Number(response.total || state.posts.length);
     renderPosts();
     showStatus(elements.feedStatus, "");
   } catch (error) {
@@ -202,6 +291,59 @@ async function loadPosts({ append = false } = {}) {
     }
     renderPosts();
     showStatus(elements.feedStatus, error.message || "Could not load community posts.");
+  }
+}
+
+function usePrompt(prompt) {
+  if (!elements.textarea) {
+    return;
+  }
+  elements.textarea.value = prompt;
+  updateCharacterCount();
+  updateSubmitButton();
+  focusComposer();
+}
+
+function openReportDialog(postId) {
+  if (!elements.reportDialog || !postId) {
+    return;
+  }
+  state.reportingPostId = postId;
+  elements.reportForm?.reset();
+  elements.reportDialog.showModal();
+}
+
+async function submitReport(event) {
+  event.preventDefault();
+  const submitterValue = event.submitter?.value;
+  if (submitterValue !== "submit") {
+    elements.reportDialog?.close();
+    state.reportingPostId = "";
+    return;
+  }
+
+  const reason = new FormData(elements.reportForm).get("reason");
+  if (!reason || !state.reportingPostId || state.reportInFlight) {
+    return;
+  }
+
+  state.reportInFlight = true;
+  if (elements.reportSubmit) elements.reportSubmit.disabled = true;
+  try {
+    const response = await apiRequest(`/posts/${state.reportingPostId}/report`, {
+      method: "POST",
+      auth: true,
+      body: { reason },
+    });
+    elements.reportDialog?.close();
+    showStatus(elements.feedStatus, response?.message || "Reflection sent privately for review.", "success");
+    state.reportingPostId = "";
+  } catch (error) {
+    showStatus(elements.feedStatus, error.message || "Could not send that private report.");
+    elements.reportDialog?.close();
+  } finally {
+    state.reportInFlight = false;
+    if (elements.reportSubmit) elements.reportSubmit.disabled = false;
   }
 }
 
@@ -228,6 +370,7 @@ async function submitPost(event) {
 
     if (response?.post) {
       state.posts = [response.post, ...state.posts];
+      state.total += 1;
       renderPosts();
     }
 
@@ -290,6 +433,7 @@ async function handleDelete(postId) {
       auth: true,
     });
     state.posts = state.posts.filter((post) => getPostId(post) !== postId);
+    state.total = Math.max(0, state.total - 1);
     renderPosts();
     showStatus(elements.feedStatus, response?.message || "Post deleted.", "success");
   } catch (error) {
@@ -336,6 +480,44 @@ function bindEvents() {
   [elements.focusComposeButton, elements.topicComposeButton, elements.emptyComposeButton].forEach((button) => {
     button?.addEventListener("click", focusComposer);
   });
+  elements.promptButtons.forEach((button) => {
+    button.addEventListener("click", () => usePrompt(button.dataset.communityPrompt || ""));
+  });
+  elements.topicPromptButton?.addEventListener("click", () => {
+    usePrompt(elements.topicPromptButton.dataset.communityTopicPrompt || "");
+  });
+  elements.filterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      state.filter = button.dataset.communityFilter || "latest";
+      renderPosts();
+    });
+  });
+  elements.reportForm?.addEventListener("submit", submitReport);
+  elements.reportDialog?.addEventListener("close", () => {
+    state.reportingPostId = "";
+  });
+  elements.principleTabs.forEach((tab) => {
+    tab.addEventListener("click", () => activatePrinciple(tab.dataset.communityPrinciple || "commons"));
+    tab.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        movePrincipleTab(tab, 1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        movePrincipleTab(tab, -1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        activatePrinciple(elements.principleTabs[0]?.dataset.communityPrinciple || "commons", { moveFocus: true });
+      } else if (event.key === "End") {
+        event.preventDefault();
+        activatePrinciple(elements.principleTabs.at(-1)?.dataset.communityPrinciple || "commons", { moveFocus: true });
+      }
+    });
+  });
+  elements.panelComposeButtons.forEach((button) => button.addEventListener("click", focusComposer));
+  elements.guidelinesButton?.addEventListener("click", () => {
+    elements.agreements?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
 
   elements.loadMoreButton?.addEventListener("click", async () => {
     state.page += 1;
@@ -357,6 +539,12 @@ function bindEvents() {
     const deleteButton = event.target.closest("[data-delete-post-id]");
     if (deleteButton) {
       handleDelete(deleteButton.dataset.deletePostId || "");
+      return;
+    }
+
+    const reportButton = event.target.closest("[data-report-post-id]");
+    if (reportButton) {
+      openReportDialog(reportButton.dataset.reportPostId || "");
     }
   });
 }

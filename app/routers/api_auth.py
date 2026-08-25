@@ -479,6 +479,7 @@ def reset_password(payload: ResetPasswordRequest) -> dict:
         },
     )
     audit_event("auth.password_reset.success", user_id=user["_id"], email=email)
+    feature_collection("security_events").insert_one({"user_id": user["_id"], "kind": "password_reset", "label": "Password reset completed; older tokens invalidated", "created_at": utc_now()})
     return {"message": "Password reset successful"}
 
 

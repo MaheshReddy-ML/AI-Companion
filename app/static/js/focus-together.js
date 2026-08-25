@@ -241,18 +241,39 @@ async function recoverCurrentRoom() {
 
 function selectDuration(button) {
   state.unlimitedSelected = button.dataset.focusUnlimited === "true";
-  document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]").forEach((item) => item.classList.toggle("active", item === button));
+  document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]").forEach((item) => {
+    const active = item === button;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-checked", String(active));
+    item.tabIndex = active ? 0 : -1;
+  });
   const input = byId("focus-room-minutes");
   input.disabled = state.unlimitedSelected;
   input.closest("label").dataset.disabled = String(state.unlimitedSelected);
   if (!state.unlimitedSelected) input.value = button.dataset.focusMinutes;
 }
 
-document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]").forEach((button) => button.addEventListener("click", () => selectDuration(button)));
+const focusDurationButtons = [...document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]")];
+focusDurationButtons.forEach((button) => {
+  button.addEventListener("click", () => selectDuration(button));
+  button.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const index = focusDurationButtons.indexOf(button);
+    const next = event.key === "Home" ? focusDurationButtons[0] : event.key === "End" ? focusDurationButtons.at(-1) : focusDurationButtons[(index + (event.key === "ArrowRight" ? 1 : -1) + focusDurationButtons.length) % focusDurationButtons.length];
+    next.focus();
+    selectDuration(next);
+  });
+});
 byId("focus-room-minutes").addEventListener("input", () => {
   state.unlimitedSelected = false;
   const minutes = byId("focus-room-minutes").value;
-  document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]").forEach((button) => button.classList.toggle("active", button.dataset.focusMinutes === minutes));
+  document.querySelectorAll("[data-focus-minutes], [data-focus-unlimited]").forEach((button) => {
+    const active = button.dataset.focusMinutes === minutes;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
 });
 
 byId("focus-room-form").addEventListener("submit", async (event) => {

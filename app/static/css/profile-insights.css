@@ -32,3 +32,301 @@
 .light .drp.active { border-color: rgba(35,125,115,.36); background: rgba(35,125,115,.09); color: #1d6861; }
 .light .insights-body .card-header { border-color: rgba(35,58,72,.1); background: rgba(35,58,72,.025); }
 .light :is(.settings-section input,.settings-section select,.settings-section textarea) { border-color: rgba(35,58,72,.14); background: #f8fafb; color: #18262e; }
+.profile-preference-selects { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; width: 100%; }
+.profile-preference-selects label,.profile-space-select { display: grid; gap: 6px; color: var(--text-muted); font-size: 11px; }
+.profile-preference-selects select,.profile-space-select select { min-height: 42px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text-primary); }
+@media (max-width: 640px) { .profile-preference-selects { grid-template-columns: 1fr; } }
+
+/* Profile typography: quiet editorial hierarchy with comfortable reading rhythm. */
+.profile-settings-page {
+  font-family: "Sora", sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.profile-settings-page .top-bar-left h1 {
+  margin-bottom: 7px;
+  color: var(--text);
+  font: 400 clamp(2.25rem, 3.8vw, 3.35rem)/.98 "Instrument Serif", serif;
+  letter-spacing: -.035em;
+}
+
+.profile-settings-page .top-bar-left p {
+  max-width: 48ch;
+  color: var(--muted);
+  font: 400 .86rem/1.65 "Sora", sans-serif;
+  letter-spacing: -.005em;
+}
+
+.profile-settings-page .profile-info h2 {
+  margin-bottom: 7px;
+  color: var(--text);
+  font: 400 clamp(2rem, 3.2vw, 2.85rem)/1 "Instrument Serif", serif;
+  letter-spacing: -.035em;
+}
+
+.profile-settings-page .profile-info > p {
+  color: var(--muted);
+  font: 400 .78rem/1.65 "Sora", sans-serif;
+  letter-spacing: .005em;
+}
+
+.profile-settings-page .settings-section-header h3 {
+  color: var(--text);
+  font: 400 clamp(1.55rem, 2vw, 1.9rem)/1.08 "Instrument Serif", serif;
+  letter-spacing: -.025em;
+}
+
+.profile-settings-page .settings-row-label h4 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font: 600 .87rem/1.35 "Sora", sans-serif;
+  letter-spacing: -.012em;
+}
+
+.profile-settings-page .settings-row-label p {
+  max-width: 58ch;
+  margin: 0;
+  color: color-mix(in srgb, var(--muted) 90%, var(--text));
+  font: 400 .79rem/1.65 "Sora", sans-serif;
+  letter-spacing: -.004em;
+}
+
+.profile-settings-page .avatar-preview-copy h3,
+.profile-settings-page .avatar-gallery-head h3 {
+  color: var(--text);
+  font: 400 clamp(1.45rem, 2vw, 1.85rem)/1.12 "Instrument Serif", serif;
+  letter-spacing: -.022em;
+}
+
+.profile-settings-page .avatar-preview-copy > p:not(.mono),
+.profile-settings-page .avatar-gallery-head p,
+.profile-settings-page .avatar-upload-note {
+  font: 400 .78rem/1.65 "Sora", sans-serif;
+}
+
+.profile-settings-page :is(.mono, .sidebar-mini-label),
+.profile-settings-page .profile-preference-selects label,
+.profile-settings-page .profile-space-select {
+  font: 500 .62rem/1.4 "JetBrains Mono", monospace;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+
+.profile-settings-page :is(.profile-preference-selects select, .profile-space-select select) {
+  font: 500 .8rem/1 "Sora", sans-serif;
+  letter-spacing: -.006em;
+  text-transform: none;
+}
+
+.profile-settings-page :is(.btn, .avatar-filter, .badge) {
+  font-family: "Sora", sans-serif;
+  letter-spacing: -.005em;
+}
+
+.profile-settings-page .danger-zone .settings-section-header h3 {
+  color: #df9a9c;
+}
+
+.light .profile-settings-page .settings-row-label p {
+  color: #60717b;
+}
+
+@media (max-width: 640px) {
+  .profile-settings-page .top-bar-left h1 { font-size: 2.15rem; }
+  .profile-settings-page .settings-section-header h3 { font-size: 1.55rem; }
+  .profile-settings-page .settings-row-label h4 { font-size: .84rem; }
+  .profile-settings-page .settings-row-label p { font-size: .76rem; line-height: 1.6; }
+}
+
+.profile-settings-page .profile-schedule-form input,.profile-settings-page .profile-schedule-form select,.profile-settings-page .restore-controls select,.profile-settings-page #account-restore-file { min-height:44px; box-sizing:border-box; padding:9px 11px; border:1px solid rgba(177,193,224,.15); border-radius:9px; background:rgba(8,12,20,.52); color:#eef3f7; font:500 .78rem "Sora",sans-serif; color-scheme:dark; }
+.profile-settings-page .profile-schedule-form select[multiple] { min-height:112px; }.profile-settings-page .profile-schedule-form .btn { justify-self:start; }.profile-settings-page #schedule-status { min-height:18px;margin:0;color:#84cfc7;font-size:11px; }
+.profile-session-list,.profile-security-events { display:grid; gap:8px; width:100%; }.profile-session-list article,.profile-security-events article { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 14px; border:1px solid rgba(177,193,224,.12); border-radius:10px; background:rgba(8,12,20,.34); }.profile-session-list article div,.profile-security-events article { min-width:0; }.profile-session-list article div { display:grid;gap:4px; }.profile-session-list span,.profile-security-events span { color:#7f8ba3;font-size:10px; }.profile-security-events article strong { font-size:12px;font-weight:500; }
+.privacy-count-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%; }.privacy-count-grid article { display:grid;gap:3px;padding:13px;border:1px solid rgba(177,193,224,.12);border-radius:10px;background:rgba(8,12,20,.34); }.privacy-count-grid strong { font:400 24px "Instrument Serif",serif;color:#f1f2f7; }.privacy-count-grid span { color:#7f8ba3;font-size:9px;text-transform:uppercase;letter-spacing:.06em; }.privacy-storage-copy { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;width:100%; }.privacy-storage-copy > div { padding:12px;border-left:2px solid rgba(129,174,247,.45);background:rgba(129,174,247,.04); }.privacy-storage-copy strong { color:#dfe4ef;font-size:11px; }.privacy-storage-copy p { margin:5px 0;color:#828da5;font-size:10px;line-height:1.6; }.privacy-storage-copy > p { grid-column:1/-1; }
+.restore-controls { display:flex;flex-wrap:wrap;gap:9px; }.profile-settings-page #account-restore-preview-output { color:#95a0b6;font-size:11px;line-height:1.7; }.profile-settings-page #account-restore-preview-output strong { color:#83d0c5; }
+.light .profile-settings-page :is(.profile-schedule-form input,.profile-schedule-form select,.restore-controls select,#account-restore-file) { border-color:rgba(35,58,72,.14);background:#fff;color:#18262e;color-scheme:light; }.light .profile-settings-page :is(.profile-session-list article,.profile-security-events article,.privacy-count-grid article) { border-color:rgba(35,58,72,.12);background:#f7f9fa; }.light .profile-settings-page .privacy-count-grid strong,.light .profile-settings-page .privacy-storage-copy strong { color:#18262e; }.light .profile-settings-page :is(.profile-session-list span,.profile-security-events span,.privacy-count-grid span,.privacy-storage-copy p) { color:#60747e; }
+@media(max-width:700px){.privacy-count-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.privacy-storage-copy{grid-template-columns:1fr}.profile-session-list article{align-items:flex-start;flex-direction:column}}
+
+/* Response and environment controls need stronger grouping than toggle rows. */
+.profile-settings-page :is(.profile-response-controls, .profile-space-control) {
+  align-items: stretch;
+  gap: 20px;
+  padding-block: 24px;
+}
+
+.profile-settings-page :is(.profile-response-controls, .profile-space-control) > .settings-row-label {
+  display: grid;
+  gap: 3px;
+}
+
+.profile-settings-page :is(.profile-response-controls, .profile-space-control) > .settings-row-label h4 {
+  font-size: 1rem;
+  letter-spacing: -.018em;
+}
+
+.profile-settings-page .profile-preference-selects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.profile-settings-page .profile-preference-selects label,
+.profile-settings-page .profile-space-select {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 13px 14px 14px;
+  border: 1px solid rgba(174, 190, 222, .13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+  color: #98a5bd;
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.profile-settings-page .profile-preference-selects label:nth-child(1) { --mode-accent: 101, 216, 203; }
+.profile-settings-page .profile-preference-selects label:nth-child(2) { --mode-accent: 174, 145, 228; }
+.profile-settings-page .profile-preference-selects label:nth-child(3) { --mode-accent: 222, 187, 117; }
+.profile-settings-page .profile-preference-selects label:nth-child(4) { --mode-accent: 126, 166, 224; }
+
+.profile-settings-page .profile-preference-selects label.is-selected {
+  border-color: rgba(var(--mode-accent), .34);
+  background:
+    linear-gradient(145deg, rgba(var(--mode-accent), .1), rgba(var(--mode-accent), .025) 58%),
+    rgba(255, 255, 255, .025);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+}
+
+.profile-settings-page .profile-preference-selects label.is-selected > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgb(var(--mode-accent));
+}
+
+.profile-settings-page .profile-preference-selects label.is-selected > span::after {
+  content: "Selected";
+  padding: 4px 6px;
+  border: 1px solid rgba(var(--mode-accent), .22);
+  border-radius: 999px;
+  background: rgba(var(--mode-accent), .075);
+  color: rgba(var(--mode-accent), .9);
+  font-size: .48rem;
+  letter-spacing: .08em;
+}
+
+.profile-settings-page .profile-preference-selects label.is-selected select {
+  border-color: rgba(var(--mode-accent), .4);
+  background-color: rgba(var(--mode-accent), .085);
+  color: #fff;
+  box-shadow: inset 3px 0 rgb(var(--mode-accent));
+}
+
+.profile-settings-page .profile-preference-selects label.is-saving {
+  opacity: .66;
+  cursor: wait;
+}
+
+.profile-settings-page .profile-preference-selects label.selection-confirmed {
+  animation: profileModeConfirmed .48s cubic-bezier(.2, .8, .2, 1);
+}
+
+.profile-settings-page .profile-preference-selects label:hover,
+.profile-settings-page .profile-space-select:hover {
+  border-color: rgba(112, 219, 205, .24);
+  background: rgba(103, 129, 177, .055);
+}
+
+.profile-settings-page .profile-preference-selects label:focus-within,
+.profile-settings-page .profile-space-select:focus-within {
+  border-color: rgba(101, 232, 218, .52);
+  box-shadow: 0 0 0 3px rgba(101, 232, 218, .08);
+}
+
+.profile-settings-page :is(.profile-preference-selects, .profile-space-select) label > span,
+.profile-settings-page .profile-space-select > span {
+  display: block;
+  color: #94a4bd;
+  font: 500 .59rem/1.2 "JetBrains Mono", monospace;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.profile-settings-page :is(.profile-preference-selects select, .profile-space-select select) {
+  width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 38px 0 13px;
+  border: 1px solid rgba(177, 193, 224, .15);
+  border-radius: 10px;
+  outline: none;
+  background-color: rgba(8, 12, 20, .52);
+  color: #eef3f7;
+  font: 500 .82rem/1 "Sora", sans-serif;
+  letter-spacing: -.008em;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+
+.profile-settings-page :is(.profile-preference-selects select, .profile-space-select select):hover {
+  border-color: rgba(177, 205, 226, .3);
+  background-color: rgba(12, 18, 29, .72);
+}
+
+.profile-settings-page :is(.profile-preference-selects select, .profile-space-select select):focus-visible {
+  border-color: #65d8cb;
+}
+
+.profile-settings-page .profile-space-select {
+  grid-template-columns: minmax(100px, .36fr) minmax(170px, .64fr);
+  align-items: center;
+}
+
+.profile-settings-page .profile-space-select > span {
+  padding-left: 2px;
+}
+
+.light .profile-settings-page :is(.profile-preference-selects label, .profile-space-select) {
+  border-color: rgba(35, 58, 72, .12);
+  background: #f7f9fa;
+}
+
+.light .profile-settings-page :is(.profile-preference-selects label, .profile-space-select):hover {
+  border-color: rgba(35, 125, 115, .24);
+  background: #f2f7f6;
+}
+
+.light .profile-settings-page :is(.profile-preference-selects, .profile-space-select) label > span,
+.light .profile-settings-page .profile-space-select > span {
+  color: #60747e;
+}
+
+.light .profile-settings-page :is(.profile-preference-selects select, .profile-space-select select) {
+  border-color: rgba(35, 58, 72, .14);
+  background-color: #fff;
+  color: #18262e;
+}
+
+.light .profile-settings-page .profile-preference-selects label.is-selected {
+  border-color: rgba(var(--mode-accent), .46);
+  background: linear-gradient(145deg, rgba(var(--mode-accent), .13), rgba(var(--mode-accent), .035)), #fff;
+}
+
+.light .profile-settings-page .profile-preference-selects label.is-selected select {
+  border-color: rgba(var(--mode-accent), .5);
+  background-color: rgba(var(--mode-accent), .09);
+  color: #18262e;
+}
+
+@keyframes profileModeConfirmed {
+  0% { transform: scale(.985); }
+  55% { transform: scale(1.012); box-shadow: 0 0 0 4px rgba(var(--mode-accent), .09); }
+  100% { transform: none; }
+}
+
+@media (max-width: 640px) {
+  .profile-settings-page .profile-preference-selects { grid-template-columns: 1fr; }
+  .profile-settings-page .profile-space-select { grid-template-columns: 1fr; }
+}

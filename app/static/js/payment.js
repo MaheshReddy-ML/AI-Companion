@@ -34,12 +34,14 @@ function renderPlan() {
     const active = button.dataset.planId === state.plan;
     button.classList.toggle("active", active);
     button.setAttribute("aria-checked", String(active));
+    button.tabIndex = active ? 0 : -1;
   });
   document.querySelectorAll("[data-billing-cycle]").forEach((button) => {
     const active = button.dataset.billingCycle === state.cycle;
     button.classList.toggle("active", active);
     button.setAttribute("aria-checked", String(active));
     button.disabled = free;
+    button.tabIndex = active && !free ? 0 : -1;
   });
   document.querySelector(".checkout-divider").hidden = free;
   document.querySelector(".payment-methods").hidden = free;
@@ -64,6 +66,7 @@ function setPaymentMethod(method) {
     const active = button.dataset.paymentMethod === method;
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
   });
   document.querySelectorAll("[data-payment-panel]").forEach((panel) => {
     const active = panel.dataset.paymentPanel === method;
@@ -128,6 +131,25 @@ async function loadAdminUsers(search = "") {
 document.querySelectorAll("[data-plan-id]").forEach((button) => button.addEventListener("click", () => { state.plan = button.dataset.planId; renderPlan(); setPaymentMethod(state.method); }));
 document.querySelectorAll("[data-billing-cycle]").forEach((button) => button.addEventListener("click", () => { state.cycle = button.dataset.billingCycle; renderPlan(); }));
 document.querySelectorAll("[data-payment-method]").forEach((button) => button.addEventListener("click", () => setPaymentMethod(button.dataset.paymentMethod)));
+
+function bindChoiceKeyboard(containerSelector, buttonSelector) {
+  document.querySelector(containerSelector)?.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    const buttons = [...document.querySelectorAll(buttonSelector)].filter((button) => !button.disabled && !button.closest("[hidden]"));
+    const current = event.target.closest(buttonSelector);
+    if (!current || !buttons.length) return;
+    event.preventDefault();
+    const index = buttons.indexOf(current);
+    const forward = ["ArrowRight", "ArrowDown"].includes(event.key);
+    const next = event.key === "Home" ? buttons[0] : event.key === "End" ? buttons.at(-1) : buttons[(index + (forward ? 1 : -1) + buttons.length) % buttons.length];
+    next.focus();
+    next.click();
+  });
+}
+
+bindChoiceKeyboard(".plan-picker", "[data-plan-id]");
+bindChoiceKeyboard(".billing-toggle", "[data-billing-cycle]");
+bindChoiceKeyboard(".payment-methods", "[data-payment-method]");
 document.getElementById("plan-comparison-grid")?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-compare-plan]");
   if (!button) return;

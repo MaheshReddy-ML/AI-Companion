@@ -39,10 +39,24 @@ PLAN_CATALOG: dict[str, dict[str, Any]] = {
 }
 
 PLAN_ENTITLEMENTS = {
-    "free": {"text_chat", "journal", "gentle_goals", "community", "basic_insights", "data_controls"},
-    "plus": {"voice", "extended_chat", "companion_memory", "conversation_export", "look_back"},
-    "pro": {"conversation_remix", "ambient_rooms", "focus_rooms", "advanced_insights", "adaptive_companion", "deep_conversation", "session_reflection"},
-    "complete": {"voice_postcards", "extended_limits", "priority_generation", "early_access"},
+    "free": {
+        "text_chat", "journal", "gentle_goals", "community", "basic_insights", "data_controls",
+        "daily_drop", "moments", "taught_memory", "starter_environments", "basic_ambient",
+    },
+    "plus": {
+        "voice", "extended_chat", "companion_memory", "conversation_export", "look_back",
+        "weekly_story", "expanded_moments", "expanded_taught_memory", "expanded_environments",
+        "expanded_ambient", "personalization",
+    },
+    "pro": {
+        "conversation_remix", "ambient_rooms", "focus_rooms", "advanced_insights", "adaptive_companion",
+        "deep_conversation", "session_reflection", "personal_constellation", "advanced_moments",
+        "evolving_personality", "advanced_personalization",
+    },
+    "complete": {
+        "voice_postcards", "extended_limits", "priority_generation", "early_access",
+        "historical_constellation", "long_term_story", "complete_personalization",
+    },
 }
 
 PLAN_LIMITS = {
@@ -50,6 +64,13 @@ PLAN_LIMITS = {
     "plus": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2, "webSearchesPerHour": 20},
     "pro": {"chatMessageCharacters": 8_000, "chatHistoryMessages": 16, "chatConcurrentRequests": 2, "ttsCharacters": 3_000, "ttsConcurrentRequests": 2, "webSearchesPerHour": 40},
     "complete": {"chatMessageCharacters": 12_000, "chatHistoryMessages": 24, "chatConcurrentRequests": 4, "ttsCharacters": 5_000, "ttsConcurrentRequests": 4, "webSearchesPerHour": 80},
+}
+
+EXPERIENCE_LIMITS = {
+    "free": {"moments": 12, "taughtMemories": 5, "constellationNodes": 4},
+    "plus": {"moments": 100, "taughtMemories": 30, "constellationNodes": 8},
+    "pro": {"moments": 500, "taughtMemories": 100, "constellationNodes": 24},
+    "complete": {"moments": 2_000, "taughtMemories": 500, "constellationNodes": 60},
 }
 
 
@@ -90,7 +111,7 @@ def access_profile(user: dict) -> dict[str, Any]:
         "isAdmin": admin,
         "status": "active" if admin else "free" if plan == "free" else subscription.get("status", "active"),
         "entitlements": sorted(entitlements),
-        "limits": dict(PLAN_LIMITS[plan]),
+        "limits": {**PLAN_LIMITS[plan], **EXPERIENCE_LIMITS[plan]},
     }
 
 
@@ -99,8 +120,9 @@ def has_entitlement(user: dict, entitlement: str) -> bool:
 
 
 def usage_limits_for_user(user: dict) -> dict[str, int]:
-    return dict(PLAN_LIMITS[active_plan_for_user(user)])
+    plan = active_plan_for_user(user)
+    return {**PLAN_LIMITS[plan], **EXPERIENCE_LIMITS[plan]}
 
 
 def public_plan_catalog() -> list[dict[str, Any]]:
-    return [{"id": plan_id, **PLAN_CATALOG[plan_id], "limits": dict(PLAN_LIMITS[plan_id])} for plan_id in PLAN_ORDER]
+    return [{"id": plan_id, **PLAN_CATALOG[plan_id], "limits": {**PLAN_LIMITS[plan_id], **EXPERIENCE_LIMITS[plan_id]}} for plan_id in PLAN_ORDER]

@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.access import has_entitlement, is_platform_admin
 from app.config import settings
-from app.database import parse_object_id, users_collection, utc_now
+from app.database import feature_collection, parse_object_id, users_collection, utc_now
 
 
 BCRYPT_SHA256_PREFIX = "bcrypt_sha256$"
@@ -87,6 +87,14 @@ def _resolve_user(credentials: HTTPAuthorizationCredentials | None) -> dict | No
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authorized, session expired",
+        )
+
+    token_hash = hashlib.sha256(credentials.credentials.encode()).hexdigest()
+    tracked_session = feature_collection("auth_sessions").find_one({"user_id": user["_id"], "token_hash": token_hash})
+    if tracked_session and tracked_session.get("revoked_at") is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized, this session was revoked",
         )
 
     return user

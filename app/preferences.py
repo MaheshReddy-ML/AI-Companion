@@ -14,22 +14,45 @@ PREFERENCE_DEFAULTS = {
     # Pro users may explicitly allow goals and their latest check-in to inform
     # a reply. It is off by default because this is sensitive context.
     "adaptiveContext": False,
+    "responseStyle": "balanced",
+    "humor": "gentle",
+    "energy": "calm",
+    "depth": "moderate",
+    "textSize": "system",
+    "motion": "system",
+    "contrast": "system",
+    "calmEffects": False,
 }
 
 
-def get_user_preferences(user_id) -> dict[str, bool]:
+def get_user_preferences(user_id) -> dict[str, object]:
     document = feature_collection("user_preferences").find_one({"user_id": user_id}) or {}
-    return {key: bool(document.get(key, default)) for key, default in PREFERENCE_DEFAULTS.items()}
+    return {
+        key: bool(document.get(key, default)) if isinstance(default, bool) else str(document.get(key, default))
+        for key, default in PREFERENCE_DEFAULTS.items()
+    }
 
 
-def update_user_preferences(user_id, changes: dict[str, bool]) -> dict[str, bool]:
+def get_preference_version(user_id) -> int:
+    document = feature_collection("user_preferences").find_one({"user_id": user_id}) or {}
+    return int(document.get("version", 1))
+
+
+def update_user_preferences(user_id, changes: dict[str, object], *, expected_version: int | None = None) -> dict[str, object]:
     unknown = set(changes) - set(PREFERENCE_DEFAULTS)
     if unknown:
         raise ValueError(f"Unknown preference: {sorted(unknown)[0]}")
     if changes:
-        feature_collection("user_preferences").update_one(
-            {"user_id": user_id},
-            {"$set": {**changes, "updated_at": utc_now()}, "$setOnInsert": {"user_id": user_id}},
-            upsert=True,
+        collection = feature_collection("user_preferences")
+        existing = collection.find_one({"user_id": user_id})
+        query: dict = {"user_id": user_id}
+        if expected_version is not None:
+            query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
+        result = collection.update_one(
+            query,
+            {"$set": {**changes, "updated_at": utc_now()}, "$setOnInsert": {"user_id": user_id, "version": 0}, "$inc": {"version": 1}},
+            upsert=existing is None,
         )
+        if expected_version is not None and not result.matched_count and not result.upserted_id:
+            raise RuntimeError("preferences_conflict")
     return get_user_preferences(user_id)

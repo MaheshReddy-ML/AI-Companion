@@ -36,6 +36,7 @@ class Settings:
     )
     host: str = os.getenv("HOST", "127.0.0.1")
     port: int = int(os.getenv("PORT", "8000"))
+    public_app_url: str = os.getenv("PUBLIC_APP_URL", "http://127.0.0.1:8000").strip().rstrip("/")
 
     secret_key: str = os.getenv("JWT_SECRET", "change-me")
     jwt_algorithm: str = os.getenv("JWT_ALGORITHM", "HS256")
@@ -103,8 +104,18 @@ class Settings:
     emora_web_search_max_tool_iterations: int = min(3, max(1, int(os.getenv("WEB_SEARCH_MAX_TOOL_ITERATIONS", "3"))))
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = int(os.getenv("VISION_MLX_MAX_TOKENS", "180"))
-    # Inference provider selection: 'local' (MLX on mac) or 'modal' (cloud GPU)
-    inference_provider: str = os.getenv("INFERENCE_PROVIDER", "local").strip().lower()
+    # "auto" is MLX-first and falls through only to explicitly configured
+    # providers. "local" remains a backwards-compatible alias for auto.
+    inference_provider: str = os.getenv("LLM_PROVIDER", os.getenv("INFERENCE_PROVIDER", "auto")).strip().lower()
+    mlx_enabled: bool = os.getenv("MLX_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+    local_llm_enabled: bool = os.getenv("LOCAL_LLM_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    local_llm_url: str = os.getenv("LOCAL_LLM_URL", "").strip().rstrip("/")
+    local_llm_model: str = os.getenv("LOCAL_LLM_MODEL", "").strip()
+    cloud_llm_enabled: bool = os.getenv("CLOUD_LLM_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    cloud_llm_url: str = os.getenv("CLOUD_LLM_URL", "").strip().rstrip("/")
+    cloud_llm_model: str = os.getenv("CLOUD_LLM_MODEL", "").strip()
+    cloud_llm_api_key: str = os.getenv("CLOUD_LLM_API_KEY", "").strip()
+    provider_health_ttl_seconds: int = max(10, int(os.getenv("PROVIDER_HEALTH_TTL_SECONDS", "60")))
     # Optional cloud model overrides for Modal provider. If unset, the code
     # will attempt to use the MLX model ids as a starting point.
     chat_modal_model: str = os.getenv("CHAT_MODAL_MODEL", "")
@@ -126,3 +137,17 @@ class Settings:
 
 
 settings = Settings()
+
+
+def validate_runtime_security(configuration: Settings = settings) -> None:
+    """Fail closed on unsafe token-signing settings in production only."""
+    if configuration.environment.strip().lower() != "production":
+        return
+
+    weak_secrets = {"", "change-me", "changeme", "secret", "replace-with-a-long-random-secret"}
+    secret = configuration.secret_key.strip()
+    if secret.lower() in weak_secrets or len(secret) < 32:
+        raise RuntimeError("JWT_SECRET must be a unique secret of at least 32 characters in production.")
+
+    if configuration.jwt_algorithm not in {"HS256", "HS384", "HS512"}:
+        raise RuntimeError("JWT_ALGORITHM must be HS256, HS384, or HS512 in production.")

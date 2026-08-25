@@ -1,40 +1,137 @@
 {% extends "base.html" %}
 {% block body_class %}app-body flagship-workspace-body editorial-workspace editorial-overview{% endblock %}
 {% block content %}
-<div class="flagship-workspace">
-  <aside class="workspace-rail"><a class="workspace-logo" href="/"><span>e</span> emora</a><nav><p>SPACE</p><a class="active" href="/dashboard"><i>⌂</i> Overview</a><a href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><i>✦</i> Meet Emora <b data-emora-live-state hidden></b></a><a href="/chat?new=1" aria-label="Chat with Emora using text"><i>▣</i> Chat with Emora</a><a href="/play"><i>✧</i> Emora Play <b data-play-progress hidden></b></a><a href="/focus-together"><i>◌</i> Focus Together <b aria-label="Premium capability">✦</b></a><p>REFLECT</p><a href="/insights"><i>↗</i> Insights</a><a href="/journal"><i>▣</i> Journal</a><a href="/goals"><i>◎</i> Gentle Goals</a><p>CONNECT</p><a href="/community"><i>◉</i> Community</a></nav><div class="workspace-person"><div data-session-avatar class="workspace-avatar">M</div><div><strong data-session-user-name>Friend</strong><span>Private space</span></div><a href="/profile" aria-label="Open profile and settings">⚙</a></div><div class="workspace-rail-actions sidebar-account-actions" aria-label="Account controls"><button type="button" data-theme-toggle><span>Light mode</span></button><button type="button" data-logout><span>Sign out</span></button></div></aside>
+<div class="flagship-workspace dashboard-shell">
+  <aside class="workspace-rail" aria-label="Emora workspace">
+    <a class="workspace-logo" href="/" aria-label="Emora home"><span>e</span><strong>emora</strong></a>
+    <nav aria-label="Workspace navigation">
+      <p>SPACE</p>
+      <a class="active" href="/dashboard"><i aria-hidden="true">⌂</i> Overview</a>
+      <a href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><i aria-hidden="true">✦</i> Meet Emora <b data-emora-live-state hidden></b></a>
+      <a href="/chat?new=1" aria-label="Chat with Emora using text"><i aria-hidden="true">□</i> Chat with Emora</a>
+      <a href="/play"><i aria-hidden="true">✧</i> Emora Play <b data-play-progress hidden></b></a>
+      <a href="/focus-together"><i aria-hidden="true">◌</i> Focus Together <b aria-label="Premium capability">✦</b></a>
+      <p>REFLECT</p>
+      <a href="/insights"><i aria-hidden="true">↗</i> Insights</a>
+      <a href="/journal"><i aria-hidden="true">▣</i> Journal</a>
+      <a href="/goals"><i aria-hidden="true">◎</i> Gentle Goals</a>
+      <p>CONNECT</p>
+      <a href="/community"><i aria-hidden="true">◉</i> Community</a>
+    </nav>
+    {% include "_sidebar_plan.html" %}
+    <div class="workspace-person">
+      <div data-session-avatar class="workspace-avatar">M</div>
+      <div><strong data-session-user-name>Friend</strong><span>Private space</span></div>
+      <a href="/profile" aria-label="Open profile and settings">⌄</a>
+    </div>
+    <div class="workspace-rail-actions sidebar-account-actions" aria-label="Account controls">
+      <button type="button" data-theme-toggle><span>Theme</span></button>
+      <a href="/profile" aria-label="Settings"><span>Settings</span></a>
+      <button type="button" data-logout><span>Sign out</span></button>
+    </div>
+  </aside>
+
   <main class="workspace-main">
-    <header class="workspace-topbar"><div><p class="workspace-kicker">TUESDAY / A LITTLE SPACE TO BREATHE</p><h1 class="serif" data-session-greeting>Good evening, Friend</h1></div><div class="workspace-top-actions"><a href="/help">Need a hand?</a><a class="workspace-primary" href="/your-emora">Talk to Emora <span>→</span></a></div></header>
+    <header class="workspace-topbar">
+      <p class="dashboard-dayline"><span data-dashboard-day>TODAY</span><i aria-hidden="true">✦</i>A LITTLE SPACE TO BREATHE</p>
+      <div class="workspace-top-actions"><a href="/help">Need a hand?</a><a class="dashboard-top-action" href="/your-emora">Talk to Emora <span>→</span></a></div>
+    </header>
+
     <section class="workspace-hero-card emora-presence" id="dashboard-emora" data-emora-state="IDLE" aria-labelledby="emora-presence-title">
       <div class="workspace-hero-copy">
-        <p class="workspace-kicker" id="emora-arrival-eyebrow">YOUR COMPANION IS HERE</p>
-        <h2 class="serif" id="emora-presence-title"><span id="emora-arrival-headline">What would feel</span><br><em id="emora-arrival-prompt">lighter today?</em></h2>
-        <p id="emora-arrival-message">Start with a thought, a voice note, or just a few quiet minutes. Your space is ready when you are.</p>
+        <p class="workspace-kicker" id="emora-arrival-eyebrow">YOUR SPACE IS QUIET</p>
+        <h1 class="serif" id="emora-presence-title">Welcome back,<br><span data-session-dashboard-name>Friend.</span></h1>
+        <p class="dashboard-emotional-line serif" id="emora-arrival-prompt">No prompt, no pressure.</p>
+        <p class="dashboard-hero-note" id="emora-arrival-message">Emora is here whenever you choose to begin.</p>
+
         <form id="emora-presence-form" class="emora-presence-form">
+          <span class="composer-mark" aria-hidden="true">✦</span>
           <label class="sr-only" for="emora-presence-input">Talk to Emora</label>
-          <input id="emora-presence-input" maxlength="2000" autocomplete="off" placeholder="Say “Hey Emora” or write what is here…">
-          <button type="button" class="emora-wake-button" id="emora-wake-button" aria-label="Wake Emora"><span aria-hidden="true">◌</span><b>Hey Emora</b></button>
-          <button class="workspace-primary" type="submit">Send <span>→</span></button>
+          <input id="emora-presence-input" maxlength="2000" autocomplete="off" placeholder="Hey Emora, what’s on your mind?">
+          <button type="button" class="emora-wake-button" id="emora-wake-button" aria-label="Focus the Emora composer"><span aria-hidden="true">◌</span><b>Wake</b></button>
+          <button class="dashboard-send" type="submit" aria-label="Send to Emora">↑</button>
         </form>
-        <div class="emora-presence-actions"><button type="button" class="workspace-subtle" id="emora-voice-wake">Use voice</button><a class="workspace-subtle" href="/your-emora">Enter companion room</a><a class="workspace-subtle" href="/chat">Open conversation history</a></div>
+        <div class="emora-presence-actions">
+          <button type="button" class="workspace-subtle" id="emora-voice-wake"><span aria-hidden="true">◖</span> Use voice</button>
+          <a class="workspace-subtle" href="/your-emora"><span aria-hidden="true">♧</span> Enter companion room</a>
+          <a class="workspace-subtle" href="/chat">Open conversation history</a>
+        </div>
         <p class="emora-presence-reply" id="emora-presence-reply" aria-live="polite"></p>
         <p class="emora-feature-note" id="emora-feature-note" aria-live="polite"></p>
+        <span id="emora-arrival-headline" hidden>Welcome back</span>
       </div>
-      <div class="workspace-orbit" aria-hidden="true"><span class="orbit-ring ring-one"></span><span class="orbit-ring ring-two"></span><div class="orbit-core">e</div><div class="orbit-note note-one" id="emora-state-label">Present · calm</div><div class="orbit-note note-two">Private</div><div class="orbit-note note-three">Here</div></div>
+
+      <div class="workspace-orbit" aria-label="Emora presence and your current space">
+        <div class="orbit-status"><span id="emora-state-label">30-day summary</span><strong data-dashboard-insight-period>Private insights</strong></div>
+        <span class="orbit-ring orbit-ring-outer"></span>
+        <span class="orbit-ring orbit-ring-middle"></span>
+        <span class="orbit-ring orbit-ring-inner"></span>
+        <span class="orbit-trace trace-one"></span><span class="orbit-trace trace-two"></span><span class="orbit-trace trace-three"></span>
+        <div class="orbit-core"><span>e</span></div>
+        <a class="orbit-node orbit-focus" href="/insights"><i></i><span>Rhythm</span><strong data-dashboard-orbit-focus>—</strong></a>
+        <a class="orbit-node orbit-goals" href="/insights"><i></i><span>Mood</span><strong data-dashboard-orbit-goals>—</strong></a>
+        <a class="orbit-node orbit-journal" href="/insights"><i></i><span>Engagement</span><strong data-dashboard-orbit-journal>—</strong></a>
+        <p class="orbit-caption"><span aria-hidden="true">♧</span><span data-dashboard-orbit-caption>Your private behavior summary will gather here.</span></p>
+        <a class="orbit-insight-lock" href="/payment?feature=advanced_insights" data-dashboard-insight-lock><small>EMORA PRO INSIGHTS</small><strong>See the patterns shaping your month</strong><span>Upgrade to unlock your private behavior summary →</span></a>
+      </div>
     </section>
-    <section class="overview-arrival" aria-labelledby="arrival-title">
-      <div><p class="workspace-kicker">ARRIVE AS YOU ARE</p><h2 class="serif" id="arrival-title">How are you meeting today?</h2><p>A small check-in helps Emora notice your rhythm without turning it into a score.</p></div>
+
+    <section class="dashboard-glance" aria-label="Your space today">
+      <article class="dashboard-flow-card">
+        <header><p class="workspace-kicker">TODAY’S FLOW</p><a href="/insights">View reflection <span>→</span></a></header>
+        <div class="dashboard-flow" data-dashboard-flow><p class="dashboard-empty">Your first moment today can be as small as a breath.</p></div>
+      </article>
+
+      <article class="dashboard-space-card">
+        <p class="workspace-kicker">YOUR SPACE</p>
+        <a href="/chat"><strong data-dashboard-stat="conversationFrequency">0</strong><span>Active days<small>With Emora</small></span></a>
+        <a href="/journal"><strong data-dashboard-journal-count>0</strong><span>Journal entries<small>Your thoughts</small></span></a>
+        <a href="/goals"><strong data-dashboard-goal-count>0</strong><span>Active goals<small data-dashboard-stat="rhythm-detail">At your pace</small></span></a>
+        <a class="dashboard-view-all" href="/insights">View all <span>→</span></a>
+        <span data-dashboard-stat="memoryCount" hidden>0</span><span data-dashboard-stat="rhythm" hidden>Getting started</span>
+      </article>
+
+      <article class="dashboard-noticed-card">
+        <p class="workspace-kicker"><span aria-hidden="true">✦</span> EMORA NOTICED</p>
+        <h2 class="serif" data-dashboard-nudge>There is nothing you need to prove here.</h2>
+        <p data-dashboard-topics>Your patterns will appear gently as you spend time with Emora.</p>
+        <a href="/insights">Explore it together <span>→</span></a>
+      </article>
+
+      <article class="dashboard-ambient-card">
+        <div><p class="workspace-kicker">AMBIENT MOMENT</p><blockquote class="serif" data-dashboard-ambient>Take a moment.<br>Breathe in.<br>You’re allowed to begin slowly.</blockquote></div>
+        <a href="/journal" aria-label="Open journal">♡</a>
+      </article>
+    </section>
+
+    <section class="dashboard-action-dock" aria-label="Choose what feels good now">
+      <p><span aria-hidden="true">✦</span> What would feel good to do right now?</p>
+      <div><a href="#arrival-check-in">Reflect</a><a href="/focus-together">Focus</a><a href="/play">Play</a><a href="/chat?new=1">Talk</a></div>
+    </section>
+
+    <section class="experience-depth" aria-label="Your evolving Emora space">
+      <article class="experience-drop"><p class="workspace-kicker">DAILY EMORA DROP</p><blockquote class="serif" id="daily-emora-drop">A small question is arriving…</blockquote><a href="/chat?new=1" id="daily-drop-action">Take it to Emora <span>→</span></a></article>
+      <article class="experience-story"><p class="workspace-kicker">YOUR WEEK WITH EMORA</p><h2 class="serif">A story made only from what happened.</h2><p id="weekly-story-summary">Your week is gathering quietly.</p><a href="/insights">Open the reflection <span>→</span></a></article>
+      <article class="experience-constellation"><p class="workspace-kicker">PERSONAL CONSTELLATION</p><h2 class="serif">The things you choose begin to connect.</h2><div id="constellation-preview" aria-live="polite"><p class="muted">Your goals, moments, and memories will appear here—never invented.</p></div><a href="/insights">Explore the pattern <span>→</span></a></article>
+    </section>
+
+    <section class="overview-arrival" id="arrival-check-in" aria-labelledby="arrival-title">
+      <div><p class="workspace-kicker">ARRIVE AS YOU ARE</p><h2 class="serif" id="arrival-title">How are you meeting today?</h2><p>A private check-in helps Emora notice your rhythm without turning it into a score.</p></div>
       <form id="arrival-form">
         <fieldset><legend class="sr-only">Choose your mood</legend><div class="arrival-moods"><label><input type="radio" name="mood" value="quiet" required><span>Quiet</span></label><label><input type="radio" name="mood" value="heavy"><span>Heavy</span></label><label><input type="radio" name="mood" value="scattered"><span>Scattered</span></label><label><input type="radio" name="mood" value="okay"><span>Okay</span></label><label><input type="radio" name="mood" value="energized"><span>Energized</span></label><label><input type="radio" name="mood" value="unsure"><span>I don’t know</span></label></div></fieldset>
         <label class="tiny-thing-field" for="arrival-tiny-thing"><span>One Tiny Thing</span><input id="arrival-tiny-thing" maxlength="160" placeholder="What is one kind, doable step?"></label>
-        <button class="workspace-primary" type="submit">Save check-in <span>→</span></button><a class="workspace-subtle arrival-voice" href="/your-emora">Say it instead</a><p class="arrival-status" id="arrival-status" aria-live="polite"></p>
+        <button class="dashboard-calm-button" type="submit">Save check-in <span>→</span></button><a class="workspace-subtle arrival-voice" href="/your-emora">Say it instead</a><p class="arrival-status" id="arrival-status" aria-live="polite"></p>
       </form>
     </section>
-    <section class="workspace-stats"><article><span>THIS WEEK</span><strong data-dashboard-stat="conversationFrequency">00</strong><p>active days with Emora</p></article><article><span>YOUR RHYTHM</span><strong class="teal" data-dashboard-stat="rhythm">Getting started</strong><p data-dashboard-stat="rhythm-detail">your space grows with each check-in</p></article><article><span>MEMORIES</span><strong data-dashboard-stat="memoryCount">00</strong><p>details held with care</p></article><a href="/goals"><span>ONE TINY THING</span><strong data-dashboard-tiny>Choose gently <b>→</b></strong><p>One kind, doable next step</p></a></section>
-    <section class="workspace-grid"><article class="workspace-panel sessions-panel"><header><div><p class="workspace-kicker">CONTINUE</p><h3 class="serif">Your recent threads</h3></div><a href="/chat">All conversations →</a></header><div data-dashboard-threads><a class="thread-row" href="/chat"><span class="thread-icon calm">◌</span><div><strong>Start a gentle check-in</strong><p>Your companion is ready when you are.</p></div><time>Now</time></a></div></article><article class="workspace-panel ritual-panel"><p class="workspace-kicker">A SOFT NUDGE</p><h3 class="serif" data-dashboard-nudge>One tiny ritual can<br>change the texture of a day.</h3><p data-dashboard-topics>Choose one small step and let that be enough for today.</p><a class="workspace-primary" href="/goals">See gentle goals <span>→</span></a></article></section>
-    <section class="workspace-panel dashboard-memory" id="dashboard-memory" aria-labelledby="dashboard-memory-title"><header><div><p class="workspace-kicker">WITH YOUR PERMISSION</p><h2 class="serif" id="dashboard-memory-title">Things Emora remembers</h2></div><a href="/profile">Privacy controls →</a></header><p class="dashboard-memory-notice" id="dashboard-memory-notice">Only details you chose to keep appear here. You can correct or forget any one.</p><div id="dashboard-memory-list"><p class="muted">Loading your memory controls…</p></div><form id="dashboard-memory-form"><label class="sr-only" for="dashboard-memory-input">A detail for Emora to remember</label><input id="dashboard-memory-input" maxlength="300" placeholder="Remember something useful…"><button class="workspace-primary" type="submit">Remember</button></form></section>
+
+    <section class="dashboard-depth-grid">
+      <article class="workspace-panel sessions-panel"><header><div><p class="workspace-kicker">CONTINUE</p><h2 class="serif">Recent conversations</h2></div><a href="/chat">All conversations →</a></header><div data-dashboard-threads><a class="thread-row" href="/chat?new=1"><span class="thread-icon calm">◌</span><div><strong>Begin a gentle check-in</strong><p>Your companion is ready when you are.</p></div><time>Now</time></a></div></article>
+      <article class="workspace-panel dashboard-memory" id="dashboard-memory" aria-labelledby="dashboard-memory-title"><header><div><p class="workspace-kicker">TEACH EMORA</p><h2 class="serif" id="dashboard-memory-title">Things you want Emora to know</h2></div><a href="/profile">Privacy controls →</a></header><p class="dashboard-memory-notice" id="dashboard-memory-notice">Only details you explicitly teach Emora appear here. You can edit or delete each one.</p><div id="dashboard-memory-list"><p class="muted">Loading your memory controls…</p></div><form id="dashboard-memory-form"><label class="sr-only" for="dashboard-memory-input">Teach Emora something about you</label><input id="dashboard-memory-input" maxlength="300" placeholder="My friends call me Mahi…"><button class="dashboard-calm-button" type="submit">Teach Emora</button></form></article>
+    </section>
+
     <section class="overview-lookback" aria-labelledby="lookback-title"><header><div><p class="workspace-kicker">LOOK BACK</p><h2 class="serif" id="lookback-title">A few things worth remembering</h2></div><a href="/insights">See your reflection timeline →</a></header><div id="dashboard-lookback"><p class="muted">Your recent check-ins and reflections will gather here.</p></div></section>
+    <a href="/goals" data-dashboard-tiny class="dashboard-tiny-link">Choose one tiny thing →</a>
   </main>
 </div>
 {% endblock %}
-{% block scripts %}<script type="module" src="/static/js/workspace-shell.js"></script>{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/workspace-shell.js?v=20260824-dashboard-atmosphere-v1"></script>{% endblock %}

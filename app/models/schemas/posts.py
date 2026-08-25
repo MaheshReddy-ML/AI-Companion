@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -28,6 +30,10 @@ class PostUpdateRequest(BaseModel):
         if not cleaned:
             raise ValueError("Post content cannot be empty.")
         return cleaned
+
+
+class PostReportRequest(BaseModel):
+    reason: Literal["unsafe", "unkind", "medical_advice", "personal_information", "other"]
 
 
 class PostResponse(BaseModel):

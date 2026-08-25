@@ -18,6 +18,7 @@
     </div>
     <div class="nav-group"><div class="nav-group-label">Reflect</div><a class="nav-item active" href="/insights"><span class="nav-item-icon">↗</span> Insights</a><a class="nav-item" href="/journal"><span class="nav-item-icon">▣</span> Journal</a><a class="nav-item" href="/goals"><span class="nav-item-icon">◎</span> Gentle Goals</a></div>
     <div class="nav-group"><div class="nav-group-label">Connect</div><a class="nav-item" href="/community"><span class="nav-item-icon">◉</span> Community</a></div>
+    {% include "_sidebar_plan.html" %}
     </div>
 
     <div class="sidebar-footer">
@@ -39,15 +40,25 @@
         <h1 class="serif">Emotional Insights</h1>
         <p>Understand your patterns—week by week, conversation by conversation.</p>
       </div>
-      <div class="date-range-pills" id="insight-range-picker">
-        <button class="drp" type="button" data-insight-days="7">7D</button>
-        <button class="drp active" type="button" data-insight-days="30">30D</button>
-        <button class="drp" type="button" data-insight-days="90" data-entitlement="look_back" data-plan-label="Plus">3M</button>
-        <button class="drp" type="button" data-insight-days="365" data-entitlement="advanced_insights" data-plan-label="Pro">All time</button>
+      <div class="date-range-pills" id="insight-range-picker" role="radiogroup" aria-label="Insight period">
+        <button class="drp" type="button" role="radio" aria-checked="false" tabindex="-1" data-insight-days="7">7D</button>
+        <button class="drp active" type="button" role="radio" aria-checked="true" tabindex="0" data-insight-days="30">30D</button>
+        <button class="drp" type="button" role="radio" aria-checked="false" tabindex="-1" data-insight-days="90" data-entitlement="look_back" data-plan-label="Plus">3M</button>
+        <button class="drp" type="button" role="radio" aria-checked="false" tabindex="-1" data-insight-days="365" data-entitlement="advanced_insights" data-plan-label="Pro">All time</button>
       </div>
     </div>
 
+    <nav class="workspace-section-nav" aria-label="Insights sections">
+      <a href="#insights-journey">Journey</a><a href="#saved-moments-title">Moments</a><a href="#insights-patterns">Patterns</a><a href="#insights-history">History</a>
+    </nav>
+
     <div class="insights-body">
+      <section class="insights-journey-grid" id="insights-journey" aria-label="Your saved journey">
+        <article class="journey-constellation"><header><div><p class="workspace-kicker">PERSONAL CONSTELLATION</p><h2 class="serif">What is beginning to connect</h2></div><span>Built from your real data</span></header><div id="insights-constellation"><p class="muted">Your constellation begins with the first thing you choose to keep.</p></div></article>
+        <article class="journey-story"><header><div><p class="workspace-kicker">YOUR WEEK WITH EMORA</p><h2 class="serif">A factual look back</h2></div><span>Last 7 days</span></header><p id="insights-weekly-story">Your week is still beginning.</p><div id="insights-weekly-counts"></div></article>
+      </section>
+      <section class="insights-moments" aria-labelledby="saved-moments-title"><header><div><p class="workspace-kicker">EMORA MOMENTS</p><h2 class="serif" id="saved-moments-title">The words you chose to keep</h2></div><p>Dated, private, editable, and connected to a real conversation.</p></header><div id="insights-moment-list"><p class="muted">Save a line from Chat and it will appear here.</p></div></section>
+
       <section class="insights-premium-brief" data-entitlement="advanced_insights" data-plan-label="Pro" aria-labelledby="premium-brief-title">
         <header>
           <div><p class="workspace-kicker">PRO REFLECTION BRIEF</p><h2 class="serif" id="premium-brief-title">The shape of this chapter</h2></div>
@@ -78,7 +89,7 @@
         <div id="reflection-timeline" class="reflection-timeline"><p class="muted text-sm">Your timeline will gather as you use Emora.</p></div>
       </section>
 
-      <div class="insights-grid-top">
+      <div class="insights-grid-top" id="insights-patterns">
         <div class="card" data-editorial-label="PATTERNS">
           <div class="card-header">
             <h3>Emotional tone over time</h3>
@@ -95,19 +106,19 @@
             <span class="text-sm muted" id="insights-mood-meta">This month</span>
           </div>
           <div class="card-body">
-            <div class="mood-wheel">
-              <button class="mood-cell" type="button" data-mood="calm"><span>O</span><div class="mood-cell-count metric-teal">0</div><p>Calm</p></button>
-              <button class="mood-cell" type="button" data-mood="reflective"><span>R</span><div class="mood-cell-count metric-blue">0</div><p>Reflective</p></button>
-              <button class="mood-cell" type="button" data-mood="anxious"><span>A</span><div class="mood-cell-count metric-rose">0</div><p>Anxious</p></button>
-              <button class="mood-cell" type="button" data-mood="positive"><span>P</span><div class="mood-cell-count metric-success">0</div><p>Positive</p></button>
-              <button class="mood-cell" type="button" data-mood="neutral"><span>N</span><div class="mood-cell-count">0</div><p>Neutral</p></button>
-              <button class="mood-cell" type="button" data-mood="low"><span>L</span><div class="mood-cell-count metric-rose">0</div><p>Low</p></button>
+            <div class="mood-wheel" role="group" aria-label="Inspect mood count">
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="calm"><span>O</span><div class="mood-cell-count metric-teal">0</div><p>Calm</p></button>
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="reflective"><span>R</span><div class="mood-cell-count metric-blue">0</div><p>Reflective</p></button>
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="anxious"><span>A</span><div class="mood-cell-count metric-rose">0</div><p>Anxious</p></button>
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="positive"><span>P</span><div class="mood-cell-count metric-success">0</div><p>Positive</p></button>
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="neutral"><span>N</span><div class="mood-cell-count">0</div><p>Neutral</p></button>
+              <button class="mood-cell" type="button" aria-pressed="false" data-mood="low"><span>L</span><div class="mood-cell-count metric-rose">0</div><p>Low</p></button>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="card insights-card-spacing" data-editorial-label="RHYTHM">
+      <div class="card insights-card-spacing" id="insights-history" data-editorial-label="RHYTHM">
         <div class="card-header">
           <h3>Session activity - past 84 days</h3>
           <span class="text-sm muted" id="insights-activity-meta">Each cell = one day</span>

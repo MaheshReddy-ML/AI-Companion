@@ -6,7 +6,12 @@ This module intentionally wraps the existing `local_mlx_chat` and
 from __future__ import annotations
 
 from typing import Any
+import importlib.util
+from pathlib import Path
 
+from huggingface_hub import try_to_load_from_cache
+
+from app.config import settings
 from app.inference.base import ChatProvider, VisionProvider, VisionAnalysisError
 from app.services.local_mlx_chat import local_mlx_chat
 from app.services.local_mlx_vision import local_mlx_vision
@@ -17,7 +22,22 @@ class LocalChatAdapter:
         return local_mlx_chat.generate(model_id=model_id, messages=messages, max_tokens=max_tokens, temperature=temperature, enable_thinking=enable_thinking, tools=tools)
 
     def runtime_stats(self) -> dict[str, Any]:
-        return local_mlx_chat.runtime_stats()
+        return {"provider": "mlx", **local_mlx_chat.runtime_stats()}
+
+    def health_check(self) -> tuple[bool, str]:
+        if importlib.util.find_spec("mlx_lm") is None:
+            return False, "mlx_lm is not installed"
+        model_id = settings.chat_mlx_model.strip()
+        if not model_id:
+            return False, "MLX model is not configured"
+        local_model = Path(model_id).expanduser()
+        cached_config = local_model / "config.json" if local_model.exists() else try_to_load_from_cache(model_id, "config.json")
+        if not cached_config or not Path(str(cached_config)).is_file():
+            return False, "configured MLX model is not available locally"
+        return True, "MLX runtime and configured model are available; inference is verified on first use"
+
+    def stream(self, **kwargs: Any):
+        yield self.generate(**kwargs)
 
 
 class LocalVisionAdapter:

@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.database import as_utc
+from app.config import validate_runtime_security
 from app.email_templates import build_otp_verification_email
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
@@ -23,6 +24,19 @@ from app.services.posts import moderate_content
 from app.services.local_mlx_vision import parse_visual_report
 from app.rate_limit import _client_identity
 from types import SimpleNamespace
+
+
+def test_production_security_settings_reject_placeholder_secrets_and_unsafe_algorithms():
+    validate_runtime_security(SimpleNamespace(environment="development", secret_key="change-me", jwt_algorithm="none"))
+
+    with pytest.raises(RuntimeError, match="JWT_SECRET"):
+        validate_runtime_security(SimpleNamespace(environment="production", secret_key="change-me", jwt_algorithm="HS256"))
+
+    strong_secret = "a-unique-production-secret-that-is-long-enough"
+    with pytest.raises(RuntimeError, match="JWT_ALGORITHM"):
+        validate_runtime_security(SimpleNamespace(environment="production", secret_key=strong_secret, jwt_algorithm="none"))
+
+    validate_runtime_security(SimpleNamespace(environment="production", secret_key=strong_secret, jwt_algorithm="HS512"))
 
 
 def test_create_chat_title_handles_blank_short_and_long_text():

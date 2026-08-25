@@ -43,21 +43,15 @@
   <link rel="stylesheet" href="/static/css/polish.css?v=20260823-responsive-light-v2" />
   <link rel="stylesheet" href="/static/css/flagship.css?v=20260822-emora-mark" />
   <link rel="stylesheet" href="/static/css/profile-insights.css?v=20260823-responsive-light-v2" />
-  <link rel="stylesheet" href="/static/css/workspace-editorial.css?v=20260823-responsive-light-v2" />
+  <link rel="stylesheet" href="/static/css/workspace-editorial.css?v=20260824-overview-palette-v1" />
   <script>
     window.APP_CONFIG = {{ { "googleClientId": google_client_id } | tojson }};
   </script>
   {% block head_extra %}{% endblock %}
+  <link rel="stylesheet" href="/static/css/light-theme.css?v=20260824-overview-palette-v1" />
 </head>
 <body class="{% block body_class %}{% endblock %}">
   {% block content %}{% endblock %}
-  {% if page_title not in ['AI Companion', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Emora Plus', 'Emora Plans'] %}
-  <a class="global-premium-access" href="/payment" aria-label="View account access">
-    <span class="global-premium-spark" aria-hidden="true">✦</span>
-    <span><small data-global-plan-kicker>ACCOUNT ACCESS</small><strong data-global-plan-label>Checking access…</strong></span>
-    <i aria-hidden="true">→</i>
-  </a>
-  {% endif %}
   {% if page_title != 'Meet Emora' %}
   <dialog class="upgrade-dialog" id="upgrade-dialog" aria-labelledby="upgrade-dialog-title">
     <form method="dialog" class="upgrade-dialog-card">
@@ -70,6 +64,32 @@
         <a class="btn btn-primary" id="upgrade-dialog-link" href="/payment">View plan</a>
       </div>
     </form>
+  </dialog>
+  {% endif %}
+  {% if page_title in ['Dashboard', 'Chat with Emora', 'Insights', 'Community', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Emora Plans'] %}
+  <button class="workspace-command-trigger" id="workspace-command-trigger" type="button" aria-label="Search chats, journal entries, goals, moments, and memories">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+    <span class="workspace-search-trigger-copy"><strong>Search your space</strong><small>Chats, journal, goals and more</small></span>
+    <kbd><span class="workspace-command-modifier">⌘</span>K</kbd>
+  </button>
+  <dialog class="workspace-command-dialog" id="workspace-command-dialog" aria-labelledby="workspace-command-title">
+    <div class="workspace-command-card">
+      <header><div><span>PRIVATE ACCOUNT SEARCH</span><h2 id="workspace-command-title">Search your Emora space</h2></div><button type="button" data-command-close aria-label="Close search">×</button></header>
+      <label class="workspace-command-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="workspace-command-input" type="search" autocomplete="off" aria-label="Search chats, journal entries, goals, moments, and memories" placeholder="Search chats, journal entries, goals, moments…"/><kbd>ESC</kbd></label>
+      <div class="workspace-command-status" id="workspace-command-status" role="status" aria-live="polite">Searches only your saved account content. Community posts are never included.</div>
+      <section class="workspace-command-results" id="workspace-command-results" aria-label="Search results"></section>
+      <section class="workspace-command-actions" id="workspace-command-actions" aria-label="Workspace shortcuts">
+        <button type="button" data-command-path="/chat?new=1"><span>＋</span><strong>New chat</strong><small>Start with Emora</small></button>
+        <button type="button" data-command-path="/journal"><span>▣</span><strong>Journal</strong><small>Open reflections</small></button>
+        <button type="button" data-command-path="/goals"><span>◎</span><strong>Goals</strong><small>See your path</small></button>
+        <button type="button" data-command-path="/insights"><span>◌</span><strong>Insights</strong><small>Review patterns</small></button>
+        <button type="button" data-command-path="/community"><span>◇</span><strong>Community</strong><small>Enter the commons</small></button>
+        <button type="button" data-command-path="/profile"><span>○</span><strong>Profile</strong><small>Preferences and privacy</small></button>
+        <button type="button" data-command-path="/help"><span>?</span><strong>Help</strong><small>Find guidance</small></button>
+        <button type="button" data-command-action="theme"><span>◐</span><strong>Theme</strong><small>Switch appearance</small></button>
+      </section>
+      <section class="workspace-draft-center"><header><div><span>DEVICE-LOCAL</span><h3>Draft recovery</h3></div><button type="button" id="workspace-clear-drafts">Clear all</button></header><p>Unsent drafts stay on this device and expire after 30 days.</p><div id="workspace-draft-list"></div></section>
+    </div>
   </dialog>
   {% endif %}
   <nav class="mobile-app-nav" aria-label="Workspace navigation">
@@ -107,6 +127,7 @@
     </a>
   </nav>
   <script type="module" src="/static/js/motion.js?v=20260710-flagship"></script>
+  {% if page_title in ['Dashboard', 'Chat with Emora', 'Insights', 'Community', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Emora Plans'] %}<script type="module" src="/static/js/workspace-tools.js?v=20260824-v1"></script>{% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

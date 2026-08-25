@@ -941,8 +941,17 @@ def get_space(current_user: dict = Depends(get_current_user)) -> dict:
 
 
 @router.put("/space")
-def update_space(payload: SpaceRequest, current_user: dict = Depends(require_entitlement("ambient_rooms"))) -> dict:
+def update_space(payload: SpaceRequest, current_user: dict = Depends(get_current_user)) -> dict:
     space = payload.model_dump()
+    allowed_ambience = {"none", "night_wind"}
+    if has_entitlement(current_user, "expanded_ambient"):
+        allowed_ambience.update({"rain", "ocean"})
+    if has_entitlement(current_user, "ambient_rooms"):
+        allowed_ambience.update({"lofi", "fireplace"})
+    if space["ambience"] not in allowed_ambience:
+        raise HTTPException(status_code=403, detail="That soundscape is not included with your current plan.")
+    if (space["background"] != "forest" or space["accessory"] != "none") and not has_entitlement(current_user, "ambient_rooms"):
+        raise HTTPException(status_code=403, detail="World Atelier backgrounds and accessories are included with Pro.")
     feature_collection("user_spaces").update_one({"user_id": current_user["_id"]}, {"$set": {**space, "updated_at": utc_now()}, "$setOnInsert": {"user_id": current_user["_id"]}}, upsert=True)
     return {"space": space}
 

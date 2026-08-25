@@ -34,7 +34,7 @@
       <form id="focus-room-form" class="focus-create-card">
         <div class="focus-card-title"><span>01</span><div><small>CREATE A ROOM</small><h3 class="serif">Set the intention.</h3></div></div>
         <label><span>Room name</span><input id="focus-room-name" value="Quiet focus" maxlength="60" required placeholder="What are you making room for?" /></label>
-        <fieldset><legend>Choose a rhythm</legend><div class="focus-presets"><button type="button" data-focus-minutes="15">15 min <small>Settle</small></button><button class="active" type="button" data-focus-minutes="25">25 min <small>Focus</small></button><button type="button" data-focus-minutes="50">50 min <small>Deep work</small></button><button type="button" data-focus-unlimited="true">Unlimited <small>Open-ended</small></button></div></fieldset>
+        <fieldset><legend>Choose a rhythm</legend><div class="focus-presets" role="radiogroup" aria-label="Focus duration"><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-minutes="15">15 min <small>Settle</small></button><button class="active" type="button" role="radio" aria-checked="true" tabindex="0" data-focus-minutes="25">25 min <small>Focus</small></button><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-minutes="50">50 min <small>Deep work</small></button><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-unlimited="true">Unlimited <small>Open-ended</small></button></div></fieldset>
         <label class="focus-custom-time"><span>Custom minutes</span><input id="focus-room-minutes" type="number" min="5" max="120" value="25" /></label>
         <button class="focus-primary" type="submit">Create private room <span>→</span></button>
       </form>
