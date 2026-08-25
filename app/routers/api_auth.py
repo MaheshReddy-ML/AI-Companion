@@ -35,6 +35,7 @@ from app.models.schemas import (
     VerifyOtpRequest,
 )
 from app.otp import hash_otp, verify_otp_hash
+from app.security_events import record_security_event
 from app.rate_limit import rate_limit
 from app.security import create_access_token, get_current_user, hash_password, verify_password
 from app.services.google_auth import (
@@ -479,7 +480,7 @@ def reset_password(payload: ResetPasswordRequest) -> dict:
         },
     )
     audit_event("auth.password_reset.success", user_id=user["_id"], email=email)
-    feature_collection("security_events").insert_one({"user_id": user["_id"], "kind": "password_reset", "label": "Password reset completed; older tokens invalidated", "created_at": utc_now()})
+    record_security_event(user["_id"], "password_reset", "Password reset completed; older tokens invalidated")
     return {"message": "Password reset successful"}
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,6 +42,13 @@ class ConversationUpdateRequest(BaseModel):
 
 
 class ChatSendRequest(BaseModel):
+    client_turn_id: str = Field(
+        default_factory=lambda: f"turn-{uuid4().hex}",
+        alias="clientTurnId",
+        min_length=8,
+        max_length=80,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+    )
     conversation_id: str | None = Field(default=None, alias="conversationId")
     message: str | None = Field(default=None, max_length=MAX_CHAT_MESSAGE_LENGTH)
     attachment_name: str | None = Field(default=None, alias="attachmentName", max_length=255)

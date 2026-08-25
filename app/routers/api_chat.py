@@ -3,11 +3,14 @@ from __future__ import annotations
 import re
 import json
 import asyncio
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel, Field
 
 from app.audit import audit_event
@@ -108,6 +111,80 @@ def build_message(role: str, content: str, attachment_name: str | None = None, a
         "attachment_id": attachment_id,
         "timestamp": utc_now(),
     }
+
+
+def _completed_turn_response(conversation: dict, client_turn_id: str, *, replayed: bool = True) -> dict | None:
+    user_message = next(
+        (item for item in conversation.get("messages", []) if item.get("client_turn_id") == client_turn_id),
+        None,
+    )
+    assistant_message = next(
+        (item for item in conversation.get("messages", []) if item.get("in_reply_to") == client_turn_id),
+        None,
+    )
+    if not user_message or not assistant_message:
+        return None
+    brain = assistant_message.get("brain") or {}
+    return {
+        "conversation": serialize_conversation(conversation),
+        "userMessage": serialize_message(user_message),
+        "aiMessage": {
+            **serialize_message(assistant_message),
+            "message": assistant_message.get("content", ""),
+            "brain": brain,
+        },
+        "brain": brain,
+        "model": assistant_message.get("generation_model", "unknown"),
+        "warning": assistant_message.get("generation_warning"),
+        "speechText": spoken_text(assistant_message.get("content", "")),
+        "behaviorReport": user_message.get("behavior_report"),
+        "memoriesSaved": 0,
+        "replayed": replayed,
+    }
+
+
+def _claim_chat_turn(user_id, client_turn_id: str) -> tuple[dict, bool]:
+    """Claim a globally idempotent chat turn, reclaiming only expired/failed work."""
+    now = utc_now()
+    collection = feature_collection("chat_turn_requests")
+    document = {
+        "user_id": user_id,
+        "client_turn_id": client_turn_id,
+        "status": "generating",
+        "lease_until": now + timedelta(seconds=settings.chat_turn_lease_seconds),
+        "created_at": now,
+        "updated_at": now,
+        "delete_at": now + timedelta(days=settings.chat_turn_retention_days),
+    }
+    try:
+        inserted = collection.insert_one(document)
+        document["_id"] = inserted.inserted_id
+        return document, True
+    except DuplicateKeyError:
+        existing = collection.find_one({"user_id": user_id, "client_turn_id": client_turn_id})
+        if not existing:
+            raise HTTPException(status_code=409, detail="This chat turn is already being processed.")
+        if existing.get("status") == "completed":
+            return existing, False
+        reclaimed = collection.find_one_and_update(
+            {
+                "_id": existing["_id"],
+                "$or": [
+                    {"status": "failed"},
+                    {"lease_until": {"$lte": now}},
+                ],
+            },
+            {
+                "$set": {
+                    "status": "generating",
+                    "lease_until": now + timedelta(seconds=settings.chat_turn_lease_seconds),
+                    "updated_at": now,
+                },
+                "$inc": {"attempts": 1},
+            },
+            return_document=ReturnDocument.AFTER,
+        )
+        return (reclaimed, True) if reclaimed else (existing, False)
 
 
 def build_conversation_document(user_id, payload: ConversationCreateRequest) -> dict:
@@ -306,10 +383,18 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     if payload.attachment_id and attachment_id is None:
         raise HTTPException(status_code=400, detail="Invalid attachment id")
     if attachment_id:
-        attachment = attachments_collection().find_one({"_id": attachment_id, "user_id": current_user["_id"]})
+        attachment = await asyncio.to_thread(
+            lambda: attachments_collection().find_one({"_id": attachment_id, "user_id": current_user["_id"]})
+        )
         if not attachment:
             raise HTTPException(status_code=404, detail="Attachment not found")
         attachment_name = attachment["name"]
+
+    conversations = await asyncio.to_thread(conversations_collection)
+    conversation: dict | None = None
+    if payload.conversation_id:
+        conversation = await asyncio.to_thread(get_user_conversation_or_404, payload.conversation_id, current_user["_id"])
+        require_mode_access(current_user, conversation.get("companion_mode"))
 
     outgoing_content = message_text or f"Shared file: {attachment_name}"
     access_limits = usage_limits_for_user(current_user)
@@ -319,11 +404,13 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             detail=f"Your current plan supports messages up to {access_limits['chatMessageCharacters']:,} characters. Upgrade for longer messages.",
         )
     user_message = build_message("user", outgoing_content, attachment_name, attachment_id)
+    user_message["client_turn_id"] = payload.client_turn_id
+    user_message["state"] = "generating"
     user_analysis = analyze_emotion(outgoing_content)
     user_message["analysis"] = user_analysis
-    preferences = get_user_preferences(current_user["_id"])
+    preferences = await asyncio.to_thread(get_user_preferences, current_user["_id"])
     adaptive_context = (
-        adaptive_context_for_user(current_user["_id"])
+        await asyncio.to_thread(adaptive_context_for_user, current_user["_id"])
         if preferences.get("adaptiveContext", False) and has_entitlement(current_user, "adaptive_companion")
         else ""
     )
@@ -348,13 +435,23 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             vision_warning = str(exc)
     user_message["behavior_report"] = behavior_report(user_analysis, None if preferences["dataMinimisation"] else vision)
     memory_limit = 12 if has_entitlement(current_user, "extended_limits") else 8 if has_entitlement(current_user, "companion_memory") else 3
-    relevant_memories = retrieve_memories(current_user["_id"], outgoing_content, limit=memory_limit) if preferences["emotionalMemory"] else []
-
-    conversations = conversations_collection()
-    conversation: dict | None = None
-    if payload.conversation_id:
-        conversation = get_user_conversation_or_404(payload.conversation_id, current_user["_id"])
-        require_mode_access(current_user, conversation.get("companion_mode"))
+    relevant_memories = await asyncio.to_thread(
+        retrieve_memories, current_user["_id"], outgoing_content, limit=memory_limit
+    ) if preferences["emotionalMemory"] else []
+    turn_request, claimed = await asyncio.to_thread(_claim_chat_turn, current_user["_id"], payload.client_turn_id)
+    if not claimed:
+        mapped_conversation = await asyncio.to_thread(
+            conversations.find_one,
+            {"_id": turn_request.get("conversation_id"), "user_id": current_user["_id"]},
+        ) if turn_request.get("conversation_id") else conversation
+        replay = _completed_turn_response(mapped_conversation, payload.client_turn_id) if mapped_conversation else None
+        if replay:
+            return replay
+        raise HTTPException(
+            status_code=409,
+            detail="This message is already being processed. Retry shortly with the same clientTurnId.",
+            headers={"Retry-After": "2"},
+        )
 
     if conversation is None:
         now = utc_now()
@@ -391,8 +488,64 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     ]
 
     conversation.setdefault("messages", [])
-    conversation["messages"].append(user_message)
-    conversation["updated_at"] = user_message["timestamp"]
+    if conversation.get("_id"):
+        conversation_updates = {
+            "title": conversation.get("title", "New conversation"),
+            "character_id": conversation.get("character_id"),
+            "character_name": conversation.get("character_name"),
+            "persona_prompt": conversation.get("persona_prompt"),
+            "companion_mode": conversation.get("companion_mode", "listen"),
+            "updated_at": user_message["timestamp"],
+        }
+        result = await asyncio.to_thread(
+            conversations.update_one,
+            {
+                "_id": conversation["_id"],
+                "user_id": current_user["_id"],
+                "messages.client_turn_id": {"$ne": payload.client_turn_id},
+            },
+            {
+                "$push": {"messages": user_message},
+                "$set": conversation_updates,
+                "$inc": {"version": 1},
+            },
+        )
+        if not result.matched_count:
+            current = await asyncio.to_thread(conversations.find_one, {"_id": conversation["_id"], "user_id": current_user["_id"]})
+            replay = _completed_turn_response(current, payload.client_turn_id) if current else None
+            if replay:
+                await asyncio.to_thread(
+                    lambda: feature_collection("chat_turn_requests").update_one(
+                        {"_id": turn_request["_id"]},
+                        {"$set": {"status": "completed", "conversation_id": current["_id"], "updated_at": utc_now()}},
+                    )
+                )
+                return replay
+            retry_result = await asyncio.to_thread(
+                conversations.update_one,
+                {"_id": conversation["_id"], "user_id": current_user["_id"], "messages.client_turn_id": payload.client_turn_id},
+                {"$set": {"messages.$.state": "generating", "messages.$.failure": None, "updated_at": utc_now()}},
+            )
+            if not retry_result.matched_count:
+                raise HTTPException(status_code=409, detail="This conversation changed before the message could be saved.")
+            conversation = current
+        else:
+            conversation["messages"].append(user_message)
+            conversation.update(conversation_updates)
+            conversation["version"] = int(conversation.get("version", 1)) + 1
+    else:
+        conversation["messages"] = [user_message]
+        conversation["updated_at"] = user_message["timestamp"]
+        conversation["version"] = 2
+        inserted = await asyncio.to_thread(conversations.insert_one, conversation)
+        conversation["_id"] = inserted.inserted_id
+
+    await asyncio.to_thread(
+        lambda: feature_collection("chat_turn_requests").update_one(
+            {"_id": turn_request["_id"]},
+            {"$set": {"conversation_id": conversation["_id"], "updated_at": utc_now()}},
+        )
+    )
 
     warning: str | None = vision_warning
     resolved_model = payload.model or ""
@@ -444,9 +597,22 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
                 requester_id=str(current_user["_id"]),
                 requester_limit=access_limits["chatConcurrentRequests"],
             )
-    except ValueError as exc:
-        warning = str(exc)
-        audit_event("chat.reply.failed", user_id=current_user["_id"], reason=warning)
+    except Exception as exc:
+        warning = str(exc) if isinstance(exc, ValueError) else "The companion model could not complete this turn."
+        await asyncio.to_thread(
+            conversations.update_one,
+            {"_id": conversation["_id"], "user_id": current_user["_id"], "messages.client_turn_id": payload.client_turn_id},
+            {"$set": {"messages.$.state": "failed", "messages.$.failure": warning, "updated_at": utc_now()}},
+        )
+        await asyncio.to_thread(
+            lambda: feature_collection("chat_turn_requests").update_one(
+                {"_id": turn_request["_id"]},
+                {"$set": {"status": "failed", "failure": warning, "lease_until": utc_now(), "updated_at": utc_now()}},
+            )
+        )
+        audit_event("chat.reply.failed", user_id=current_user["_id"], conversation_id=conversation["_id"], reason=warning)
+        if isinstance(exc, HTTPException):
+            raise
         raise HTTPException(status_code=503, detail=warning) from exc
 
     assistant_text = ensure_conflict_disclosure(assistant_text, search_outcome)
@@ -467,6 +633,9 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     brain["memory"]["relevant"] = relevant_memories
     assistant_message = build_message("assistant", assistant_text)
     assistant_message["brain"] = brain
+    assistant_message["in_reply_to"] = payload.client_turn_id
+    assistant_message["generation_model"] = resolved_model
+    assistant_message["generation_warning"] = warning
     if search_decision.needs_web:
         assistant_message["web_search"] = {
             "searched": True,
@@ -474,22 +643,53 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             "reason": search_decision.reason,
             "sources": [source.public() for source in (search_outcome.sources if search_outcome else ())],
         }
-    conversation["messages"].append(assistant_message)
-    conversation["updated_at"] = assistant_message["timestamp"]
-    conversation["version"] = int(conversation.get("version", 1)) + 1
+    result = await asyncio.to_thread(
+        conversations.update_one,
+        {
+            "_id": conversation["_id"],
+            "user_id": current_user["_id"],
+            "messages.client_turn_id": payload.client_turn_id,
+            "messages.in_reply_to": {"$ne": payload.client_turn_id},
+        },
+        {
+            "$push": {"messages": assistant_message},
+            "$set": {"messages.$.state": "complete", "updated_at": assistant_message["timestamp"]},
+            "$inc": {"version": 1},
+        },
+    )
+    conversation = await asyncio.to_thread(conversations.find_one, {"_id": conversation["_id"], "user_id": current_user["_id"]})
+    if not conversation:
+        raise HTTPException(status_code=409, detail="The conversation was deleted while this response was being generated.")
+    if not result.matched_count:
+        replay = _completed_turn_response(conversation, payload.client_turn_id)
+        if replay:
+            return replay
+        raise HTTPException(status_code=409, detail="The response could not be attached to its original message.")
+    await asyncio.to_thread(
+        lambda: feature_collection("chat_turn_requests").update_one(
+            {"_id": turn_request["_id"]},
+            {
+                "$set": {
+                    "status": "completed",
+                    "assistant_message_id": assistant_message["id"],
+                    "resolved_model": resolved_model,
+                    "updated_at": utc_now(),
+                }
+            },
+        )
+    )
+    user_message["state"] = "complete"
 
-    if conversation.get("_id"):
-        conversations.replace_one({"_id": conversation["_id"]}, conversation)
-    else:
-        inserted = conversations.insert_one(conversation)
-        conversation["_id"] = inserted.inserted_id
-
-    saved_memories = save_memory_candidates(current_user["_id"], outgoing_content, user_message["id"]) if preferences["emotionalMemory"] else []
+    saved_memories = await asyncio.to_thread(
+        save_memory_candidates, current_user["_id"], outgoing_content, user_message["id"]
+    ) if preferences["emotionalMemory"] else []
 
     if attachment_id:
-        attachments_collection().update_one(
-            {"_id": attachment_id, "user_id": current_user["_id"]},
-            {"$set": {"conversation_id": conversation["_id"]}},
+        await asyncio.to_thread(
+            lambda: attachments_collection().update_one(
+                {"_id": attachment_id, "user_id": current_user["_id"]},
+                {"$set": {"conversation_id": conversation["_id"]}},
+            )
         )
 
     audit_event("chat.message.saved", user_id=current_user["_id"], conversation_id=conversation["_id"], warning=warning)

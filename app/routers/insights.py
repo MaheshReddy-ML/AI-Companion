@@ -9,6 +9,7 @@ from app.companion import analyze_emotion, dashboard_from_messages
 from app.access import has_entitlement
 from app.database import conversations_collection, feature_collection, memories_collection, utc_now
 from app.security import get_current_user
+from app.rate_limit import rate_limit
 
 
 router = APIRouter(prefix="/api/insights", tags=["insights"])
@@ -108,7 +109,7 @@ def _build_period_reflection(
     }
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(rate_limit(60, 300, "insights-read"))])
 def get_insights(
     days: int = Query(default=30, ge=7, le=365),
     current_user: dict = Depends(get_current_user),

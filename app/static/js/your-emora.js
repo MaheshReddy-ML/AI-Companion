@@ -13,6 +13,7 @@ import {
   initChrome,
   publishEmoraPresence,
   renderUserAvatar,
+  safeExternalUrl,
   showStatus,
 } from "./common.js";
 
@@ -545,7 +546,7 @@ function renderMessages() {
           ${message.role === "assistant" && message.webSearch?.sources?.length ? `
             <details class="emora-web-sources">
               <summary>⌕ Web sources · ${message.webSearch.sources.length}</summary>
-              ${message.webSearch.sources.map((source) => `<a href="${escapeHtml(source.url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || source.domain || "Source")}</a>`).join("")}
+              ${message.webSearch.sources.map((source) => `<a href="${escapeHtml(safeExternalUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || source.domain || "Source")}</a>`).join("")}
             </details>` : ""}
         </article>`)
     .join("");
@@ -949,13 +950,14 @@ async function speakReply(text, brain = null) {
   }
 }
 
-async function requestCompanionReply(content, signal) {
+async function requestCompanionReply(content, signal, clientTurnId) {
   const character = currentCharacter();
   const cameraFrame = captureCameraCheckIn();
   return apiRequest("/api/chat", {
     method: "POST",
     auth: true,
     body: {
+      clientTurnId,
       conversationId: state.conversationId || undefined,
       message: content,
       characterId: character.id,
@@ -979,6 +981,7 @@ async function sendMessage(messageOverride = "") {
   }
 
   const character = currentCharacter();
+  const clientTurnId = `turn-${crypto.randomUUID()}`;
   const chatStartedAt = performance.now();
   state.thinking = true;
   state.searching = false;
@@ -1006,14 +1009,14 @@ async function sendMessage(messageOverride = "") {
     }
     let response;
     try {
-      response = await requestCompanionReply(content, state.chatAbortController.signal);
+      response = await requestCompanionReply(content, state.chatAbortController.signal, clientTurnId);
     } catch (error) {
       if (error.status !== 404 || !state.conversationId) {
         throw error;
       }
       localStorage.removeItem(getConversationStorageKey());
       state.conversationId = "";
-      response = await requestCompanionReply(content, state.chatAbortController.signal);
+      response = await requestCompanionReply(content, state.chatAbortController.signal, clientTurnId);
     }
 
     state.conversationId = response?.conversation?.id || state.conversationId;

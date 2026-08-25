@@ -10,9 +10,11 @@ from app.database import serialize_user
 from app.main import app
 from app.routers import api_chat, billing, companion, personal, play
 from app.security import require_entitlement
+from app.config import settings
 
 
-def test_owner_email_allowlist_receives_admin_and_complete_access():
+def test_owner_email_allowlist_receives_admin_and_complete_access(monkeypatch):
+    monkeypatch.setattr(settings, "admin_emails", "hemu171807@gmail.com,emoracomapnion@gmail.com")
     for email in ("hemu171807@gmail.com", "emoracomapnion@gmail.com"):
         user = {"_id": ObjectId(), "email": email.upper(), "name": "Owner"}
         access = access_profile(user)

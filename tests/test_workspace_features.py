@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers import workspace_features
 from app.routers.workspace_features import _schedule_due, _validate_restore
 
 
@@ -21,6 +22,8 @@ def test_all_workspace_feature_routes_are_registered():
         ("/api/workspace/privacy-summary", "GET"),
         ("/api/workspace/restore/preview", "POST"),
         ("/api/workspace/restore/commit", "POST"),
+        ("/api/workspace/notifications", "GET"),
+        ("/api/workspace/notifications/read-all", "POST"),
     }
     assert expected <= paths
 
@@ -42,6 +45,16 @@ def test_check_in_due_respects_consent_day_time_quiet_hours_and_acknowledgement(
     assert _schedule_due({**schedule, "enabled": False}, monday_1830)[0] is False
     assert _schedule_due({**schedule, "last_acknowledged_date": "2026-08-24"}, monday_1830)[0] is False
     assert _schedule_due({**schedule, "quiet_start": "18:15", "quiet_end": "20:00"}, monday_1830)[0] is False
+
+
+def test_scheduled_email_worker_stops_when_another_process_holds_the_lease(monkeypatch):
+    class HeldLeaseCollection:
+        def find_one_and_update(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr(workspace_features, "feature_collection", lambda name: HeldLeaseCollection())
+
+    assert workspace_features.deliver_due_email_check_ins() == 0
 
 
 def test_workspace_tools_stay_off_locked_experiences():

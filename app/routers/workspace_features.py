@@ -5,7 +5,9 @@ import html
 import hmac
 import json
 import re
+from datetime import timedelta
 from urllib.parse import urlparse
+from uuid import uuid4
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -25,13 +27,20 @@ from app.database import (
     utc_now,
 )
 from app.security import get_current_user
+from app.rate_limit import rate_limit
 from app.email_utils import send_email_html
+from app.security_events import record_security_event
+from app.notifications import create_notification, serialize_notification
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 
 router = APIRouter(prefix="/api/workspace", tags=["workspace"])
 SEARCH_TYPES = {"conversation", "journal", "goal", "moment", "memory"}
 FEEDBACK_REASONS = {"helpful", "too_long", "too_generic", "missed_request", "tone_wrong", "incorrect_or_unsafe"}
 MAX_IMPORT_BYTES = 2 * 1024 * 1024
+SCHEDULER_OWNER = uuid4().hex
+SCHEDULER_LEASE_SECONDS = 55
 
 
 def _token_hash(request: Request) -> str:
@@ -50,7 +59,7 @@ def _client_label(request: Request) -> str:
 
 
 def _record_security_event(user_id, kind: str, label: str) -> None:
-    feature_collection("security_events").insert_one({"user_id": user_id, "kind": kind, "label": label, "created_at": utc_now()})
+    record_security_event(user_id, kind, label)
 
 
 def _owned_conversation(user_id, conversation_id: str) -> dict:
@@ -151,7 +160,7 @@ def register_session(request: Request, current_user: dict = Depends(get_current_
     existing = collection.find_one({"user_id": current_user["_id"], "token_hash": token_hash})
     collection.update_one(
         {"user_id": current_user["_id"], "token_hash": token_hash},
-        {"$set": {"label": _client_label(request), "last_activity_at": now, "revoked_at": None}, "$setOnInsert": {"user_id": current_user["_id"], "token_hash": token_hash, "created_at": now}},
+        {"$set": {"label": _client_label(request), "last_activity_at": now, "expires_at": now + timedelta(days=settings.auth_session_retention_days), "revoked_at": None}, "$setOnInsert": {"user_id": current_user["_id"], "token_hash": token_hash, "created_at": now}},
         upsert=True,
     )
     if not existing:
@@ -337,7 +346,63 @@ def _schedule_due(item: dict, now=None) -> tuple[bool, str]:
 def due_check_in(current_user: dict = Depends(get_current_user)) -> dict:
     item = feature_collection("check_in_schedules").find_one({"user_id": current_user["_id"]}) or {}
     due, date_key = _schedule_due(item)
-    return {"due": due and item.get("channel", "in_app") == "in_app", "date": date_key, "message": "A gentle check-in is ready whenever you are."}
+    in_app_due = due and item.get("channel", "in_app") == "in_app"
+    if in_app_due:
+        create_notification(
+            current_user["_id"],
+            category="check_in",
+            title="A gentle check-in is ready",
+            message="There is nothing you need to solve. Open Emora whenever you are ready.",
+            action_path="/chat?new=1&prompt=I'd%20like%20a%20gentle%20check-in.",
+            dedupe_key=f"scheduled-check-in:{date_key}",
+        )
+    return {"due": in_app_due, "date": date_key, "message": "A gentle check-in is ready whenever you are."}
+
+
+@router.get("/notifications", dependencies=[Depends(rate_limit(120, 300, "notifications-read"))])
+def list_notifications(
+    unread_only: bool = Query(default=False, alias="unreadOnly"),
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    query: dict = {"user_id": current_user["_id"]}
+    if unread_only:
+        query["read_at"] = None
+    collection = feature_collection("notifications")
+    items = list(collection.find(query).sort("created_at", -1).limit(limit))
+    unread = collection.count_documents({"user_id": current_user["_id"], "read_at": None})
+    return {"notifications": [serialize_notification(item) for item in items], "unreadCount": unread}
+
+
+@router.patch("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    object_id = parse_object_id(notification_id)
+    item = feature_collection("notifications").find_one_and_update(
+        {"_id": object_id, "user_id": current_user["_id"]},
+        {"$set": {"read_at": utc_now()}},
+        return_document=ReturnDocument.AFTER,
+    ) if object_id else None
+    if not item:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+    return {"notification": serialize_notification(item)}
+
+
+@router.post("/notifications/read-all")
+def mark_all_notifications_read(current_user: dict = Depends(get_current_user)) -> dict:
+    result = feature_collection("notifications").update_many(
+        {"user_id": current_user["_id"], "read_at": None},
+        {"$set": {"read_at": utc_now()}},
+    )
+    return {"updated": result.modified_count}
+
+
+@router.delete("/notifications/{notification_id}")
+def dismiss_notification(notification_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    object_id = parse_object_id(notification_id)
+    result = feature_collection("notifications").delete_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+    if not result or not result.deleted_count:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+    return {"message": "Notification dismissed."}
 
 
 @router.post("/schedule/ack")
@@ -363,23 +428,94 @@ def unsubscribe_check_ins(user: str = Query(min_length=24, max_length=24), token
 
 def deliver_due_email_check_ins() -> int:
     """Deliver opted-in email schedules; safe for a periodic background call."""
+    now = utc_now()
+    lease_collection = feature_collection("scheduled_job_leases")
+    try:
+        lease = lease_collection.find_one_and_update(
+            {
+                "_id": "scheduled-email-check-ins",
+                "$or": [
+                    {"lease_until": {"$lte": now}},
+                    {"lease_until": {"$exists": False}},
+                    {"owner": SCHEDULER_OWNER},
+                ],
+            },
+            {
+                "$set": {"owner": SCHEDULER_OWNER, "lease_until": now + timedelta(seconds=SCHEDULER_LEASE_SECONDS), "updated_at": now},
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+    except (DuplicateKeyError, PyMongoError):
+        return 0
+    if not lease or lease.get("owner") != SCHEDULER_OWNER:
+        return 0
+
     delivered = 0
     schedules = feature_collection("check_in_schedules").find({"enabled": True, "channel": "email"}).limit(500)
     for item in schedules:
+        delivery_collection = None
+        delivery_key = None
         try:
             due, date_key = _schedule_due(item)
             user = users_collection().find_one({"_id": item.get("user_id")}) if due else None
             recipient = str((user or {}).get("email") or "")
             if not recipient:
                 continue
+            delivery_collection = feature_collection("check_in_deliveries")
+            delivery_key = {"schedule_id": item["_id"], "date": date_key}
+            try:
+                delivery_collection.insert_one(
+                    {
+                        "schedule_id": item["_id"],
+                        "user_id": item.get("user_id"),
+                        "date": date_key,
+                        "status": "sending",
+                        "attempts": 1,
+                        "created_at": utc_now(),
+                        "updated_at": utc_now(),
+                        "delete_at": utc_now() + timedelta(days=settings.check_in_delivery_retention_days),
+                    }
+                )
+            except DuplicateKeyError:
+                retry = delivery_collection.find_one_and_update(
+                    {
+                        **delivery_key,
+                        "status": "failed",
+                        "attempts": {"$lt": 3},
+                        "$or": [
+                            {"next_attempt_at": {"$lte": utc_now()}},
+                            {"next_attempt_at": {"$exists": False}},
+                        ],
+                    },
+                    {"$set": {"status": "sending", "updated_at": utc_now()}, "$inc": {"attempts": 1}},
+                    return_document=ReturnDocument.AFTER,
+                )
+                if not retry:
+                    continue
             name = html.escape(str(user.get("name") or "there"))
             unsubscribe_url = f"{settings.public_app_url}/api/workspace/schedule/unsubscribe?user={user['_id']}&token={_unsubscribe_token(user['_id'])}"
             sent = send_email_html(recipient, "A gentle check-in from Emora", f"<main style='font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:32px'><p style='color:#7357c7;font-weight:700'>EMORA CHECK-IN</p><h1 style='font-size:28px'>A quiet moment for you, {name}.</h1><p>How are you arriving today? There is nothing you need to solve—this is simply the check-in you explicitly scheduled.</p><p>Open Emora when you are ready.</p><small><a href='{unsubscribe_url}'>Pause these check-ins in one click</a>. You can also change the schedule anytime in Profile.</small></main>", f"A gentle Emora check-in is ready. Open your account when you are ready. Pause future check-ins: {unsubscribe_url}")
             if sent:
                 feature_collection("check_in_schedules").update_one({"_id": item["_id"]}, {"$set": {"last_acknowledged_date": date_key, "last_delivered_at": utc_now()}})
+                delivery_collection.update_one(delivery_key, {"$set": {"status": "delivered", "updated_at": utc_now(), "delivered_at": utc_now()}, "$unset": {"next_attempt_at": "", "failure": ""}})
                 delivered += 1
+            else:
+                current = delivery_collection.find_one(delivery_key) or {}
+                delay_minutes = min(60, 2 ** max(1, int(current.get("attempts", 1))))
+                delivery_collection.update_one(delivery_key, {"$set": {"status": "failed", "updated_at": utc_now(), "failure": "email_not_delivered", "next_attempt_at": utc_now() + timedelta(minutes=delay_minutes)}})
         except Exception:
+            if delivery_collection is not None and delivery_key is not None:
+                delivery_collection.update_one(
+                    delivery_key,
+                    {"$set": {"status": "failed", "updated_at": utc_now(), "failure": "delivery_exception", "next_attempt_at": utc_now() + timedelta(minutes=5)}},
+                )
             continue
+    lease_collection.update_one(
+        {"_id": "scheduled-email-check-ins", "owner": SCHEDULER_OWNER},
+        {"$set": {"lease_until": utc_now(), "updated_at": utc_now()}},
+    )
     return delivered
 
 
@@ -396,8 +532,9 @@ def privacy_summary(current_user: dict = Depends(get_current_user)) -> dict:
         "communityPosts": posts_collection().count_documents({"anonymous_id": current_user.get("anonymous_id")}) if current_user.get("anonymous_id") else 0,
         "collections": feature_collection("conversation_collections").count_documents({"user_id": user_id}),
         "savedResearch": feature_collection("research_shelf").count_documents({"user_id": user_id}),
+        "notifications": feature_collection("notifications").count_documents({"user_id": user_id}),
     }
-    return {"counts": counts, "storage": {"deviceLocal": ["Unsent chat drafts", "Unsent journal draft", "Theme preference"], "serverSynced": ["Account profile", "Conversations", "Journal", "Goals", "Moments", "Memories", "Preferences", "Collections", "Saved research"]}, "retention": {"accountData": "Kept until you delete the item or account.", "drafts": "Device-local drafts expire after 30 days.", "cameraFrames": "Never persisted."}}
+    return {"counts": counts, "storage": {"deviceLocal": ["Unsent chat drafts", "Unsent journal draft", "Theme preference"], "serverSynced": ["Account profile", "Conversations", "Journal", "Goals", "Moments", "Memories", "Preferences", "Collections", "Saved research", "Notifications"]}, "retention": {"accountData": "Kept until you delete the item or account.", "notifications": "Notifications expire automatically after 90 days or can be dismissed sooner.", "drafts": "Device-local drafts expire after 30 days.", "cameraFrames": "Never persisted."}}
 
 
 def _restore_counts(payload: dict) -> dict:
@@ -414,13 +551,13 @@ def _validate_restore(payload: dict) -> None:
             raise HTTPException(status_code=400, detail=f"Invalid {key} collection in export.")
 
 
-@router.post("/restore/preview")
+@router.post("/restore/preview", dependencies=[Depends(rate_limit(10, 3600, "account-restore-preview"))])
 def preview_restore(payload: RestoreRequest, current_user: dict = Depends(get_current_user)) -> dict:
     _validate_restore(payload.export)
     return {"valid": True, "format": payload.export["format"], "counts": _restore_counts(payload.export), "mode": payload.mode, "writesPerformed": False}
 
 
-@router.post("/restore/commit")
+@router.post("/restore/commit", dependencies=[Depends(rate_limit(3, 3600, "account-restore-commit"))])
 def commit_restore(payload: RestoreRequest, current_user: dict = Depends(get_current_user)) -> dict:
     _validate_restore(payload.export)
     if payload.mode == "replace" and payload.confirmation != "REPLACE MY DATA":

@@ -21,6 +21,7 @@ _pending = threading.BoundedSemaphore(max(1, settings.tts_queue_max_pending))
 _standard_pending = threading.BoundedSemaphore(max(1, settings.tts_queue_max_pending - settings.tts_priority_reserved))
 _user_slots: dict[tuple[str, int], threading.BoundedSemaphore] = {}
 _user_slots_lock = threading.Lock()
+_accepting = True
 
 
 def _user_semaphore(requester_id: str | None, limit: int) -> threading.BoundedSemaphore | None:
@@ -32,6 +33,8 @@ def _user_semaphore(requester_id: str | None, limit: int) -> threading.BoundedSe
 
 
 async def _acquire_slot(*, requester_id: str | None, requester_limit: int, priority: bool) -> list[threading.BoundedSemaphore]:
+    if not _accepting:
+        raise RuntimeError("Voice generation is draining for a server restart. Please retry shortly.")
     acquired_slots: list[threading.BoundedSemaphore] = []
     requested = [_user_semaphore(requester_id, requester_limit)]
     if not priority:
@@ -52,6 +55,11 @@ async def _acquire_slot(*, requester_id: str | None, requester_limit: int, prior
 def _release_slots(slots: list[threading.BoundedSemaphore]) -> None:
     for semaphore in reversed(slots):
         semaphore.release()
+
+
+def begin_tts_queue_shutdown() -> None:
+    global _accepting
+    _accepting = False
 
 
 async def reserve_tts_capacity(*, requester_id: str | None, requester_limit: int, priority: bool) -> list[threading.BoundedSemaphore]:

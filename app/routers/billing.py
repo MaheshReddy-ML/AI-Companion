@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import re
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from app.access import PLAN_CATALOG, access_profile, public_plan_catalog
 from app.audit import audit_event
+from app.config import settings
 from app.database import feature_collection, parse_object_id, serialize_user, users_collection, utc_now
 from app.rate_limit import rate_limit
 from app.security import get_current_user, require_platform_admin
@@ -80,6 +82,7 @@ def request_checkout(payload: CheckoutRequest, current_user: dict = Depends(get_
         "status": "pending",
         "created_at": now,
         "updated_at": now,
+        "delete_at": now + timedelta(days=settings.billing_request_retention_days),
     }
     result = feature_collection("billing_requests").insert_one(document)
     document["_id"] = result.inserted_id

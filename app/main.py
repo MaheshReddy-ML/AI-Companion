@@ -3,21 +3,47 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
+from time import perf_counter
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import settings, validate_runtime_security
-from app.database import check_database_connection, ensure_indexes
+from app.config import BASE_DIR, settings, validate_runtime_configuration, validate_runtime_security
+from app.database import check_database_connection, close_database
+from app.http_security import request_is_https
+from app.migrations import run_migrations
 from app.voice_manager import cleanup_audio_cache
 from app.routers import account, admin, api_auth, api_chat, billing, companion, experiences, insights, pages, personal, play, posts, workspace_features
 from app.inference.provider import provider_status
+from app.audit import reset_request_id, set_request_id
+from app.metrics import observe_request
+from app.services.inference_queue import begin_chat_queue_shutdown
+from app.tts_queue import begin_tts_queue_shutdown
+from app.rate_limit import rate_limit_backend_status
 
 
 logger = logging.getLogger(__name__)
+
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "base-uri 'self'",
+        "object-src 'none'",
+        "frame-ancestors 'none'",
+        "form-action 'self' https://accounts.google.com",
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob: https:",
+        "media-src 'self' blob:",
+        "connect-src 'self' https://api.open-meteo.com https://accounts.google.com",
+        "worker-src 'self' blob:",
+    )
+)
 
 
 async def _scheduled_check_in_worker() -> None:
@@ -31,9 +57,12 @@ async def _scheduled_check_in_worker() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    validate_runtime_configuration()
     validate_runtime_security()
     try:
-        ensure_indexes()
+        completed_migrations = run_migrations()
+        if completed_migrations:
+            logger.info("Applied database migrations: %s", completed_migrations)
     except RuntimeError as exc:
         logger.warning("Startup continued without MongoDB indexes: %s", exc)
     cleaned = cleanup_audio_cache(settings.audio_cache_max_age_days)
@@ -43,11 +72,14 @@ async def lifespan(_: FastAPI):
     try:
         yield
     finally:
+        begin_chat_queue_shutdown()
+        begin_tts_queue_shutdown()
         check_in_task.cancel()
         try:
             await check_in_task
         except asyncio.CancelledError:
             pass
+        close_database()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -65,20 +97,30 @@ async def secure_browser_defaults(request: Request, call_next):
     """Add conservative browser protections without changing app contracts."""
     request_id = uuid4().hex
     request.state.request_id = request_id
-    response = await call_next(request)
+    request_token = set_request_id(request_id)
+    started_at = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        observe_request(request.method, route, 500, (perf_counter() - started_at) * 1000)
+        raise
+    finally:
+        reset_request_id(request_token)
+    route = getattr(request.scope.get("route"), "path", "unmatched")
+    observe_request(request.method, route, response.status_code, (perf_counter() - started_at) * 1000)
     response.headers["X-Request-ID"] = request_id
     _set_default_header(response, "X-Content-Type-Options", "nosniff")
     _set_default_header(response, "X-Frame-Options", "DENY")
     _set_default_header(response, "X-Permitted-Cross-Domain-Policies", "none")
     _set_default_header(response, "Referrer-Policy", "strict-origin-when-cross-origin")
     _set_default_header(response, "Permissions-Policy", "camera=(self), microphone=(self), geolocation=()")
+    _set_default_header(response, "Content-Security-Policy-Report-Only", CONTENT_SECURITY_POLICY)
 
     if request.url.path.startswith(("/api/", "/auth/")):
         response.headers["Cache-Control"] = "private, no-store"
 
-    forwarded_proto = request.headers.get("x-forwarded-proto", "").split(",", 1)[0].strip().lower()
-    is_https = request.url.scheme == "https" or forwarded_proto == "https"
-    if settings.environment.lower() == "production" and is_https:
+    if settings.environment.lower() == "production" and request_is_https(request):
         _set_default_header(response, "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
 
@@ -147,12 +189,21 @@ def health_check() -> dict:
     }
 
 
-@app.get("/health/ready")
-def readiness_check() -> dict:
+@app.get("/health/ready", response_model=None)
+def readiness_check() -> JSONResponse:
     database = check_database_connection()
-    return {
-        "status": "ready" if database["ok"] else "degraded",
+    redis = rate_limit_backend_status()
+    storage_paths = [STATIC_DIR / "uploads", BASE_DIR / "cache"]
+    storage = {
+        "ok": all(path.exists() and os.access(path, os.W_OK) for path in storage_paths),
+        "paths": [str(path.relative_to(BASE_DIR)) for path in storage_paths],
+    }
+    required_ready = database["ok"] and redis["ok"] and storage["ok"]
+    payload = {
+        "status": "ready" if required_ready else "not_ready",
         "database": database,
+        "rateLimitBackend": redis,
+        "storage": storage,
         "chatConfigured": True,
         "chatProvider": provider_status(),
         "webSearchEnabled": settings.emora_web_search_enabled,
@@ -161,3 +212,4 @@ def readiness_check() -> dict:
         "emailConfigured": settings.email_configured,
         "googleConfigured": bool(settings.google_client_id),
     }
+    return JSONResponse(payload, status_code=status.HTTP_200_OK if required_ready else status.HTTP_503_SERVICE_UNAVAILABLE)

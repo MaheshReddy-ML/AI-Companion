@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block body_class %}app-body notification-body{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/notifications.css?v=20260825-v1" />{% endblock %}
+{% block content %}
+<main class="notification-shell">
+  <header class="notification-nav"><a class="studio-brand" href="/dashboard"><span>e</span> Emora</a><a href="/profile">Preferences</a><a class="studio-back" href="/dashboard">Workspace ↗</a></header>
+  <section class="notification-hero"><div><p class="eyebrow">YOUR INBOX</p><h1 class="serif">Updates that<br><em>belong to you.</em></h1><p>Scheduled check-ins and account security activity, kept private and easy to dismiss.</p></div><button id="notification-read-all" type="button">Mark all read</button></section>
+  <div class="notification-status" id="notification-status" role="status" aria-live="polite">Loading your notifications…</div>
+  <section class="notification-list" id="notification-list" aria-label="Notifications"></section>
+</main>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/notifications.js?v=20260825-v1"></script>{% endblock %}

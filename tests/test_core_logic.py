@@ -1,11 +1,13 @@
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
 from pydantic import ValidationError
 
 from app.database import as_utc
-from app.config import validate_runtime_security
+from app.config import settings, validate_runtime_configuration, validate_runtime_security
+from app.http_security import client_ip
 from app.email_templates import build_otp_verification_email
 from app.otp import hash_otp, verify_otp_hash
 from app.avatar_catalog import choose_default_avatar_preset_id, get_avatar_preset, list_avatar_presets
@@ -13,7 +15,7 @@ from app.companion import account_profile_prompt_context, analyze_emotion, behav
 from app.companion_brain import build_companion_brain, extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
-from app.routers.api_chat import build_adaptive_context, create_chat_title
+from app.routers.api_chat import _completed_turn_response, build_adaptive_context, create_chat_title
 from app.routers.insights import _build_period_reflection, _build_premium_brief, _classify, get_insights
 from app.routers.play import SpaceRequest, _remix_content
 from app.routers.personal import ArrivalRequest
@@ -23,6 +25,8 @@ from app.services.attachments import _is_valid_payload
 from app.services.posts import moderate_content
 from app.services.local_mlx_vision import parse_visual_report
 from app.rate_limit import _client_identity
+from app.audit import audit_event
+from app.metrics import clear_metrics, metrics_snapshot, observe_request
 from types import SimpleNamespace
 
 
@@ -37,6 +41,32 @@ def test_production_security_settings_reject_placeholder_secrets_and_unsafe_algo
         validate_runtime_security(SimpleNamespace(environment="production", secret_key=strong_secret, jwt_algorithm="none"))
 
     validate_runtime_security(SimpleNamespace(environment="production", secret_key=strong_secret, jwt_algorithm="HS512"))
+
+
+def test_runtime_configuration_rejects_invalid_ports_and_untrusted_proxy_networks():
+    with pytest.raises(RuntimeError, match="PORT"):
+        validate_runtime_configuration(replace(settings, port=0))
+
+    with pytest.raises(RuntimeError, match="TRUSTED_PROXY_CIDRS"):
+        validate_runtime_configuration(
+            replace(settings, trust_proxy_headers=True, trusted_proxy_cidrs="not-a-network")
+        )
+
+
+def test_forwarded_client_ip_is_used_only_for_a_configured_trusted_proxy(monkeypatch):
+    request = SimpleNamespace(
+        headers={"x-forwarded-for": "203.0.113.9"},
+        client=SimpleNamespace(host="127.0.0.1"),
+    )
+    monkeypatch.setattr(settings, "trust_proxy_headers", False)
+    assert client_ip(request) == "127.0.0.1"
+
+    monkeypatch.setattr(settings, "trust_proxy_headers", True)
+    monkeypatch.setattr(settings, "trusted_proxy_cidrs", "127.0.0.1/32")
+    assert client_ip(request) == "203.0.113.9"
+
+    request.client.host = "198.51.100.7"
+    assert client_ip(request) == "198.51.100.7"
 
 
 def test_create_chat_title_handles_blank_short_and_long_text():
@@ -96,6 +126,38 @@ def test_chat_request_has_an_explicit_camera_opt_in_contract():
     assert request.camera_frame.startswith("data:image/")
 
 
+def test_chat_request_has_a_stable_validated_client_turn_id():
+    supplied = ChatSendRequest(message="hello", clientTurnId="turn-browser-123")
+    generated = ChatSendRequest(message="hello")
+
+    assert supplied.client_turn_id == "turn-browser-123"
+    assert generated.client_turn_id.startswith("turn-")
+    with pytest.raises(ValidationError):
+        ChatSendRequest(message="hello", clientTurnId="contains spaces")
+
+
+def test_completed_chat_turn_can_be_replayed_without_regeneration():
+    timestamp = datetime(2026, 8, 25, tzinfo=timezone.utc)
+    conversation = {
+        "_id": "conversation-1",
+        "title": "Hello",
+        "version": 3,
+        "created_at": timestamp,
+        "updated_at": timestamp,
+        "messages": [
+            {"id": "user-1", "role": "user", "content": "Hello", "client_turn_id": "turn-1", "state": "complete", "timestamp": timestamp},
+            {"id": "assistant-1", "role": "assistant", "content": "Hi", "in_reply_to": "turn-1", "brain": {"schemaVersion": "companion-brain.v1"}, "generation_model": "test-model", "timestamp": timestamp},
+        ],
+    }
+
+    response = _completed_turn_response(conversation, "turn-1")
+
+    assert response["replayed"] is True
+    assert response["model"] == "test-model"
+    assert response["userMessage"]["clientTurnId"] == "turn-1"
+    assert response["aiMessage"]["inReplyTo"] == "turn-1"
+
+
 def test_companion_mode_is_allowlisted_and_serialized_from_client_alias():
     request = ChatSendRequest(message="hello", companionMode="reflect")
     assert request.companion_mode == "reflect"
@@ -146,6 +208,26 @@ def test_authenticated_rate_limits_are_isolated_from_shared_ip_addresses():
 
     assert _client_identity(first) != _client_identity(second)
     assert "account-one" not in _client_identity(first)
+
+
+def test_privacy_safe_metrics_use_only_normalized_operational_labels():
+    clear_metrics()
+    observe_request("GET", "/api/chat/conversations/{conversation_id}", 200, 12.5)
+    observe_request("GET", "/api/chat/conversations/{conversation_id}", 200, 7.5)
+
+    snapshot = metrics_snapshot()
+
+    assert snapshot["http"] == [{"method": "GET", "route": "/api/chat/conversations/{conversation_id}", "status": 200, "count": 2, "averageMs": 10.0, "maxMs": 12.5}]
+    assert "prompt" in snapshot["privacy"].lower()
+
+
+def test_audit_events_hash_email_addresses(caplog):
+    with caplog.at_level("INFO", logger="app.audit"):
+        audit_event("auth.test", email="private@example.com", user_id="user-1")
+
+    assert "private@example.com" not in caplog.text
+    assert "sha256:" in caplog.text
+    assert '"user_id": "user-1"' in caplog.text
 
 
 def test_extract_reply_and_brain_accepts_plain_text_and_json():

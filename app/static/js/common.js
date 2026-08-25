@@ -543,6 +543,15 @@ export function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+export function safeExternalUrl(value, fallback = "#") {
+  try {
+    const parsed = new URL(String(value || ""), window.location.origin);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function formatSidebarTime(isoTime) {
   const messageTime = new Date(isoTime);
   const now = new Date();
@@ -608,7 +617,8 @@ export async function copyText(text) {
 }
 
 export function openExternal(url) {
-  window.open(url, "_blank", "noopener,noreferrer");
+  const destination = safeExternalUrl(url, "");
+  if (destination) window.open(destination, "_blank", "noopener,noreferrer");
 }
 
 export function getConversationDraftKey(user) {

@@ -142,9 +142,21 @@ def ensure_indexes() -> None:
         get_database()["constellation_hidden"].create_index([("user_id", ASCENDING), ("node_id", ASCENDING)], unique=True)
         get_database()["billing_requests"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         get_database()["billing_requests"].create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["billing_requests"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
         get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("token_hash", ASCENDING)], unique=True)
         get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("last_activity_at", DESCENDING)])
+        get_database()["auth_sessions"].create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
         get_database()["security_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["security_events"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["scheduled_job_leases"].create_index([("lease_until", ASCENDING)])
+        get_database()["check_in_deliveries"].create_index([("schedule_id", ASCENDING), ("date", ASCENDING)], unique=True)
+        get_database()["check_in_deliveries"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["chat_turn_requests"].create_index([("user_id", ASCENDING), ("client_turn_id", ASCENDING)], unique=True)
+        get_database()["chat_turn_requests"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("read_at", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("dedupe_key", ASCENDING)], unique=True, sparse=True)
+        get_database()["notifications"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
         get_database()["conversation_collections"].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
         get_database()["response_feedback"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
         get_database()["research_shelf"].create_index([("user_id", ASCENDING), ("url", ASCENDING)], unique=True)
@@ -160,6 +172,14 @@ def parse_object_id(value: str) -> ObjectId | None:
     if not ObjectId.is_valid(value):
         return None
     return ObjectId(value)
+
+
+def close_database() -> None:
+    global _client, _database
+    if _client is not None:
+        _client.close()
+    _client = None
+    _database = None
 
 
 def serialize_user(document: dict[str, Any]) -> dict[str, Any]:
@@ -184,6 +204,12 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         "attachmentId": str(document["attachment_id"]) if document.get("attachment_id") else None,
         "timestamp": to_iso(document.get("timestamp")),
     }
+    if document.get("client_turn_id"):
+        payload["clientTurnId"] = document.get("client_turn_id")
+    if document.get("in_reply_to"):
+        payload["inReplyTo"] = document.get("in_reply_to")
+    if document.get("state"):
+        payload["state"] = document.get("state")
     if document.get("brain"):
         payload["brain"] = document.get("brain")
     if document.get("analysis"):

@@ -120,3 +120,8 @@ def help_page(request: Request) -> HTMLResponse:
 @router.get("/research", response_class=HTMLResponse)
 def research_page(request: Request) -> HTMLResponse:
     return render_page(request, "research.html", "Research")
+
+
+@router.get("/notifications", response_class=HTMLResponse)
+def notifications_page(request: Request) -> HTMLResponse:
+    return render_page(request, "notifications.html", "Notifications")

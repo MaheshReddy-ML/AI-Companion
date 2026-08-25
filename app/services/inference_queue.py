@@ -19,6 +19,7 @@ from app.config import settings
 
 class InferenceQueue:
     def __init__(self, workers: int, max_pending: int) -> None:
+        self._accepting = True
         self._pending = threading.BoundedSemaphore(max(1, max_pending))
         self._queue: PriorityQueue[tuple[int, int, Future, Callable[[], Any], list[threading.BoundedSemaphore]]] = PriorityQueue()
         self._sequence = count()
@@ -49,6 +50,8 @@ class InferenceQueue:
             return self._user_slots.setdefault(key, threading.BoundedSemaphore(key[1]))
 
     async def submit(self, operation: Callable[[], Any], *, priority: bool = False, requester_id: str | None = None, requester_limit: int = 1) -> Any:
+        if not self._accepting:
+            raise RuntimeError("Companion generation is draining for a server restart. Please retry shortly.")
         slots: list[threading.BoundedSemaphore] = []
         user_slot = self._user_semaphore(requester_id, requester_limit)
         for slot, message in (
@@ -67,8 +70,19 @@ class InferenceQueue:
         self._queue.put((0 if priority else 1, next(self._sequence), future, operation, slots))
         return await asyncio.wrap_future(future)
 
+    def begin_shutdown(self) -> None:
+        """Stop admission while allowing already queued daemon work to finish."""
+        self._accepting = False
+
+    def runtime_stats(self) -> dict[str, int | bool]:
+        return {"accepting": self._accepting, "queued": self._queue.qsize()}
+
 
 chat_inference_queue = InferenceQueue(settings.chat_worker_count, settings.chat_queue_max_pending)
+
+
+def begin_chat_queue_shutdown() -> None:
+    chat_inference_queue.begin_shutdown()
 
 
 async def run_chat_generation(function: Callable[..., Any], *, priority: bool = False, requester_id: str | None = None, requester_limit: int = 1, **kwargs) -> Any:

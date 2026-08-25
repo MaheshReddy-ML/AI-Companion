@@ -7,6 +7,7 @@ from app.database import check_database_connection, conversations_collection, po
 from app.inference.provider import get_chat_provider
 from app.access import is_platform_admin
 from app.security import get_optional_current_user
+from app.metrics import metrics_snapshot
 
 # provider-selected chat for diagnostics
 local_mlx_chat = get_chat_provider()
@@ -50,6 +51,7 @@ def diagnostics(_: None = Depends(require_admin_access)) -> dict:
             "googleConfigured": bool(settings.google_client_id),
         },
         "localRuntime": {"chat": local_mlx_chat.runtime_stats()},
+        "metrics": metrics_snapshot(),
         "features": {
             "rateLimitEnabled": settings.rate_limit_enabled,
             "sessionRevocation": True,

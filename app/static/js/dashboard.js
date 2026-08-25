@@ -17,6 +17,7 @@ import {
   initChrome,
   openExternal,
   renderUserAvatar,
+  safeExternalUrl,
   showStatus,
 } from "./common.js";
 
@@ -243,8 +244,8 @@ function draftText(value) {
   return typeof value === "string" ? value : value?.text || "";
 }
 
-function draftRecord(text) {
-  return { text, savedAt: Date.now() };
+function draftRecord(text, clientTurnId = null) {
+  return { text, savedAt: Date.now(), ...(clientTurnId ? { clientTurnId } : {}) };
 }
 
 function saveDrafts() {
@@ -466,10 +467,10 @@ function renderWebSources(webSearch) {
       <summary>⌕ Searched the web · ${sources.length} source${sources.length === 1 ? "" : "s"}</summary>
       <div class="web-source-list">
         ${sources.map((source) => `
-          <article><a href="${escapeHtml(source.url || "#")}" target="_blank" rel="noopener noreferrer">
+          <article><a href="${escapeHtml(safeExternalUrl(source.url))}" target="_blank" rel="noopener noreferrer">
             <strong>${escapeHtml(source.title || source.domain || "Source")}</strong>
             <span>${escapeHtml(source.domain || "")}</span>
-          </a><button type="button" data-save-source data-source-url="${escapeHtml(source.url || "")}" data-source-title="${escapeHtml(source.title || source.domain || "Source")}" data-source-domain="${escapeHtml(source.domain || "")}">Save</button></article>`).join("")}
+          </a><button type="button" data-save-source data-source-url="${escapeHtml(safeExternalUrl(source.url, ""))}" data-source-title="${escapeHtml(source.title || source.domain || "Source")}" data-source-domain="${escapeHtml(source.domain || "")}">Save</button></article>`).join("")}
       </div>
     </details>`;
 }
@@ -511,7 +512,7 @@ function renderMessages() {
             <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
             ${message.role === "assistant" ? renderWebSources(message.webSearch) : ""}
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
-            ${message.id ? `<div class="message-actions"><button class="message-moment-action" type="button" data-save-moment="${escapeHtml(message.id)}">Keep as a moment</button>${message.role === "assistant" ? `<span>Private feedback · sent to Emora</span><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="helpful">Helpful</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_long">Too long</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_generic">Too generic</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="missed_request">Missed request</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="tone_wrong">Tone felt wrong</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="incorrect_or_unsafe">Incorrect or unsafe</button></div>` : "</div>"}` : ""}
+            ${message.id ? `<div class="message-actions"><button type="button" data-copy-message="${escapeHtml(message.id)}">Copy</button><button class="message-moment-action" type="button" data-save-moment="${escapeHtml(message.id)}">Keep as a moment</button>${message.role === "assistant" ? `<span>Private feedback · sent to Emora</span><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="helpful">Helpful</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_long">Too long</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_generic">Too generic</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="missed_request">Missed request</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="tone_wrong">Tone felt wrong</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="incorrect_or_unsafe">Incorrect or unsafe</button></div>` : "</div>"}` : ""}
           </div>
         </article>
       `,
@@ -917,9 +918,12 @@ async function handleSend(promptOverride = null) {
 
   const outgoingContent = draft || `Shared file: ${attachmentName}`;
   const cameraFrame = captureCameraFrame();
+  const existingDraft = state.drafts[activeConversation.id];
+  const clientTurnId = existingDraft?.clientTurnId || `turn-${crypto.randomUUID()}`;
   const snapshot = JSON.parse(JSON.stringify(activeConversation));
   const optimisticMessage = {
-    id: `temp-${Date.now()}`,
+    id: clientTurnId,
+    clientTurnId,
     role: "user",
     content: outgoingContent,
     attachmentName,
@@ -958,6 +962,7 @@ async function handleSend(promptOverride = null) {
       method: "POST",
       auth: true,
       body: {
+        clientTurnId,
         conversationId: activeConversation.id,
         message: draft,
         attachmentName,
@@ -981,7 +986,7 @@ async function handleSend(promptOverride = null) {
       return;
     }
     replaceConversation(snapshot);
-    state.drafts[activeConversation.id] = draftRecord(draft);
+    state.drafts[activeConversation.id] = draftRecord(draft, clientTurnId);
     saveDrafts();
     elements.messageInput.value = draft;
     resizeComposer();
@@ -1249,6 +1254,16 @@ function bindStaticEvents() {
   window.addEventListener("pagehide", stopCameraCheckIn, { once: true });
 
   elements.chatMessages.addEventListener("click", async (event) => {
+    const copyButton = event.target.closest("[data-copy-message]");
+    if (copyButton) {
+      const message = getActiveConversation()?.messages?.find((item) => item.id === copyButton.dataset.copyMessage);
+      if (message) {
+        await copyText(message.content || "");
+        copyButton.textContent = "Copied";
+        window.setTimeout(() => { copyButton.textContent = "Copy"; }, 1200);
+      }
+      return;
+    }
     const sourceButton = event.target.closest("[data-save-source]");
     if (sourceButton) {
       try {

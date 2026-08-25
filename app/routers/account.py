@@ -10,7 +10,9 @@ from app.audit import audit_event
 from app.database import attachments_collection, conversations_collection, feature_collection, memories_collection, posts_collection, serialize_conversation, serialize_post, serialize_user, to_iso, users_collection, utc_now
 from app.preferences import get_user_preferences
 from app.security import get_current_user
+from app.rate_limit import rate_limit
 from app.services.attachments import delete_attachments_for_conversations
+from app.security_events import record_security_event
 
 
 router = APIRouter(prefix="/api/account", tags=["account"])
@@ -20,7 +22,7 @@ def _owned_conversations(user_id) -> list[dict]:
     return list(conversations_collection().find({"user_id": user_id}).sort("created_at", 1))
 
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(rate_limit(3, 3600, "account-export"))])
 def export_account_data(current_user: dict = Depends(get_current_user)) -> Response:
     conversations = _owned_conversations(current_user["_id"])
     posts = list(posts_collection().find({"anonymous_id": current_user.get("anonymous_id")}).sort("created_at", 1)) if current_user.get("anonymous_id") else []
@@ -32,6 +34,7 @@ def export_account_data(current_user: dict = Depends(get_current_user)) -> Respo
     collections = list(feature_collection("conversation_collections").find({"user_id": current_user["_id"]}).sort("created_at", 1))
     research_shelf = list(feature_collection("research_shelf").find({"user_id": current_user["_id"]}).sort("created_at", 1))
     schedule = feature_collection("check_in_schedules").find_one({"user_id": current_user["_id"]}) or {}
+    notifications = list(feature_collection("notifications").find({"user_id": current_user["_id"]}).sort("created_at", 1))
     payload = {
         "format": "emora-account-export.v1",
         "profile": serialize_user(current_user),
@@ -45,10 +48,11 @@ def export_account_data(current_user: dict = Depends(get_current_user)) -> Respo
         "conversationCollections": [{"name": item.get("name"), "conversationIds": [str(value) for value in item.get("conversation_ids", [])], "createdAt": to_iso(item.get("created_at"))} for item in collections],
         "savedResearch": [{"title": item.get("title"), "url": item.get("url"), "domain": item.get("domain"), "note": item.get("note"), "tags": item.get("tags", []), "savedAt": to_iso(item.get("created_at"))} for item in research_shelf],
         "checkInSchedule": {"enabled": bool(schedule.get("enabled", False)), "channel": schedule.get("channel", "in_app"), "days": schedule.get("days", []), "time": schedule.get("time"), "timezone": schedule.get("timezone")},
+        "notifications": [{"category": item.get("category"), "title": item.get("title"), "message": item.get("message"), "readAt": to_iso(item.get("read_at")), "createdAt": to_iso(item.get("created_at"))} for item in notifications],
         "preferences": get_user_preferences(current_user["_id"]),
     }
     audit_event("account.export", user_id=current_user["_id"])
-    feature_collection("security_events").insert_one({"user_id": current_user["_id"], "kind": "account_export", "label": "Downloaded account data export", "created_at": utc_now()})
+    record_security_event(current_user["_id"], "account_export", "Downloaded account data export")
     return Response(
         content=json.dumps(payload, ensure_ascii=False, indent=2),
         media_type="application/json",
@@ -56,7 +60,7 @@ def export_account_data(current_user: dict = Depends(get_current_user)) -> Respo
     )
 
 
-@router.delete("/history")
+@router.delete("/history", dependencies=[Depends(rate_limit(3, 3600, "account-history-delete"))])
 def clear_conversation_history(current_user: dict = Depends(get_current_user)) -> dict:
     conversations = _owned_conversations(current_user["_id"])
     delete_attachments_for_conversations([item["_id"] for item in conversations])
@@ -67,7 +71,7 @@ def clear_conversation_history(current_user: dict = Depends(get_current_user)) -
     return {"message": "Your conversation history has been permanently deleted."}
 
 
-@router.delete("")
+@router.delete("", dependencies=[Depends(rate_limit(2, 3600, "account-delete"))])
 def delete_account(current_user: dict = Depends(get_current_user)) -> dict:
     conversations = _owned_conversations(current_user["_id"])
     delete_attachments_for_conversations([item["_id"] for item in conversations])
@@ -86,6 +90,7 @@ def delete_account(current_user: dict = Depends(get_current_user)) -> dict:
         "auth_sessions", "security_events", "conversation_collections", "response_feedback", "research_shelf", "check_in_schedules",
         "journal_entries", "goals", "daily_check_ins", "user_preferences", "billing_requests", "quests", "user_spaces",
         "emora_moments", "daily_drops", "constellation_hidden", "taught_memories", "focus_room_presence",
+        "notifications", "chat_turn_requests", "check_in_deliveries",
     ):
         feature_collection(collection_name).delete_many({"user_id": current_user["_id"]})
     memories_collection().delete_many({"user_id": current_user["_id"]})

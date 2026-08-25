@@ -561,7 +561,7 @@ def delete_memory(memory_id: str, current_user: dict = Depends(get_current_user)
     return {"message": "Memory removed."}
 
 
-@router.post("/focus-rooms", status_code=201)
+@router.post("/focus-rooms", status_code=201, dependencies=[Depends(rate_limit(10, 3600, "focus-room-create"))])
 def create_focus_room(payload: RoomRequest, current_user: dict = Depends(require_entitlement("focus_rooms"))) -> dict:
     now = utc_now()
     minutes = None if payload.unlimited else payload.minutes

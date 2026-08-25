@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.config import settings
+from app import main as app_main
 
 
 def test_public_pages_render_successfully():
@@ -26,6 +27,7 @@ def test_public_pages_render_successfully():
         "/goals",
         "/help",
         "/research",
+        "/notifications",
     ]:
         response = client.get(path)
         assert response.status_code == 200
@@ -70,6 +72,8 @@ def test_core_static_assets_are_served():
         "/static/css/workspace-editorial.css",
         "/static/css/light-theme.css",
         "/static/css/auth-doorway.css",
+        "/static/css/notifications.css",
+        "/static/js/notifications.js",
     ]:
         response = client.get(path)
         assert response.status_code == 200
@@ -102,6 +106,8 @@ def test_browser_security_headers_cover_pages_static_assets_and_private_apis():
         assert response.headers["x-permitted-cross-domain-policies"] == "none"
         assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
         assert response.headers["permissions-policy"] == "camera=(self), microphone=(self), geolocation=()"
+        assert "object-src 'none'" in response.headers["content-security-policy-report-only"]
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy-report-only"]
         assert len(response.headers["x-request-id"]) == 32
 
     api_response = client.get("/api/account/export")
@@ -385,6 +391,18 @@ def test_health_and_admin_diagnostics_protection():
 
     assert client.get("/health").status_code == 200
     assert client.get("/api/admin/diagnostics").status_code in {403, 404}
+
+
+def test_readiness_uses_service_unavailable_when_mongodb_is_not_ready(monkeypatch):
+    monkeypatch.setattr(
+        app_main,
+        "check_database_connection",
+        lambda: {"ok": False, "database": "emora_test", "error": "unavailable"},
+    )
+    response = TestClient(app).get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "not_ready"
 
 
 def test_voice_generation_requires_an_authenticated_session():

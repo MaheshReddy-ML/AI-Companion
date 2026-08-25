@@ -9,6 +9,9 @@ This checklist covers the minimum production setup for the FastAPI version of Em
 - Set `ADMIN_API_KEY` only for trusted operators who need `/api/admin/diagnostics`.
 - Keep `.env` outside source control.
 - Keep `RATE_LIMIT_ENABLED=true` unless you have a stronger external gateway rate limiter.
+- Set `TRUST_PROXY_HEADERS=true` only behind a reverse proxy and list its source
+  networks in `TRUSTED_PROXY_CIDRS`. Direct clients must never be allowed to
+  choose their own forwarded IP or protocol.
 - Set `REDIS_URL` when running multiple API workers or instances. The app automatically uses Redis-backed rate limits when it is reachable and safely falls back to in-memory limits for local development.
 - Set `CLAMAV_SOCKET` (for example, `/var/run/clamav/clamd.ctl`) to require ClamAV scanning for uploaded attachments. If configured, uploads fail closed when the scanner is unavailable.
 - Set `AUDIO_CACHE_MAX_AGE_DAYS` to control how long generated voice audio is retained; expired WAV files are removed at startup.
@@ -35,6 +38,28 @@ This checklist covers the minimum production setup for the FastAPI version of Em
   - `focus_rooms.code` unique
   - `user_spaces.user_id` unique
 
+Startup runs numbered, repeatable migrations and records completed versions in
+`schema_migrations`. Run a new release against a staging copy of production data
+before allowing it to migrate the live database.
+
+## Backups and retention
+
+- Create a database archive with
+  `../.venv/bin/python scripts/backup_emora.py --output-dir /explicit/backup/path`.
+- The generated manifest deliberately excludes `MONGO_URI`, but the archive is
+  not encrypted by the script. Encrypt it with the deployment's managed key
+  before copying it off-site.
+- Back up `app/static/uploads` consistently with MongoDB attachment records.
+- Restore backups only into an isolated drill database first; verify account,
+  conversation, attachment, memory, and deletion behavior before declaring a
+  backup usable.
+- Run `../.venv/bin/python scripts/maintenance.py` for a read-only retention and
+  orphan audit. Review the counts, then use `--apply` explicitly when cleanup is
+  intended.
+- Retention TTLs are configured through `AUTH_SESSION_RETENTION_DAYS`,
+  `SECURITY_EVENT_RETENTION_DAYS`, `BILLING_REQUEST_RETENTION_DAYS`,
+  `CHECK_IN_DELIVERY_RETENTION_DAYS`, and `CHAT_TURN_RETENTION_DAYS`.
+
 ## External Services
 
 - Chat runs exclusively on local Qwen3 MLX and requires no API key. Its model files persist in the Hugging Face cache across server restarts; model memory is loaded once per server process.
@@ -57,7 +82,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
 - Use `/health` for lightweight liveness checks.
-- Use `/health/ready` for readiness checks that include MongoDB and integration configuration.
+- Use `/health/ready` for readiness checks that include MongoDB and integration
+  configuration. It returns HTTP 503 when MongoDB is not ready, so load
+  balancers can stop routing traffic to an unhealthy instance.
 - Use `/api/admin/diagnostics` with `X-Admin-Key` only from trusted networks or admin tooling.
 
 ## Safety And Operations

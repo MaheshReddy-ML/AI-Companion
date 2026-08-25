@@ -311,6 +311,7 @@ All account-scoped endpoints require `Authorization: Bearer <token>` unless note
 | Community | `GET` / `POST` | `/posts` | Browse or create anonymous reflections. |
 | Billing | `GET` | `/api/billing/plans` | Public Free, Plus, Pro, and Complete plan catalog. |
 | Billing | `GET` / `POST` | `/api/billing/access` · `/api/billing/checkout` | Read effective entitlements or create a pending verified-checkout request. |
+| Notifications | `GET` / `PATCH` / `POST` / `DELETE` | `/api/workspace/notifications` | Read, mark, or dismiss private scheduled check-in and security notifications. |
 | Billing admin | `GET` / `PATCH` | `/api/billing/admin/users` · `/api/billing/admin/users/{id}/subscription` | Owner-only account and subscription management. |
 | Admin | `GET` | `/api/admin/diagnostics` | Protected diagnostics; send `X-Admin-Key` or use an owner account token. |
 
