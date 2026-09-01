@@ -138,7 +138,7 @@
 .editorial-companion .chat-prompt-chips button:hover b { border-color: rgba(103, 218, 205, .3); color: #7ae0d4; transform: translateX(2px); }
 
 /* Conversation */
-.editorial-companion .messages-list { position: absolute; top: 125px; right: 50%; bottom: 205px; left: auto; z-index: 5; display: flex; width: min(800px, calc(100% - 90px)); height: auto; padding: 40px 12px 30px; flex-direction: column; gap: 30px; overflow-y: auto; transform: translateX(50%); scrollbar-width: thin; scrollbar-color: rgba(105, 218, 204, .24) transparent; }
+.editorial-companion .messages-list { position: absolute; top: 125px; right: 0; bottom: 205px; left: 0; z-index: 5; display: flex; width: min(800px, calc(100% - 90px)); height: auto; margin-inline: auto; padding: 40px 12px 30px; flex-direction: column; gap: 30px; overflow-y: auto; transform: none; scrollbar-width: thin; scrollbar-color: rgba(105, 218, 204, .24) transparent; }
 .editorial-companion .messages-list.is-empty { pointer-events: none; }
 .editorial-companion .message-row { display: flex; width: 100%; margin: 0; animation: messageArrive 300ms ease both; }
 .editorial-companion .message-row.assistant { justify-content: flex-start; }

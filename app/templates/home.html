@@ -12,7 +12,7 @@
 
 {% block content %}
 <div class="cinematic-site" data-cinematic-site>
-  <section class="cinematic-hero" id="play" aria-labelledby="cinematic-title">
+  <section class="cinematic-hero" id="play" aria-labelledby="cinematic-title" data-story-act="meet">
     <div class="cinematic-scene" id="cinematic-room" aria-hidden="true">
       <div class="cinematic-scene-fallback"></div>
       <div class="cinematic-scene-mount" data-cinematic-mount></div>
@@ -24,7 +24,7 @@
 
     <nav class="cinematic-nav" aria-label="Main navigation">
       <a class="cinematic-brand" href="/">
-        <span class="cinematic-brand-mark" aria-hidden="true"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
+        <span class="cinematic-brand-mark" aria-hidden="true"><img src="/static/images/emora-logo-v2.png?v=20260828-orbit" alt="" /></span>
         <span>EMORA</span>
       </a>
       <div class="cinematic-nav-links">
@@ -39,10 +39,10 @@
     </nav>
 
     <div class="cinematic-copy" data-cinematic-copy>
-      <p class="cinematic-kicker"><i></i><span>01:47</span> A private world, still awake</p>
-      <h1 id="cinematic-title">The part of your day<br />you might look<br /><em>forward to.</em></h1>
-      <p class="cinematic-lede">Private quests, a garden that grows with your rituals,<br />and focus rooms that make progress feel personal —<br />not performed.</p>
-      <a class="cinematic-cta" href="/play"><span>Step into Play</span><i>→</i></a>
+      <p class="cinematic-kicker"><i></i><span>01:47</span> A private companion, still awake</p>
+      <h1 id="cinematic-title">An AI companion<br />that grows with<br /><em>your permission.</em></h1>
+      <p class="cinematic-lede">Talk in text or voice, remember only what you choose,<br />and turn reflection into one gentle next step —<br />inside a private world that becomes yours.</p>
+      <a class="cinematic-cta" href="/register"><span>Meet Emora</span><i>→</i></a>
     </div>
 
     <div class="cinematic-meta" aria-label="Scene details">
@@ -59,25 +59,40 @@
   </section>
 
   <main class="cinematic-editorial">
-    <section class="cinematic-how" id="how-it-works" data-cinematic-reveal>
+    <section class="cinematic-how" id="how-it-works" data-cinematic-reveal data-story-act="understand">
       <header>
         <p>HOW IT WORKS / 02</p>
         <h2 class="serif">A quieter way to<br /><em>keep moving.</em></h2>
       </header>
       <div class="cinematic-steps">
-        <article><span>01</span><h3>Choose one small ritual.</h3><p>Set an intention that fits the day you actually have—not the day you think you should have.</p></article>
-        <article><span>02</span><h3>Make progress feel personal.</h3><p>Enter a focus room, complete a private quest, or return to your companion when you need a reset.</p></article>
-        <article><span>03</span><h3>Watch your space respond.</h3><p>Your garden and reflections grow with the moments you choose to keep. There is no public score.</p></article>
+        <article><span>01</span><h3>Arrive as you are.</h3><p>Choose a conversation, voice, or guided session that fits the day you actually have.</p></article>
+        <article><span>02</span><h3>Stay in control of memory.</h3><p>Review what Emora holds, why it was remembered, and correct or remove it whenever you choose.</p></article>
+        <article><span>03</span><h3>Watch your world respond.</h3><p>Your room, garden, and reflections grow only from the moments and intentions you decide to keep.</p></article>
       </div>
+      <section class="cinematic-demo" aria-labelledby="cinematic-demo-title">
+        <header><p>PRODUCT DEMONSTRATION</p><h3 id="cinematic-demo-title">Choose a way Emora can meet the moment.</h3><span>Demonstration content—not your history</span></header>
+        <div class="cinematic-demo-tabs" role="tablist" aria-label="Demonstrated Emora journeys">
+          <button role="tab" aria-selected="true" aria-controls="demo-talk" id="demo-talk-tab" data-demo-journey="talk">Talk</button>
+          <button role="tab" aria-selected="false" aria-controls="demo-reflect" id="demo-reflect-tab" data-demo-journey="reflect">Reflect</button>
+          <button role="tab" aria-selected="false" aria-controls="demo-focus" id="demo-focus-tab" data-demo-journey="focus">Focus</button>
+          <button role="tab" aria-selected="false" aria-controls="demo-research" id="demo-research-tab" data-demo-journey="research">Research</button>
+        </div>
+        <div class="cinematic-demo-stage">
+          <article id="demo-talk" role="tabpanel" aria-labelledby="demo-talk-tab" data-demo-panel="talk"><small>CONVERSATION</small><h4>Start without finding perfect words.</h4><p>You choose the response style, memory use, web access, voice, and whether anything should be kept.</p><a href="/register?goal=talk">Begin with conversation →</a></article>
+          <article id="demo-reflect" role="tabpanel" aria-labelledby="demo-reflect-tab" data-demo-panel="reflect" hidden><small>PRIVATE JOURNAL</small><h4>Write first. Look back when you choose.</h4><p>Saved reflections remain private account content and can be edited, exported, or deleted.</p><a href="/register?goal=reflect">Begin with reflection →</a></article>
+          <article id="demo-focus" role="tabpanel" aria-labelledby="demo-focus-tab" data-demo-panel="focus" hidden><small>FOCUS TOGETHER</small><h4>Share a bounded room, not a public feed.</h4><p>Invite-only rooms use real server state, clear timers, and explicit leaving or host ending.</p><a href="/register?goal=focus">Begin with focus →</a></article>
+          <article id="demo-research" role="tabpanel" aria-labelledby="demo-research-tab" data-demo-panel="research" hidden><small>SOURCE-AWARE RESEARCH</small><h4>Follow claims back to evidence.</h4><p>Explicit research can show dates, sources, and conflicts while treating retrieved pages as untrusted.</p><a href="/register?goal=research">Begin with research →</a></article>
+        </div>
+      </section>
     </section>
 
     <section class="cinematic-about" id="about" data-cinematic-reveal>
       <div class="cinematic-about-index"><span>ABOUT / 03</span><i></i></div>
       <blockquote class="serif">Not another feed asking for your attention. A place that gives some of it <em>back.</em></blockquote>
-      <div class="cinematic-about-copy"><p>Emora Play turns gentle routines into a private, living world. It is designed for reflection and momentum, never performance.</p><a href="/research">Our approach to care and privacy <span>↗</span></a></div>
+      <div class="cinematic-about-copy"><p>Emora brings conversation, guided sessions, private reflection, Focus Together, and Play into one continuing companion relationship—never a public performance.</p><a href="/research">Our approach to care and privacy <span>↗</span></a></div>
     </section>
 
-    <section class="cinematic-closing" data-cinematic-reveal>
+    <section class="cinematic-closing" data-cinematic-reveal data-story-act="choose">
       <p>YOUR ROOM IS READY</p>
       <h2 class="serif">Step out of the noise.<br /><em>Come back to your pace.</em></h2>
       <div><a class="cinematic-cta cinematic-cta-light" href="/register"><span>Create your space</span><i>→</i></a><a href="/login" class="cinematic-text-link">I already have a space</a></div>

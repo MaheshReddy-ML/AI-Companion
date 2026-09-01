@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.audit import audit_event
+from app.access import has_entitlement
 from app.config import settings
 from app.database import (
     attachments_collection,
@@ -115,6 +116,14 @@ class RestoreRequest(BaseModel):
     export: dict
     mode: str = Field(default="merge", pattern="^(merge|replace)$")
     confirmation: str = Field(default="", max_length=40)
+
+
+class NotificationResponseRequest(BaseModel):
+    response: str = Field(pattern="^(helpful|later)$")
+
+
+class NotificationMuteRequest(BaseModel):
+    muted: bool = True
 
 
 @router.get("/search")
@@ -354,9 +363,102 @@ def due_check_in(current_user: dict = Depends(get_current_user)) -> dict:
             title="A gentle check-in is ready",
             message="There is nothing you need to solve. Open Emora whenever you are ready.",
             action_path="/chat?new=1&prompt=I'd%20like%20a%20gentle%20check-in.",
+            action_label="Check in with Emora",
             dedupe_key=f"scheduled-check-in:{date_key}",
         )
     return {"due": in_app_due, "date": date_key, "message": "A gentle check-in is ready whenever you are."}
+
+
+def _sync_useful_notifications(current_user: dict) -> None:
+    """Materialize a small set of factual, actionable in-app reminders.
+
+    These are derived from account-owned state. They never invent activity,
+    bypass quiet hours, or send an external message without an opted-in schedule.
+    """
+    user_id = current_user["_id"]
+    now = utc_now()
+    today = now.date().isoformat()
+
+    schedule = feature_collection("check_in_schedules").find_one({"user_id": user_id}) or {}
+    due, date_key = _schedule_due(schedule, now)
+    if due and schedule.get("channel", "in_app") == "in_app":
+        create_notification(
+            user_id,
+            category="check_in",
+            title="A gentle check-in is ready",
+            message="How are you arriving today? No perfect answer needed—I’m here when you want to talk.",
+            action_path="/chat?new=1&prompt=I'd%20like%20a%20gentle%20check-in.",
+            action_label="Check in with Emora",
+            dedupe_key=f"scheduled-check-in:{date_key}",
+        )
+
+    tiny_goal = feature_collection("goals").find_one(
+        {"user_id": user_id, "completed": False, "is_tiny_thing": True},
+        sort=[("updated_at", -1), ("created_at", -1)],
+    )
+    if tiny_goal:
+        create_notification(
+            user_id,
+            category="progress",
+            title="Your Tiny Thing is ready",
+            message=f"One small step is enough today: {str(tiny_goal.get('title') or 'your chosen goal')[:120]}",
+            action_path="/goals",
+            action_label="Take one step",
+            dedupe_key=f"tiny-thing:{tiny_goal['_id']}:{today}",
+        )
+
+    paused_session = feature_collection("emora_sessions").find_one(
+        {"user_id": user_id, "status": "paused"},
+        sort=[("updated_at", -1)],
+    )
+    if paused_session:
+        intention = str(paused_session.get("intention") or "the space you made for yourself")[:140]
+        create_notification(
+            user_id,
+            category="session",
+            title="Your session is safe here",
+            message=f"Come back whenever it feels right. We saved {intention}.",
+            action_path="/sessions",
+            action_label="Resume session",
+            dedupe_key=f"paused-session:{paused_session['_id']}",
+        )
+
+    conflict = memories_collection().find_one(
+        {"user_id": user_id, "pending_conflict": {"$exists": True, "$ne": None}},
+        sort=[("updated_at", -1)],
+    )
+    if conflict:
+        create_notification(
+            user_id,
+            category="memory",
+            title="A memory needs your say",
+            message="Something you shared may have changed. Review it so Emora follows what is true for you now.",
+            action_path="/sessions#memory-center",
+            action_label="Review memory",
+            dedupe_key=f"memory-review:{conflict['_id']}:{str(conflict.get('pending_conflict', {}).get('detected_at', ''))[:10]}",
+            importance="high",
+        )
+
+    if has_entitlement(current_user, "weekly_review"):
+        year, week, _ = now.isocalendar()
+        week_key = f"{year}-W{week:02d}"
+        review = feature_collection("weekly_reviews").find_one({"user_id": user_id, "week_key": week_key})
+        since = now - timedelta(days=7)
+        has_activity = any((
+            conversations_collection().count_documents({"user_id": user_id, "updated_at": {"$gte": since}}, limit=1),
+            feature_collection("journal_entries").count_documents({"user_id": user_id, "created_at": {"$gte": since}}, limit=1),
+            feature_collection("goals").count_documents({"user_id": user_id, "$or": [{"created_at": {"$gte": since}}, {"completed_at": {"$gte": since}}]}, limit=1),
+        ))
+        if has_activity and not review:
+            create_notification(
+                user_id,
+                category="reflection",
+                title="Your week has something to tell you",
+                message="I gathered only your real recent activity. You choose what the reflection means and whether anything is saved.",
+                action_path="/sessions#weekly-review",
+                action_label="Look back together",
+                dedupe_key=f"weekly-review-ready:{week_key}",
+            )
 
 
 @router.get("/notifications", dependencies=[Depends(rate_limit(120, 300, "notifications-read"))])
@@ -365,13 +467,34 @@ def list_notifications(
     limit: int = Query(default=50, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    query: dict = {"user_id": current_user["_id"]}
+    _sync_useful_notifications(current_user)
+    now = utc_now()
+    mute_record = feature_collection("notification_category_mutes").find_one({"user_id": current_user["_id"]}) or {}
+    muted_categories = [str(value) for value in mute_record.get("categories", []) if str(value) != "security"]
+    visible_query = {"$or": [{"snoozed_until": {"$exists": False}}, {"snoozed_until": None}, {"snoozed_until": {"$lte": now}}]}
+    query: dict = {"user_id": current_user["_id"], **visible_query}
+    if muted_categories:
+        query["category"] = {"$nin": muted_categories}
     if unread_only:
         query["read_at"] = None
     collection = feature_collection("notifications")
     items = list(collection.find(query).sort("created_at", -1).limit(limit))
-    unread = collection.count_documents({"user_id": current_user["_id"], "read_at": None})
-    return {"notifications": [serialize_notification(item) for item in items], "unreadCount": unread}
+    unread_query = {"user_id": current_user["_id"], "read_at": None, **visible_query}
+    if muted_categories:
+        unread_query["category"] = {"$nin": muted_categories}
+    unread = collection.count_documents(unread_query)
+    return {"notifications": [serialize_notification(item) for item in items], "unreadCount": unread, "mutedCategories": muted_categories}
+
+
+@router.put("/notifications/categories/{category}/mute")
+def set_notification_category_mute(category: str, payload: NotificationMuteRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    allowed = {"check_in", "reflection", "session", "memory", "progress", "celebration", "update"}
+    if category not in allowed:
+        raise HTTPException(status_code=400, detail="This notification category cannot be muted.")
+    update = {"$addToSet": {"categories": category}} if payload.muted else {"$pull": {"categories": category}}
+    update["$set"] = {"updated_at": utc_now()}
+    feature_collection("notification_category_mutes").update_one({"user_id": current_user["_id"]}, {**update, "$setOnInsert": {"user_id": current_user["_id"], "created_at": utc_now()}}, upsert=True)
+    return {"category": category, "muted": payload.muted}
 
 
 @router.patch("/notifications/{notification_id}/read")
@@ -385,6 +508,29 @@ def mark_notification_read(notification_id: str, current_user: dict = Depends(ge
     if not item:
         raise HTTPException(status_code=404, detail="Notification not found.")
     return {"notification": serialize_notification(item)}
+
+
+@router.patch("/notifications/{notification_id}/respond")
+def respond_to_notification(
+    notification_id: str,
+    payload: NotificationResponseRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    object_id = parse_object_id(notification_id)
+    now = utc_now()
+    changes = {"reaction": payload.response, "responded_at": now}
+    if payload.response == "helpful":
+        changes.update({"read_at": now, "snoozed_until": None})
+    else:
+        changes.update({"read_at": None, "snoozed_until": now + timedelta(days=1)})
+    item = feature_collection("notifications").find_one_and_update(
+        {"_id": object_id, "user_id": current_user["_id"]},
+        {"$set": changes},
+        return_document=ReturnDocument.AFTER,
+    ) if object_id else None
+    if not item:
+        raise HTTPException(status_code=404, detail="Notification not found.")
+    return {"notification": serialize_notification(item), "resurfaces": payload.response == "later"}
 
 
 @router.post("/notifications/read-all")
@@ -428,6 +574,9 @@ def unsubscribe_check_ins(user: str = Query(min_length=24, max_length=24), token
 
 def deliver_due_email_check_ins() -> int:
     """Deliver opted-in email schedules; safe for a periodic background call."""
+    from app.product_operations import feature_enabled
+    if not feature_enabled("scheduled_delivery"):
+        return 0
     now = utc_now()
     lease_collection = feature_collection("scheduled_job_leases")
     try:

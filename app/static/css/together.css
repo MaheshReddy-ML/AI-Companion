@@ -1,0 +1,178 @@
+.together-page {
+  --together-ink: #f2eee6;
+  --together-muted: #8f9aa8;
+  --together-line: rgba(176, 193, 214, .13);
+  --together-line-strong: rgba(112, 219, 200, .3);
+  --together-teal: #75d8c7;
+  --together-violet: #a594ee;
+  --together-warm: #e0bd83;
+  color: var(--together-ink);
+  background: #070b12;
+}
+.together-page *, .together-page *::before, .together-page *::after { box-sizing: border-box; }
+.together-main { min-width: 0; min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 92% 4%,rgba(116,97,205,.14),transparent 31rem),radial-gradient(circle at 15% 23%,rgba(64,158,145,.08),transparent 29rem),#070b12; }
+.together-kicker { margin: 0; color: var(--together-teal); font: 500 9px/1.2 "JetBrains Mono",monospace; letter-spacing: .16em; text-transform: uppercase; }
+.together-hero { position: relative; display: grid; grid-template-columns: minmax(0,1.35fr) minmax(290px,.65fr); gap: clamp(34px,6vw,100px); min-height: 430px; padding: clamp(66px,8vw,116px) clamp(28px,7vw,110px) 72px; overflow: hidden; align-items: end; border-bottom: 1px solid var(--together-line); }
+.together-hero::before { position: absolute; top: -185px; right: 6%; width: 530px; height: 530px; border: 1px solid rgba(144,124,224,.11); border-radius: 50%; box-shadow: 0 0 0 75px rgba(144,124,224,.025),0 0 0 150px rgba(144,124,224,.018); content: ""; pointer-events: none; }
+.together-hero h1 { max-width: 780px; margin: 18px 0 24px; color: var(--together-ink); font: 400 clamp(58px,7vw,104px)/.87 "Instrument Serif",Georgia,serif; letter-spacing: -.055em; }
+.together-hero h1 em { color: var(--together-violet); font-weight: 400; }
+.together-hero > div:first-child > p:last-child { max-width: 650px; margin: 0; color: #aab3bf; font: 400 14px/1.75 "Sora",sans-serif; }
+.together-presence-card { position: relative; z-index: 1; display: grid; grid-template-columns: auto 1fr auto; gap: 13px; padding: 22px; align-items: center; border: 1px solid var(--together-line); border-radius: 19px; background: linear-gradient(145deg,rgba(19,29,43,.85),rgba(10,16,26,.76)); box-shadow: 0 25px 60px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
+.together-presence-orb { width: 38px; height: 38px; border: 1px solid rgba(117,216,199,.35); border-radius: 50%; background: radial-gradient(circle at 35% 30%,#baf6e9,#67cdbb 35%,rgba(62,152,140,.22) 38%,rgba(62,152,140,.03) 68%); box-shadow: 0 0 24px rgba(92,215,194,.2); }
+.together-presence-card[data-presence="away"] .together-presence-orb { border-color: rgba(224,189,131,.4); background: radial-gradient(circle at 35% 30%,#ffe8bc,#d9ac66 35%,rgba(176,130,64,.2) 38%,rgba(176,130,64,.03) 68%); }
+.together-presence-card[data-presence="hidden"] .together-presence-orb { filter: grayscale(1); opacity: .5; box-shadow: none; }
+.together-presence-card label { display: grid; gap: 5px; }
+.together-presence-card small { color: #778493; font: 500 8px "JetBrains Mono",monospace; letter-spacing: .12em; }
+.together-presence-card strong { font: 400 20px "Instrument Serif",serif; }
+.together-presence-card select { min-height: 38px; padding: 0 30px 0 11px; border: 1px solid var(--together-line); border-radius: 10px; background: #0c1420; color: #dce4e8; font-size: 10px; }
+.together-presence-card p { grid-column: 2/-1; margin: -2px 0 0; color: #6f7b89; font-size: 9px; line-height: 1.5; }
+.together-overview { display: grid; grid-template-columns: repeat(3,minmax(120px,190px)) minmax(240px,1fr); min-height: 116px; padding: 0 clamp(28px,7vw,110px); align-items: stretch; border-bottom: 1px solid var(--together-line); }
+.together-overview article { display: flex; padding: 24px; align-items: baseline; gap: 10px; border-right: 1px solid var(--together-line); }
+.together-overview article:first-child { border-left: 1px solid var(--together-line); }
+.together-overview article span { color: var(--together-ink); font: 400 42px "Instrument Serif",serif; }
+.together-overview article p { max-width: 80px; margin: 0; color: var(--together-muted); font-size: 9px; line-height: 1.4; }
+.together-state { align-self: center; justify-self: end; margin: 0; color: #768290; font-size: 10px; }
+.together-state[data-tone="error"] { color: #e9a7a1; }
+.together-connection-grid { display: grid; grid-template-columns: minmax(0,1.25fr) minmax(310px,.75fr); gap: 20px; padding: 62px clamp(28px,7vw,110px) 22px; }
+.together-panel { min-width: 0; padding: 28px; border: 1px solid var(--together-line); border-radius: 20px; background: rgba(12,19,29,.62); }
+.together-panel > header, .together-friends-section > header, .together-circles-section > header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.together-panel h2, .together-friends-section h2, .together-circles-section h2, .together-safety h2 { margin: 9px 0 0; color: var(--together-ink); font: 400 clamp(29px,3vw,44px)/1 "Instrument Serif",serif; }
+.together-panel > header > span { color: #687482; font: 8px "JetBrains Mono",monospace; }
+.together-invite-panel form { margin-top: 30px; }
+.together-invite-panel label { display: block; margin-bottom: 9px; color: #8e99a7; font-size: 10px; }
+.together-invite-panel form > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.together-invite-panel input, .together-dialog input, .together-activity input { min-width: 0; min-height: 48px; padding: 0 15px; border: 1px solid var(--together-line); border-radius: 11px; outline: 0; background: rgba(5,10,17,.72); color: #eef2f1; }
+.together-invite-panel input:focus, .together-dialog input:focus, .together-activity input:focus { border-color: var(--together-line-strong); box-shadow: 0 0 0 4px rgba(117,216,199,.055); }
+.together-invite-panel button, #together-new-circle, .together-dialog-primary { min-height: 48px; padding: 0 18px; border: 1px solid rgba(117,216,199,.3); border-radius: 11px; background: linear-gradient(135deg,rgba(87,195,177,.2),rgba(114,98,199,.14)); color: #dffaf4; cursor: pointer; }
+.together-invite-panel > p { margin: 14px 0 0; color: #6f7a88; font-size: 9px; line-height: 1.5; }
+.together-requests-panel header b { display: grid; width: 35px; height: 35px; place-items: center; border: 1px solid var(--together-line); border-radius: 50%; color: var(--together-violet); font: 400 18px "Instrument Serif",serif; }
+.together-request-list { display: grid; gap: 9px; max-height: 178px; margin-top: 23px; overflow-y: auto; }
+.together-request-item, .together-outgoing-item { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 11px; padding: 11px; align-items: center; border: 1px solid rgba(255,255,255,.065); border-radius: 12px; background: rgba(255,255,255,.018); }
+.together-person-avatar { position: relative; width: 39px; height: 39px; overflow: hidden; border: 1px solid var(--together-line); border-radius: 50%; background: #111a27; }
+.together-person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.together-person-avatar i { position: absolute; right: 0; bottom: 0; width: 10px; height: 10px; border: 2px solid #0c131d; border-radius: 50%; background: #53606e; }
+[data-presence="online"] .together-person-avatar i { background: #67dac5; box-shadow: 0 0 9px rgba(103,218,197,.7); }
+[data-presence="away"] .together-person-avatar i { background: #ddb66f; }
+.together-request-item strong, .together-outgoing-item strong { display: block; font-size: 11px; font-weight: 500; }
+.together-request-item small, .together-outgoing-item small { color: #71808e; font-size: 8px; }
+.together-request-actions { display: flex; gap: 5px; }
+.together-request-actions button { min-height: 31px; padding: 0 9px; border: 1px solid var(--together-line); border-radius: 8px; background: transparent; color: #9ca8b5; font-size: 9px; cursor: pointer; }
+.together-request-actions button:first-child { border-color: rgba(117,216,199,.28); color: #aeeadd; }
+.together-empty { margin: 0; color: #687684; font-size: 10px; line-height: 1.55; }
+.together-friends-section { padding: 44px clamp(28px,7vw,110px) 70px; }
+.together-friends-section > header { align-items: end; }
+#together-new-circle span { margin-left: 8px; }
+.together-friend-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 13px; margin-top: 30px; }
+.together-friend-card { position: relative; min-height: 194px; padding: 20px; overflow: hidden; border: 1px solid var(--together-line); border-radius: 17px; background: linear-gradient(155deg,rgba(20,30,44,.8),rgba(9,15,24,.72)); }
+.together-friend-card::after { position: absolute; right: -45px; bottom: -55px; width: 140px; height: 140px; border: 1px solid rgba(131,110,216,.09); border-radius: 50%; content: ""; }
+.together-friend-card .together-person-avatar { width: 57px; height: 57px; }
+.together-friend-card h3 { margin: 20px 0 4px; font: 400 25px "Instrument Serif",serif; }
+.together-friend-card > span { color: #788694; font-size: 9px; text-transform: capitalize; }
+.together-friend-actions { position: absolute; z-index: 1; top: 15px; right: 14px; }
+.together-friend-actions > button { border: 0; background: transparent; color: #64717e; cursor: pointer; }
+.together-friend-menu { position: absolute; z-index: 3; top: 27px; right: 0; display: grid; width: 128px; padding: 5px; border: 1px solid var(--together-line); border-radius: 10px; background: #0c1420; box-shadow: 0 15px 35px rgba(0,0,0,.3); }
+.together-friend-menu[hidden] { display: none; }
+.together-friend-menu button { padding: 8px; border: 0; background: transparent; color: #9ca7b4; font-size: 9px; text-align: left; cursor: pointer; }
+.together-friend-menu button:last-child { color: #d79090; }
+.together-empty-card { grid-column: 1/-1; padding: 48px; border: 1px dashed var(--together-line); border-radius: 17px; text-align: center; }
+.together-empty-card > span { color: var(--together-violet); font: 400 40px "Instrument Serif",serif; }
+.together-empty-card h3 { margin: 10px 0 6px; font: 400 26px "Instrument Serif",serif; }
+.together-empty-card p { max-width: 480px; margin: auto; color: #75818f; font-size: 10px; line-height: 1.6; }
+.together-outgoing { margin-top: 18px; border-top: 1px solid var(--together-line); }
+.together-outgoing summary { width: fit-content; padding-top: 15px; color: #788593; font-size: 9px; cursor: pointer; }
+.together-outgoing summary b { margin-left: 7px; color: var(--together-violet); }
+.together-outgoing > div { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 11px; }
+.together-circles-section { padding: 68px clamp(28px,7vw,110px) 82px; border-top: 1px solid var(--together-line); background: linear-gradient(180deg,rgba(19,25,39,.28),transparent); }
+.together-circles-section > header > p { max-width: 330px; margin: 0; color: #73808e; font-size: 10px; line-height: 1.6; }
+.together-circle-workspace { display: grid; grid-template-columns: 245px minmax(0,1fr); min-height: 650px; margin-top: 34px; overflow: hidden; border: 1px solid var(--together-line); border-radius: 22px; background: rgba(7,12,19,.64); }
+.together-circle-list { padding: 15px; border-right: 1px solid var(--together-line); background: rgba(12,19,29,.58); }
+.together-circle-list > button { display: grid; width: 100%; padding: 14px; gap: 7px; border: 0; border-radius: 12px; background: transparent; color: #97a2af; text-align: left; cursor: pointer; }
+.together-circle-list > button:hover, .together-circle-list > button.active { background: rgba(115,216,198,.07); color: #eaf3f1; }
+.together-circle-list strong { font: 400 20px "Instrument Serif",serif; }
+.together-circle-list span { color: #687583; font-size: 8px; text-transform: uppercase; }
+.together-circle-room { min-width: 0; padding: 28px; }
+.together-room-empty { display: grid; min-height: 580px; place-content: center; text-align: center; }
+.together-room-empty span { color: var(--together-violet); font: 400 54px "Instrument Serif",serif; }
+.together-room-empty h3 { margin: 9px 0 4px; font: 400 31px "Instrument Serif",serif; }
+.together-room-empty p { color: #74808e; font-size: 10px; }
+.together-room-content { display: grid; gap: 22px; }
+.together-room-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.together-room-header h3 { margin: 6px 0 10px; font: 400 40px "Instrument Serif",serif; }
+.together-room-header > div:last-child { display: flex; gap: 7px; }
+.together-room-header a, .together-room-header button, .together-circle-controls button { min-height: 37px; padding: 0 12px; border: 1px solid var(--together-line); border-radius: 9px; background: transparent; color: #9eabb6; font-size: 9px; text-decoration: none; cursor: pointer; }
+.together-room-header a { display: inline-flex; align-items: center; border-color: rgba(117,216,199,.26); color: #a9e6da; }
+.together-member-stack { display: flex; }
+.together-member-stack .together-person-avatar { width: 30px; height: 30px; margin-left: -7px; box-shadow: 0 0 0 3px #090f18; }
+.together-member-stack .together-person-avatar:first-child { margin-left: 0; }
+.together-circle-controls { display: flex; justify-content: flex-end; gap: 7px; margin-top: -15px; }
+.together-circle-controls .danger { color: #d68e8e; }
+.together-play-deck { padding: 20px; border: 1px solid var(--together-line); border-radius: 16px; background: linear-gradient(135deg,rgba(119,96,206,.07),rgba(70,171,154,.035)); }
+.together-play-deck > header { display: flex; justify-content: space-between; }
+.together-play-deck header span { color: var(--together-violet); font: 8px "JetBrains Mono",monospace; letter-spacing: .12em; }
+.together-play-deck h4 { margin: 6px 0 0; font: 400 23px "Instrument Serif",serif; }
+.together-play-deck header p { color: #6c7885; font-size: 8px; }
+.together-play-deck > div { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin-top: 16px; }
+.together-play-deck button { display: grid; min-height: 105px; padding: 13px; gap: 6px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px; background: rgba(255,255,255,.018); color: #dbe1e3; text-align: left; cursor: pointer; transition: transform 180ms ease,border-color 180ms ease,background 180ms ease; }
+.together-play-deck button:hover { transform: translateY(-3px); border-color: var(--together-line-strong); background: rgba(117,216,199,.05); }
+.together-play-deck i { color: var(--together-warm); font: normal 18px "Instrument Serif",serif; }
+.together-play-deck strong { font-size: 10px; }
+.together-play-deck small { color: #6d7987; font-size: 8px; }
+.together-activity { padding: 22px; border: 1px solid rgba(165,148,238,.22); border-radius: 16px; background: rgba(111,91,191,.065); }
+.together-activity > span { color: var(--together-violet); font: 8px "JetBrains Mono",monospace; letter-spacing: .12em; }
+.together-activity h4 { max-width: 700px; margin: 9px 0 17px; font: 400 28px/1.15 "Instrument Serif",serif; }
+.together-activity form { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; }
+.together-activity button { padding: 0 15px; border: 1px solid rgba(165,148,238,.25); border-radius: 10px; background: rgba(165,148,238,.1); color: #dcd5ff; cursor: pointer; }
+.together-activity-responses, #together-activity-responses { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 13px; }
+.together-activity-response { padding: 10px 12px; border-left: 1px solid rgba(165,148,238,.3); background: rgba(255,255,255,.018); }
+.together-activity-response strong { display: block; color: #aab4be; font-size: 8px; }
+.together-activity-response p { margin: 4px 0 0; font: 400 16px "Instrument Serif",serif; }
+.together-chat { display: grid; min-height: 280px; padding: 20px; border: 1px solid var(--together-line); border-radius: 16px; background: rgba(6,11,18,.55); }
+.together-chat > header { display: flex; justify-content: space-between; align-items: center; }
+.together-chat h4 { margin: 0; font: 400 22px "Instrument Serif",serif; }
+.together-chat header span { color: #687583; font-size: 8px; }
+.together-message-list { display: flex; max-height: 310px; min-height: 155px; padding: 18px 3px; flex-direction: column; gap: 9px; overflow-y: auto; }
+.together-message { max-width: 72%; padding: 10px 12px; border: 1px solid var(--together-line); border-radius: 12px 12px 12px 3px; background: rgba(255,255,255,.025); }
+.together-message.mine { align-self: flex-end; border-color: rgba(117,216,199,.17); border-radius: 12px 12px 3px 12px; background: rgba(83,179,163,.07); }
+.together-message strong { color: #8d99a6; font-size: 8px; }
+.together-message p { margin: 4px 0 0; color: #d9dfe1; font-size: 10px; line-height: 1.55; white-space: pre-wrap; }
+.together-message time { display: block; margin-top: 5px; color: #566370; font-size: 7px; }
+.together-chat form { display: grid; grid-template-columns: minmax(0,1fr) 43px; gap: 7px; }
+.together-chat textarea { min-height: 61px; max-height: 130px; padding: 13px; border: 1px solid var(--together-line); border-radius: 12px; outline: 0; resize: vertical; background: #0a111c; color: #edf1ef; font: 10px/1.5 "Sora",sans-serif; }
+.together-chat textarea:focus { border-color: var(--together-line-strong); }
+.together-chat form button { border: 1px solid rgba(117,216,199,.25); border-radius: 12px; background: linear-gradient(145deg,rgba(98,211,191,.23),rgba(127,109,216,.16)); color: #bff2e8; font-size: 17px; cursor: pointer; }
+.together-safety { display: grid; grid-template-columns: .7fr 1fr auto; gap: 50px; padding: 55px clamp(28px,7vw,110px) 74px; align-items: center; border-top: 1px solid var(--together-line); }
+.together-safety p { color: #778492; font-size: 10px; line-height: 1.7; }
+.together-safety a { color: var(--together-teal); font-size: 9px; text-decoration: none; }
+.together-dialog { width: min(630px,calc(100% - 30px)); max-height: min(760px,calc(100dvh - 30px)); padding: 0; overflow: auto; border: 1px solid rgba(143,129,216,.28); border-radius: 22px; background: #0b121d; color: var(--together-ink); box-shadow: 0 35px 100px rgba(0,0,0,.55); }
+.together-dialog::backdrop { background: rgba(3,6,11,.78); backdrop-filter: blur(8px); }
+.together-dialog > form { position: relative; display: grid; padding: 34px; gap: 20px; }
+.together-dialog h2 { margin: -8px 0 4px; font: 400 39px/1 "Instrument Serif",serif; }
+.together-dialog-close { position: absolute; top: 16px; right: 16px; width: 34px; height: 34px; border: 1px solid var(--together-line); border-radius: 50%; background: transparent; color: #8c98a5; cursor: pointer; }
+.together-dialog label { display: grid; gap: 8px; color: #8c98a5; font-size: 9px; }
+.together-dialog fieldset { min-width: 0; margin: 0; padding: 15px; border: 1px solid var(--together-line); border-radius: 14px; }
+.together-dialog legend { padding: 0 7px; color: #7e8b98; font-size: 8px; }
+.together-kind-picker { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.together-kind-picker label { display: block; }
+.together-kind-picker input { position: absolute; opacity: 0; pointer-events: none; }
+.together-kind-picker span { display: grid; min-height: 68px; padding: 12px; place-content: center; border: 1px solid var(--together-line); border-radius: 10px; text-align: center; cursor: pointer; }
+.together-kind-picker input:checked + span { border-color: rgba(117,216,199,.34); background: rgba(117,216,199,.06); color: #c9f4eb; }
+.together-kind-picker small { margin-top: 5px; color: #687583; font-size: 7px; }
+.together-member-picker { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; max-height: 230px; overflow-y: auto; }
+.together-member-choice { display: flex !important; min-width: 0; padding: 9px; align-items: center; gap: 9px; border: 1px solid var(--together-line); border-radius: 10px; cursor: pointer; }
+.together-member-choice:has(input:checked) { border-color: rgba(117,216,199,.34); background: rgba(117,216,199,.05); }
+.together-member-choice input { width: auto; min-height: 0; }
+.together-member-choice .together-person-avatar { flex: 0 0 34px; width: 34px; height: 34px; }
+.together-member-choice strong { overflow: hidden; color: #cdd5d8; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.together-dialog-primary { width: 100%; }
+.together-small-dialog { width: min(480px,calc(100% - 30px)); }
+.light .together-main { --together-ink:#213139; --together-muted:#66757b; --together-line:rgba(34,65,73,.14); --together-line-strong:rgba(32,125,110,.28); --together-teal:#247f72; --together-violet:#66598f; background: radial-gradient(circle at 92% 4%,rgba(106,91,154,.09),transparent 31rem),#f4f5f1; }
+.light .together-page { background: #f4f5f1; }
+.light .together-hero > div:first-child > p:last-child,.light .together-state,.light .together-circles-section > header > p { color: #65757c; }
+.light .together-panel,.light .together-friend-card,.light .together-circle-workspace,.light .together-circle-room,.light .together-chat { background: rgba(255,255,255,.75); }
+.light .together-presence-card,.light .together-dialog { background: #fff; color: #213139; }
+.light .together-presence-card select,.light .together-invite-panel input,.light .together-dialog input,.light .together-activity input,.light .together-chat textarea { background: #f7f9f8; color: #26383d; }
+.light .together-circle-list { background: rgba(235,239,237,.82); }
+@media (max-width: 1180px) { .together-friend-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.together-overview { grid-template-columns: repeat(3,1fr); }.together-state { grid-column:1/-1; justify-self:start; padding:15px 0; }.together-play-deck > div { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 900px) { .together-hero,.together-connection-grid { grid-template-columns:1fr; }.together-hero { padding-top:55px; }.together-circle-workspace { grid-template-columns:1fr; }.together-circle-list { display:flex; overflow-x:auto; border-right:0; border-bottom:1px solid var(--together-line); }.together-circle-list > button { min-width:170px; }.together-safety { grid-template-columns:1fr; gap:16px; }.together-room-header { flex-direction:column; }.together-circle-room { padding:18px; } }
+@media (max-width: 620px) { .together-hero { min-height:0; padding:42px 18px; }.together-hero h1 { font-size:58px; }.together-presence-card { grid-template-columns:auto 1fr; }.together-presence-card select { grid-column:1/-1; }.together-overview,.together-connection-grid,.together-friends-section,.together-circles-section,.together-safety { padding-right:18px; padding-left:18px; }.together-overview article { padding:16px 8px; }.together-overview article span { font-size:32px; }.together-panel > header,.together-friends-section > header,.together-circles-section > header { flex-direction:column; }.together-invite-panel form > div { grid-template-columns:1fr; }.together-friend-grid { grid-template-columns:1fr; }.together-outgoing > div { grid-template-columns:1fr; }.together-play-deck > div,.together-activity-responses,#together-activity-responses,.together-member-picker { grid-template-columns:1fr; }.together-kind-picker { grid-template-columns:1fr; }.together-dialog > form { padding:29px 19px; }.together-room-header > div:last-child { flex-wrap:wrap; } }
+@media (prefers-reduced-motion: reduce) { .together-page *, .together-page *::before, .together-page *::after { scroll-behavior:auto!important; transition:none!important; animation:none!important; } }

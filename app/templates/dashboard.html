@@ -1,35 +1,8 @@
 {% extends "base.html" %}
 {% block body_class %}app-body flagship-workspace-body editorial-workspace editorial-overview{% endblock %}
 {% block content %}
-<div class="flagship-workspace dashboard-shell">
-  <aside class="workspace-rail" aria-label="Emora workspace">
-    <a class="workspace-logo" href="/" aria-label="Emora home"><span>e</span><strong>emora</strong></a>
-    <nav aria-label="Workspace navigation">
-      <p>SPACE</p>
-      <a class="active" href="/dashboard"><i aria-hidden="true">⌂</i> Overview</a>
-      <a href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><i aria-hidden="true">✦</i> Meet Emora <b data-emora-live-state hidden></b></a>
-      <a href="/chat?new=1" aria-label="Chat with Emora using text"><i aria-hidden="true">□</i> Chat with Emora</a>
-      <a href="/play"><i aria-hidden="true">✧</i> Emora Play <b data-play-progress hidden></b></a>
-      <a href="/focus-together"><i aria-hidden="true">◌</i> Focus Together <b aria-label="Premium capability">✦</b></a>
-      <p>REFLECT</p>
-      <a href="/insights"><i aria-hidden="true">↗</i> Insights</a>
-      <a href="/journal"><i aria-hidden="true">▣</i> Journal</a>
-      <a href="/goals"><i aria-hidden="true">◎</i> Gentle Goals</a>
-      <p>CONNECT</p>
-      <a href="/community"><i aria-hidden="true">◉</i> Community</a>
-    </nav>
-    {% include "_sidebar_plan.html" %}
-    <div class="workspace-person">
-      <div data-session-avatar class="workspace-avatar">M</div>
-      <div><strong data-session-user-name>Friend</strong><span>Private space</span></div>
-      <a href="/profile" aria-label="Open profile and settings">⌄</a>
-    </div>
-    <div class="workspace-rail-actions sidebar-account-actions" aria-label="Account controls">
-      <button type="button" data-theme-toggle><span>Theme</span></button>
-      <a href="/profile" aria-label="Settings"><span>Settings</span></a>
-      <button type="button" data-logout><span>Sign out</span></button>
-    </div>
-  </aside>
+<div class="flagship-workspace dashboard-shell workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
 
   <main class="workspace-main">
     <header class="workspace-topbar">
@@ -106,12 +79,12 @@
 
     <section class="dashboard-action-dock" aria-label="Choose what feels good now">
       <p><span aria-hidden="true">✦</span> What would feel good to do right now?</p>
-      <div><a href="#arrival-check-in">Reflect</a><a href="/focus-together">Focus</a><a href="/play">Play</a><a href="/chat?new=1">Talk</a></div>
+      <div><a href="#arrival-check-in">Reflect</a><a href="/focus-together">Focus</a><a href="/play">Play</a><a href="/sessions">Session</a><a href="/chat?new=1">Talk</a></div>
     </section>
 
     <section class="experience-depth" aria-label="Your evolving Emora space">
       <article class="experience-drop"><p class="workspace-kicker">DAILY EMORA DROP</p><blockquote class="serif" id="daily-emora-drop">A small question is arriving…</blockquote><a href="/chat?new=1" id="daily-drop-action">Take it to Emora <span>→</span></a></article>
-      <article class="experience-story"><p class="workspace-kicker">YOUR WEEK WITH EMORA</p><h2 class="serif">A story made only from what happened.</h2><p id="weekly-story-summary">Your week is gathering quietly.</p><a href="/insights">Open the reflection <span>→</span></a></article>
+      <article class="experience-story"><p class="workspace-kicker">YOUR WEEK WITH EMORA</p><h2 class="serif">A story made only from what happened.</h2><p id="weekly-story-summary">Your week is gathering quietly.</p><a href="/sessions#weekly-review">Open Weekly Review <span>→</span></a></article>
       <article class="experience-constellation"><p class="workspace-kicker">PERSONAL CONSTELLATION</p><h2 class="serif">The things you choose begin to connect.</h2><div id="constellation-preview" aria-live="polite"><p class="muted">Your goals, moments, and memories will appear here—never invented.</p></div><a href="/insights">Explore the pattern <span>→</span></a></article>
     </section>
 
@@ -133,5 +106,22 @@
     <a href="/goals" data-dashboard-tiny class="dashboard-tiny-link">Choose one tiny thing →</a>
   </main>
 </div>
+<dialog class="goal-onboarding" id="goal-onboarding" aria-labelledby="goal-onboarding-title">
+  <form method="dialog">
+    <button class="goal-onboarding-close" value="skip" aria-label="Skip first-run guide">×</button>
+    <p class="workspace-kicker">START WITH WHAT YOU NEED</p>
+    <h2 class="serif" id="goal-onboarding-title">What would feel useful today?</h2>
+    <p>Choose one place to begin. You can skip this and use every normal feature directly.</p>
+    <div class="goal-onboarding-grid">
+      <button value="talk" data-onboarding-goal="talk">Talk with Emora</button>
+      <button value="reflect" data-onboarding-goal="reflect">Reflect privately</button>
+      <button value="goal" data-onboarding-goal="goal">Plan one goal</button>
+      <button value="focus" data-onboarding-goal="focus">Focus together</button>
+      <button value="research" data-onboarding-goal="research">Research with sources</button>
+      <button value="meet_emora" data-onboarding-goal="meet_emora">Meet Emora</button>
+    </div>
+    <p class="goal-onboarding-privacy">Memory, voice, camera, web search, reminders, community, and optional analytics remain separate choices in Profile.</p>
+  </form>
+</dialog>
 {% endblock %}
 {% block scripts %}<script type="module" src="/static/js/workspace-shell.js?v=20260824-dashboard-atmosphere-v1"></script>{% endblock %}

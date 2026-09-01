@@ -332,6 +332,9 @@ def _recent_user_text(history: list[dict[str, Any]] | None) -> str:
 
 
 def decide_web_search(message: str, history: list[dict[str, Any]] | None = None) -> SearchDecision:
+    from app.product_operations import feature_enabled
+    if not feature_enabled("web_grounding"):
+        return SearchDecision(False, "feature_paused")
     clean = " ".join(str(message or "").split()).strip()
     if not clean:
         return SearchDecision(False, "disabled")

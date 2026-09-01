@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block head_extra %}
-  <link rel="stylesheet" href="/static/css/payment.css?v=20260822-emora-mark" />
+  <link rel="stylesheet" href="/static/css/payment.css?v=20260828-orbit-logo" />
 {% endblock %}
 
 {% block body_class %}payment-body{% endblock %}
@@ -10,7 +10,7 @@
 <div class="payment-page">
   <header class="payment-nav">
     <a class="payment-brand" href="/dashboard" aria-label="Emora dashboard">
-      <img class="payment-brand-mark" src="/static/images/logo.svg?v=20260822-emora-mark" alt="" />
+      <img class="payment-brand-mark" src="/static/images/emora-logo-v2-192.png?v=20260828-orbit" alt="" />
       <span>emora</span>
     </a>
     <div class="payment-nav-actions">
@@ -19,6 +19,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.03-.9-.1-1.34A7 7 0 0 1 13.34 3.1C12.9 3.03 12.46 3 12 3Z"/></svg>
         <span>Theme</span>
       </button>
+      <button class="payment-theme-toggle" type="button" data-emora-concierge-open aria-label="Open billing help beside this page"><span>Help</span></button>
       <a class="payment-back-link" href="/dashboard">Back to your space <span>→</span></a>
     </div>
   </header>
@@ -148,6 +149,7 @@
     <div class="payment-faq-grid">
       <details><summary>Can I cancel whenever I want?<span>+</span></summary><p>Yes. Once live billing is connected, you’ll be able to manage or cancel your plan from your account.</p></details>
       <details><summary>What happens to my private data?<span>+</span></summary><p>Upgrading does not change Emora’s privacy controls. You decide what memories and conversations to keep or remove.</p></details>
+      <details><summary>What happens if I request a downgrade?<span>+</span></summary><p>This preview cannot charge, renew, cancel, or downgrade an account. A future provider-backed downgrade must show its effective date first; saved data remains governed by the same retention and deletion controls, while plan-gated capabilities become locked rather than fabricating or erasing activity.</p></details>
       <details><summary>When does paid access begin?<span>+</span></summary><p>After a connected payment provider verifies payment, or when an administrator explicitly activates the plan. This preview never grants access from unverified card details.</p></details>
     </div>
   </section>

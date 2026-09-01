@@ -1,5 +1,31 @@
 {% extends "base.html" %}
 {% block body_class %}app-body studio-body editorial-workspace editorial-goals{% endblock %}
 {% block content %}
-<main class="studio-shell"><header class="studio-nav"><a class="studio-brand" href="/dashboard"><span>e</span> Emora</a><nav><a href="/journal">Journal</a><a href="/goals" class="active">Goals</a><a href="/play">Play</a></nav><a class="studio-back" href="/dashboard">Workspace ↗</a></header><section class="studio-intro goals-intro"><p class="eyebrow">GENTLE GOALS</p><h1 class="serif">One clear direction.<br><em>No pressure.</em></h1><p>Make the next step small enough to start. Your goals are a compass, not a scorecard.</p><div class="studio-stat"><span>Choose one goal as today’s Tiny Thing</span><i></i><span>Progress stays private and pressure-free</span></div></section><div class="journal-layout"><section class="journal-editor goal-editor"><div class="editor-header"><span>ADD A GOAL</span><span>Start small</span></div><form id="goal-form"><input id="goal-title" maxlength="160" placeholder="What would you like to move forward?" required/><textarea id="goal-note" rows="7" maxlength="500" placeholder="Why does it matter to you? This is optional, but it can help on a hard day."></textarea><div class="editor-footer"><span>Progress is personal</span><button class="btn btn-primary" type="submit">Add to my path</button></div></form></section><section class="journal-feed"><div class="feed-heading"><div><p class="eyebrow">YOUR PATH</p><h2 class="serif">Goals in view</h2></div><span class="feed-count">One step at a time</span></div><div id="goal-status" class="status" hidden></div><div id="goal-list" class="personal-list"></div></section></div></main>
-{% endblock %}{% block scripts %}<script type="module" src="/static/js/personal.js"></script>{% endblock %}
+<div class="workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
+  <main class="studio-shell unified-workspace-main">
+    <section class="studio-intro goals-intro">
+      <p class="eyebrow">GENTLE GOALS</p>
+      <h1 class="serif">One clear direction.<br><em>No pressure.</em></h1>
+      <p>Make the next step small enough to start. Your goals are a compass, not a scorecard.</p>
+      <div class="studio-stat"><span>Choose one goal as today’s Tiny Thing</span><i></i><span>Progress stays private and pressure-free</span></div>
+    </section>
+    <div class="journal-layout">
+      <section class="journal-editor goal-editor">
+        <div class="editor-header"><span>ADD A GOAL</span><span>Start small</span></div>
+        <form id="goal-form">
+          <input id="goal-title" maxlength="160" placeholder="What would you like to move forward?" required/>
+          <textarea id="goal-note" rows="7" maxlength="500" placeholder="Why does it matter to you? This is optional, but it can help on a hard day."></textarea>
+          <div class="editor-footer"><span id="goal-editor-status">Progress is personal</span><div><button class="btn btn-ghost" id="goal-cancel-edit" type="button" hidden>Cancel</button> <button class="btn btn-primary" id="goal-submit" type="submit">Add to my path</button></div></div>
+        </form>
+      </section>
+      <section class="journal-feed">
+        <div class="feed-heading"><div><p class="eyebrow">YOUR PATH</p><h2 class="serif">Goals in view</h2></div><span class="feed-count">One step at a time</span></div>
+        <div id="goal-status" class="status" hidden></div>
+        <div id="goal-list" class="personal-list"></div>
+      </section>
+    </div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/personal.js"></script>{% endblock %}

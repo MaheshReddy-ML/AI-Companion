@@ -1,5 +1,40 @@
 {% extends "base.html" %}
 {% block body_class %}app-body studio-body editorial-workspace editorial-journal{% endblock %}
 {% block content %}
-<main class="studio-shell"><header class="studio-nav"><a class="studio-brand" href="/dashboard"><span>e</span> Emora</a><nav><a href="/journal" class="active">Journal</a><a href="/goals">Goals</a><a href="/play">Play</a></nav><a class="studio-back" href="/dashboard">Workspace ↗</a></header><section class="studio-intro"><p class="eyebrow">PRIVATE JOURNAL</p><h1 class="serif">A quieter place<br>to <em>arrive.</em></h1><p>There is no perfect entry. Write one clear thing, let it be enough, and come back whenever you need.</p><div class="studio-stat"><span>Only you can see these entries</span><i></i><span>Saved securely to your account</span></div></section><div class="journal-layout"><section class="journal-editor"><div class="editor-header"><span id="journal-editor-mode">NEW REFLECTION</span><span id="journal-date"></span></div><form id="journal-form"><div class="reflection-prompts" aria-label="Reflection prompts"><button type="button" data-journal-prompt="What felt heavier than it needed to today?">What felt heavy?</button><button type="button" data-journal-prompt="What do I want to remember from this moment?">What should stay?</button><button type="button" data-journal-prompt="What changed in me, even a little?">What changed?</button></div><input id="journal-title" maxlength="120" placeholder="Give this moment a title"/><div class="mood-picker"><label for="journal-mood">How does it feel?</label><select id="journal-mood"><option value="reflective">Reflective</option><option value="calm">Calm</option><option value="positive">Positive</option><option value="anxious">Anxious</option><option value="low">Low</option></select></div><textarea id="journal-content" rows="11" maxlength="6000" required placeholder="Start wherever you are. You can write a few words or a whole page."></textarea><div class="editor-footer"><span id="journal-draft-status" aria-live="polite">Private by default</span><div><button class="btn btn-ghost" id="journal-cancel-edit" type="button" hidden>Cancel edit</button> <button class="btn btn-primary" id="journal-submit" type="submit">Save reflection</button></div></div></form></section><section class="journal-feed"><div class="feed-heading"><div><p class="eyebrow">LOOK BACK</p><h2 class="serif">Past reflections</h2></div><span class="feed-count">Newest first</span></div><div id="journal-status" class="status" hidden></div><div id="journal-list" class="personal-list"></div></section></div></main>
-{% endblock %}{% block scripts %}<script>document.getElementById('journal-date').textContent=new Intl.DateTimeFormat(undefined,{month:'long',day:'numeric',year:'numeric'}).format(new Date())</script><script type="module" src="/static/js/personal.js"></script>{% endblock %}
+<div class="workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
+  <main class="studio-shell unified-workspace-main">
+    <section class="studio-intro">
+      <p class="eyebrow">PRIVATE JOURNAL</p>
+      <h1 class="serif">A quieter place<br>to <em>arrive.</em></h1>
+      <p>There is no perfect entry. Write one clear thing, let it be enough, and come back whenever you need.</p>
+      <div class="studio-stat"><span>Only you can see these entries</span><i></i><span>Saved securely to your account</span></div>
+    </section>
+    <div class="journal-layout">
+      <section class="journal-editor">
+        <div class="editor-header"><span id="journal-editor-mode">NEW REFLECTION</span><span id="journal-date"></span></div>
+        <form id="journal-form">
+          <div class="reflection-prompts" aria-label="Reflection prompts">
+            <button type="button" data-journal-prompt="What felt heavier than it needed to today?">What felt heavy?</button>
+            <button type="button" data-journal-prompt="What do I want to remember from this moment?">What should stay?</button>
+            <button type="button" data-journal-prompt="What changed in me, even a little?">What changed?</button>
+          </div>
+          <input id="journal-title" maxlength="120" placeholder="Give this moment a title"/>
+          <div class="mood-picker">
+            <label for="journal-mood">How does it feel?</label>
+            <select id="journal-mood"><option value="reflective">Reflective</option><option value="calm">Calm</option><option value="positive">Positive</option><option value="anxious">Anxious</option><option value="low">Low</option></select>
+          </div>
+          <textarea id="journal-content" rows="11" maxlength="6000" required placeholder="Start wherever you are. You can write a few words or a whole page."></textarea>
+          <div class="editor-footer"><span id="journal-draft-status" aria-live="polite">Private by default</span><div><button class="btn btn-ghost" id="journal-cancel-edit" type="button" hidden>Cancel edit</button> <button class="btn btn-primary" id="journal-submit" type="submit">Save reflection</button></div></div>
+        </form>
+      </section>
+      <section class="journal-feed">
+        <div class="feed-heading"><div><p class="eyebrow">LOOK BACK</p><h2 class="serif">Past reflections</h2></div><span class="feed-count">Newest first</span></div>
+        <div id="journal-status" class="status" hidden></div>
+        <div id="journal-list" class="personal-list"></div>
+      </section>
+    </div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script>document.getElementById('journal-date').textContent=new Intl.DateTimeFormat(undefined,{month:'long',day:'numeric',year:'numeric'}).format(new Date())</script><script type="module" src="/static/js/personal.js"></script>{% endblock %}

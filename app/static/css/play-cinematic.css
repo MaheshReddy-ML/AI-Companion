@@ -143,7 +143,7 @@ body[data-access-plan="admin"] .play-plan-seal { border-color: rgba(188, 168, 22
   overflow: hidden;
   border: 0;
   border-radius: 9px;
-  background: #101524 url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
+  background: transparent;
   color: transparent;
   font-size: 0;
   box-shadow: 0 0 0 1px rgba(201, 192, 235, .25);

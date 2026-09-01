@@ -24,4 +24,6 @@ def record_security_event(user_id, kind: str, label: str) -> None:
         title="Account security activity",
         message=label,
         action_path="/profile#profile-security",
+        action_label="Review activity",
+        importance="high",
     )

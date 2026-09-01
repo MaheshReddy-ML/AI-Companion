@@ -8,12 +8,52 @@ import {
   displayNameForUser,
   getInitials,
   initChrome,
+  publishEmoraPresence,
   redirect,
   renderUserAvatar,
 } from "./common.js?v=20260822-premium-space-v1";
 
 const EMORA_STATES = new Set(["IDLE", "WAKING", "LISTENING", "THINKING", "SPEAKING", "WAITING", "INTERRUPTED", "PAUSED", "ERROR", "ENDED"]);
 let dashboardPresence = null;
+
+async function initGoalOnboarding() {
+  const dialog = document.getElementById("goal-onboarding");
+  if (!dialog) return;
+  let payload;
+  try { payload = await apiRequest("/api/product/bootstrap", { auth: true, cache: "no-store" }); }
+  catch (_) { return; }
+  if (!payload.features?.goal_onboarding || payload.onboarding?.status !== "not_started") return;
+  let preferredGoal = "";
+  try { preferredGoal = sessionStorage.getItem("emora:first-goal") || ""; } catch (_) { /* optional continuity only */ }
+  const preferredButton = dialog.querySelector(`[data-onboarding-goal="${preferredGoal}"]`);
+  if (preferredButton) {
+    preferredButton.classList.add("recommended");
+    preferredButton.setAttribute("aria-describedby", "goal-onboarding-selection");
+    const selection = document.createElement("p");
+    selection.id = "goal-onboarding-selection";
+    selection.className = "goal-onboarding-selection";
+    selection.textContent = `You chose “${preferredButton.textContent.trim()}” before sign-in. Confirm it here or choose another beginning.`;
+    dialog.querySelector(".goal-onboarding-privacy")?.before(selection);
+  }
+  dialog.addEventListener("close", async () => {
+    const goal = dialog.returnValue;
+    const routes = { talk: "/chat?new=1", reflect: "/journal", goal: "/goals", focus: "/focus-together", research: "/research", meet_emora: "/your-emora" };
+    try {
+      if (routes[goal]) {
+        await apiRequest("/api/product/onboarding", { method: "PATCH", auth: true, body: { status: "completed", goal, step: 1 } });
+        try { sessionStorage.removeItem("emora:first-goal"); } catch (_) { /* best-effort continuity cleanup */ }
+        redirect(routes[goal]);
+      } else {
+        await apiRequest("/api/product/onboarding", { method: "PATCH", auth: true, body: { status: "skipped", step: 0 } });
+        try { sessionStorage.removeItem("emora:first-goal"); } catch (_) { /* best-effort continuity cleanup */ }
+      }
+    } catch (_) { /* the guide remains optional; never block Dashboard */ }
+  }, { once: true });
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+    preferredButton?.focus({ preventScroll: true });
+  }
+}
 
 function setEmoraState(next, detail = "") {
   if (!EMORA_STATES.has(next)) return;
@@ -29,6 +69,7 @@ function setEmoraState(next, detail = "") {
   if (label) label.textContent = detail || labels[next];
   const stateDetail = root.querySelector(".orbit-status strong");
   if (stateDetail) stateDetail.textContent = next === "ERROR" ? "Try again" : next === "IDLE" ? "Calm" : "With you";
+  publishEmoraPresence({ WAKING: "IDLE", WAITING: "IDLE", PAUSED: "INTERRUPTED", ENDED: "IDLE" }[next] || next);
 }
 
 function renderPresence(presence = {}) {
@@ -578,6 +619,7 @@ document.getElementById("insights-constellation")?.addEventListener("click", asy
   }
 
   fillUserChrome();
+  await initGoalOnboarding();
   bindDashboardPresence();
   bindDashboardMemories();
   bindArrivalForm();

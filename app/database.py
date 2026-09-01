@@ -99,6 +99,17 @@ def check_database_connection() -> dict[str, Any]:
     }
 
 
+def ensure_together_indexes() -> None:
+    database = get_database()
+    database["friendships"].create_index([("pair_key", ASCENDING)], unique=True)
+    database["friendships"].create_index([("requester_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+    database["friendships"].create_index([("recipient_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+    database["social_presence"].create_index([("user_id", ASCENDING)], unique=True)
+    database["social_presence"].create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
+    database["social_circles"].create_index([("member_ids", ASCENDING), ("updated_at", DESCENDING)])
+    database["social_circles"].create_index([("owner_id", ASCENDING), ("created_at", DESCENDING)])
+
+
 def ensure_indexes() -> None:
     try:
         users_collection().create_index([("email", ASCENDING)], unique=True)
@@ -161,6 +172,14 @@ def ensure_indexes() -> None:
         get_database()["response_feedback"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
         get_database()["research_shelf"].create_index([("user_id", ASCENDING), ("url", ASCENDING)], unique=True)
         get_database()["check_in_schedules"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["emora_sessions"].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["emora_sessions"].create_index([("user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["weekly_reviews"].create_index([("user_id", ASCENDING), ("week_key", ASCENDING)], unique=True)
+        get_database()["product_state"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["product_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["product_events"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["feature_flags"].create_index([("name", ASCENDING)], unique=True)
+        ensure_together_indexes()
     except PyMongoError as exc:
         raise RuntimeError(
             f"MongoDB is not reachable at {settings.mongo_uri}. "
@@ -220,6 +239,8 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         payload["vision"] = document.get("vision")
     if document.get("web_search"):
         payload["webSearch"] = document.get("web_search")
+    if document.get("memory_use"):
+        payload["memoryUse"] = document.get("memory_use")
     return payload
 
 

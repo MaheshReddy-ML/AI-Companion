@@ -17,13 +17,14 @@ from app.database import check_database_connection, close_database
 from app.http_security import request_is_https
 from app.migrations import run_migrations
 from app.voice_manager import cleanup_audio_cache
-from app.routers import account, admin, api_auth, api_chat, billing, companion, experiences, insights, pages, personal, play, posts, workspace_features
+from app.routers import account, admin, api_auth, api_chat, billing, companion, experiences, insights, pages, personal, play, posts, premium_experiences, product_operations, together, workspace_features
 from app.inference.provider import provider_status
 from app.audit import reset_request_id, set_request_id
 from app.metrics import observe_request
 from app.services.inference_queue import begin_chat_queue_shutdown
 from app.tts_queue import begin_tts_queue_shutdown
 from app.rate_limit import rate_limit_backend_status
+from app.product_operations import feature_flags
 
 
 logger = logging.getLogger(__name__)
@@ -159,7 +160,7 @@ async def disable_development_browser_cache(request: Request, call_next):
 
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon() -> RedirectResponse:
-    return RedirectResponse(url="/static/images/logo.svg?v=20260822-emora-mark")
+    return RedirectResponse(url="/static/images/emora-logo-v2-64.png?v=20260828-orbit")
 
 app.include_router(pages.router)
 app.include_router(api_auth.router, prefix="/api/auth")
@@ -175,6 +176,9 @@ app.include_router(posts.router)
 app.include_router(admin.router)
 app.include_router(billing.router)
 app.include_router(workspace_features.router)
+app.include_router(premium_experiences.router)
+app.include_router(product_operations.router)
+app.include_router(together.router)
 # voice router
 from app.routers import voices as api_voices
 app.include_router(api_voices.router, prefix="/api/voices")
@@ -186,6 +190,24 @@ def health_check() -> dict:
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.environment,
+    }
+
+
+@app.get("/api/public/status")
+def public_status() -> dict:
+    flags = feature_flags()
+    return {
+        "status": "operational",
+        "updatedAt": "live",
+        "components": {
+            "website": "operational",
+            "authentication": "operational",
+            "chat": "operational",
+            "voice": "available_on_supported_devices",
+            "webGrounding": "available_when_configured" if flags.get("web_grounding") else "paused",
+            "communityWrites": "operational" if flags.get("community_writes") else "paused",
+            "scheduledDelivery": "operational" if flags.get("scheduled_delivery") else "paused",
+        },
     }
 
 

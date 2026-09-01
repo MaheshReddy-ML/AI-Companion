@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 
 import httpx
+from fastapi.testclient import TestClient
 
+from app.main import app
 from app.services import web_search
 
 
@@ -283,20 +285,11 @@ def test_browser_contract_has_real_search_state_sources_and_cancellation():
 
 def test_chat_navigation_starts_fresh_without_hiding_saved_history():
     dashboard = open("app/static/js/dashboard.js", encoding="utf-8").read()
-    templates = "\n".join(
-        open(path, encoding="utf-8").read()
-        for path in (
-            "app/templates/base.html",
-            "app/templates/chat.html",
-            "app/templates/dashboard.html",
-            "app/templates/insights.html",
-            "app/templates/community.html",
-            "app/templates/profile.html",
-        )
-    )
 
     assert 'get("new") === "1"' in dashboard
     assert "fetchConversations({ selectMostRecent: !shouldStartFresh })" in dashboard
     assert "if (!shouldStartFresh && !state.activeConversationId" in dashboard
-    assert templates.count('href="/chat?new=1" aria-label="Chat with Emora using text"') == 6
-    assert 'href="/chat">Open conversation history' in templates
+    client = TestClient(app)
+    for path in ("/dashboard", "/chat", "/insights", "/community", "/profile"):
+        assert 'href="/chat?new=1" aria-label="Chat with Emora using text"' in client.get(path).text
+    assert 'href="/chat">Open conversation history' in client.get("/dashboard").text

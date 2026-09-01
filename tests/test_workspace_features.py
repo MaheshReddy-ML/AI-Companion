@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.notifications import serialize_notification
 from app.routers import workspace_features
 from app.routers.workspace_features import _schedule_due, _validate_restore
 
@@ -24,6 +25,8 @@ def test_all_workspace_feature_routes_are_registered():
         ("/api/workspace/restore/commit", "POST"),
         ("/api/workspace/notifications", "GET"),
         ("/api/workspace/notifications/read-all", "POST"),
+        ("/api/workspace/notifications/{notification_id}/respond", "PATCH"),
+        ("/api/workspace/notifications/categories/{category}/mute", "PUT"),
     }
     assert expected <= paths
 
@@ -63,12 +66,52 @@ def test_workspace_tools_stay_off_locked_experiences():
         html = client.get(path).text
         assert "workspace-command-dialog" not in html
         assert "workspace-tools.js" not in html
-    for path in ("/dashboard", "/chat", "/profile", "/research"):
+    for path in ("/dashboard", "/chat", "/profile", "/research", "/sessions"):
         html = client.get(path).text
         assert "workspace-command-dialog" in html
         assert "workspace-tools.js" in html
         assert "Search your space" in html
         assert "Chats, journal, goals and more" in html
+
+
+def test_normal_workspace_routes_share_the_dashboard_rail():
+    client = TestClient(app)
+    normal_routes = (
+        "/dashboard",
+        "/chat",
+        "/sessions",
+        "/insights",
+        "/community",
+        "/profile",
+        "/journal",
+        "/goals",
+        "/help",
+        "/research",
+        "/notifications",
+    )
+    for path in normal_routes:
+        response = client.get(path)
+        assert response.status_code == 200
+        html = response.text
+        assert html.count("shared-workspace-rail") == 1
+        assert 'class="workspace-logo" href="/dashboard"' in html
+        assert "workspace-rail-unified.css" in html
+        assert "data-session-user-name" in html
+        assert "data-session-avatar" in html
+        assert "data-session-plan" in html
+
+    for path in ("/play", "/your-emora"):
+        assert "shared-workspace-rail" not in client.get(path).text
+
+
+def test_common_chrome_populates_shared_sidebar_profile_on_every_route():
+    common = TestClient(app).get("/static/js/common.js").text
+    assert 'querySelectorAll("[data-session-user-name]")' in common
+    assert 'querySelectorAll("[data-session-user-email]")' in common
+    assert 'querySelectorAll("[data-session-plan]")' in common
+    assert 'querySelectorAll("[data-session-avatar]")' in common
+    assert "accessDisplay.compact" in common
+    assert "renderUserAvatar(element, user, name)" in common
 
 
 def test_feature_ui_contracts_are_reachable():
@@ -83,3 +126,23 @@ def test_feature_ui_contracts_are_reachable():
     assert "collection-list" in chat
     assert "Research shelf" in research
     assert "/static/js/library.js" in research
+
+
+def test_notification_payload_keeps_useful_action_and_celebration_metadata():
+    payload = serialize_notification({
+        "_id": "notification-1",
+        "category": "celebration",
+        "title": "You did it",
+        "message": "A real step was completed.",
+        "action_path": "/goals",
+        "action_label": "See your progress",
+        "importance": "normal",
+        "celebration": True,
+        "reaction": "helpful",
+        "read_at": None,
+        "created_at": datetime(2026, 8, 28, tzinfo=timezone.utc),
+    })
+    assert payload["actionLabel"] == "See your progress"
+    assert payload["celebration"] is True
+    assert payload["actionPath"] == "/goals"
+    assert payload["reaction"] == "helpful"

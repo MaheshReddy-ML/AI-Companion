@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body_class %}app-body public-information-page{% endblock %}
+{% block content %}
+<main class="public-information" id="main-content">
+  <a class="workspace-logo" href="/"><img src="/static/images/emora-logo-v2-64.png" alt=""><span>EMORA</span></a>
+  <p class="workspace-kicker">SERVICE STATUS</p><h1>Live, public-safe availability.</h1>
+  <p class="public-lead" id="public-status-summary" role="status">Checking current service state…</p>
+  <div class="status-component-list" id="public-status-components"></div>
+  <p>Detailed database, provider, queue, and configuration diagnostics remain administrator-only.</p>
+  <p><a href="/help">Get help</a> · <a href="/changelog">See what changed</a></p>
+</main>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/public-status.js?v=20260830"></script>{% endblock %}

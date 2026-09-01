@@ -16,7 +16,7 @@ from pymongo.errors import DuplicateKeyError
 
 from app.access import has_entitlement, usage_limits_for_user
 from app.config import settings
-from app.database import conversations_collection, feature_collection, parse_object_id, to_iso, utc_now
+from app.database import as_utc, conversations_collection, feature_collection, parse_object_id, to_iso, utc_now
 from app.rate_limit import rate_limit
 from app.security import get_current_user, require_entitlement
 from app.services.companion_chat import get_companion_reply, get_web_grounded_companion_reply
@@ -138,6 +138,9 @@ class RoomRequest(BaseModel):
     name: str = Field(default="Focus room", min_length=2, max_length=60)
     minutes: int | None = Field(default=25, ge=5, le=120)
     unlimited: bool = False
+    focus_minutes: int = Field(default=25, ge=5, le=90)
+    break_minutes: int = Field(default=5, ge=0, le=30)
+    ambience: Literal["quiet", "rain", "night_wind", "fireplace"] = "quiet"
     connection_id: str | None = Field(default=None, min_length=8, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
 
 
@@ -316,6 +319,13 @@ def _serialize_focus_room(room: dict, current_user_id, participants: list[dict] 
     status = room.get("status", FOCUS_ACTIVE)
     participants = participants if participants is not None else []
     ends_at = room.get("ends_at")
+    focus_minutes = int(room.get("focus_minutes", room.get("minutes") or 25))
+    break_minutes = int(room.get("break_minutes", 0))
+    elapsed_seconds = max(0, int((utc_now() - as_utc(room.get("created_at", utc_now()))).total_seconds()))
+    cycle_seconds = max(1, (focus_minutes + break_minutes) * 60)
+    within_cycle = elapsed_seconds % cycle_seconds
+    phase = "BREAK" if break_minutes and within_cycle >= focus_minutes * 60 else "FOCUS"
+    phase_remaining = (cycle_seconds - within_cycle) if phase == "BREAK" else (focus_minutes * 60 - within_cycle)
     return {
         "code": room["code"],
         "name": room["name"],
@@ -334,6 +344,8 @@ def _serialize_focus_room(room: dict, current_user_id, participants: list[dict] 
         "revision": int(room.get("revision", 0)),
         "messages": [_serialize_focus_message(message, current_user_id) for message in room.get("messages", [])],
         "reflection": room.get("reflection"),
+        "cycle": {"focusMinutes": focus_minutes, "breakMinutes": break_minutes, "phase": phase, "phaseRemainingSeconds": max(0, phase_remaining)},
+        "ambience": room.get("ambience", "quiet"),
     }
 
 
@@ -580,6 +592,9 @@ def create_focus_room(payload: RoomRequest, current_user: dict = Depends(require
         "created_at": now,
         "last_activity_at": now,
         "ends_at": None if minutes is None else now + timedelta(minutes=minutes),
+        "focus_minutes": payload.focus_minutes,
+        "break_minutes": payload.break_minutes,
+        "ambience": payload.ambience,
     }
     collection = feature_collection("focus_rooms")
     for _ in range(5):

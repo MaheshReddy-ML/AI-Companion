@@ -10,7 +10,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse, PlainTextResponse
 from pymongo import ReturnDocument
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from pydantic import BaseModel, Field
 
 from app.audit import audit_event
@@ -111,6 +111,41 @@ def build_message(role: str, content: str, attachment_name: str | None = None, a
         "attachment_id": attachment_id,
         "timestamp": utc_now(),
     }
+
+
+def _finalize_chat_turn_pipeline(client_turn_id: str, assistant_message: dict) -> list[dict]:
+    """Complete the user turn and append its reply without conflicting array updates."""
+    return [
+        {
+            "$set": {
+                "messages": {
+                    "$concatArrays": [
+                        {
+                            "$map": {
+                                "input": "$messages",
+                                "as": "message",
+                                "in": {
+                                    "$cond": [
+                                        {"$eq": ["$$message.client_turn_id", client_turn_id]},
+                                        {
+                                            "$mergeObjects": [
+                                                "$$message",
+                                                {"$literal": {"state": "complete", "failure": None}},
+                                            ]
+                                        },
+                                        "$$message",
+                                    ]
+                                },
+                            }
+                        },
+                        [{"$literal": assistant_message}],
+                    ]
+                },
+                "updated_at": {"$literal": assistant_message["timestamp"]},
+                "version": {"$add": [{"$ifNull": ["$version", 1]}, 1]},
+            }
+        }
+    ]
 
 
 def _completed_turn_response(conversation: dict, client_turn_id: str, *, replayed: bool = True) -> dict | None:
@@ -224,6 +259,24 @@ def get_user_conversation_or_404(conversation_id: str, user_id) -> dict:
 def preview_search_decision(payload: SearchDecisionRequest, _: dict = Depends(get_current_user)) -> dict:
     """Expose only real UI state, never the private query or routing internals."""
     return decide_web_search(payload.message).public()
+
+
+@router.post("/turns/{client_turn_id}/cancel")
+def cancel_chat_turn(client_turn_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    if not re.match(r"^[A-Za-z0-9._:-]{8,80}$", client_turn_id):
+        raise HTTPException(status_code=400, detail="Invalid chat turn id.")
+    now = utc_now()
+    item = feature_collection("chat_turn_requests").find_one_and_update(
+        {"user_id": current_user["_id"], "client_turn_id": client_turn_id, "status": "generating"},
+        {"$set": {"status": "cancel_requested", "lease_until": now, "updated_at": now}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if item and item.get("conversation_id"):
+        conversations_collection().update_one(
+            {"_id": item["conversation_id"], "user_id": current_user["_id"], "messages.client_turn_id": client_turn_id},
+            {"$set": {"messages.$.state": "cancel_requested", "updated_at": now}},
+        )
+    return {"cancelRequested": bool(item), "clientTurnId": client_turn_id}
 
 
 @router.get("")
@@ -617,6 +670,22 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
 
     assistant_text = ensure_conflict_disclosure(assistant_text, search_outcome)
 
+    latest_turn = await asyncio.to_thread(
+        lambda: feature_collection("chat_turn_requests").find_one({"_id": turn_request["_id"]}, {"status": 1})
+    )
+    if latest_turn and latest_turn.get("status") == "cancel_requested":
+        await asyncio.to_thread(
+            conversations.update_one,
+            {"_id": conversation["_id"], "user_id": current_user["_id"], "messages.client_turn_id": payload.client_turn_id},
+            {"$set": {"messages.$.state": "cancelled", "updated_at": utc_now()}},
+        )
+        await asyncio.to_thread(
+            lambda: feature_collection("chat_turn_requests").update_one(
+                {"_id": turn_request["_id"]}, {"$set": {"status": "cancelled", "updated_at": utc_now()}}
+            )
+        )
+        raise HTTPException(status_code=409, detail="This response was cancelled before it was saved.")
+
     brain = build_companion_brain(
         reply=assistant_text,
         raw_brain=raw_brain,
@@ -636,6 +705,16 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
     assistant_message["in_reply_to"] = payload.client_turn_id
     assistant_message["generation_model"] = resolved_model
     assistant_message["generation_warning"] = warning
+    if relevant_memories:
+        assistant_message["memory_use"] = [
+            {
+                "category": item.get("category", "memory"),
+                "key": item.get("key", ""),
+                "value": item.get("value", ""),
+                "why": "Relevant to the words in this turn and allowed by your memory preference.",
+            }
+            for item in relevant_memories
+        ]
     if search_decision.needs_web:
         assistant_message["web_search"] = {
             "searched": True,
@@ -643,20 +722,54 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
             "reason": search_decision.reason,
             "sources": [source.public() for source in (search_outcome.sources if search_outcome else ())],
         }
-    result = await asyncio.to_thread(
-        conversations.update_one,
-        {
-            "_id": conversation["_id"],
-            "user_id": current_user["_id"],
-            "messages.client_turn_id": payload.client_turn_id,
-            "messages.in_reply_to": {"$ne": payload.client_turn_id},
-        },
-        {
-            "$push": {"messages": assistant_message},
-            "$set": {"messages.$.state": "complete", "updated_at": assistant_message["timestamp"]},
-            "$inc": {"version": 1},
-        },
-    )
+    try:
+        result = await asyncio.to_thread(
+            conversations.update_one,
+            {
+                "_id": conversation["_id"],
+                "user_id": current_user["_id"],
+                "messages.client_turn_id": payload.client_turn_id,
+                "messages.in_reply_to": {"$ne": payload.client_turn_id},
+            },
+            _finalize_chat_turn_pipeline(payload.client_turn_id, assistant_message),
+        )
+    except PyMongoError as exc:
+        persistence_warning = "The companion replied, but the response could not be saved. Please retry this message."
+        await asyncio.to_thread(
+            conversations.update_one,
+            {
+                "_id": conversation["_id"],
+                "user_id": current_user["_id"],
+                "messages.client_turn_id": payload.client_turn_id,
+            },
+            {
+                "$set": {
+                    "messages.$.state": "failed",
+                    "messages.$.failure": persistence_warning,
+                    "updated_at": utc_now(),
+                }
+            },
+        )
+        await asyncio.to_thread(
+            lambda: feature_collection("chat_turn_requests").update_one(
+                {"_id": turn_request["_id"]},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "failure": persistence_warning,
+                        "lease_until": utc_now(),
+                        "updated_at": utc_now(),
+                    }
+                },
+            )
+        )
+        audit_event(
+            "chat.reply.persistence_failed",
+            user_id=current_user["_id"],
+            conversation_id=conversation["_id"],
+            reason=str(exc),
+        )
+        raise HTTPException(status_code=503, detail=persistence_warning) from exc
     conversation = await asyncio.to_thread(conversations.find_one, {"_id": conversation["_id"], "user_id": current_user["_id"]})
     if not conversation:
         raise HTTPException(status_code=409, detail="The conversation was deleted while this response was being generated.")

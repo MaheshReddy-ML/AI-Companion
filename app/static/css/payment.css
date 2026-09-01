@@ -56,7 +56,7 @@
 
 .payment-brand-mark {
   overflow: hidden;
-  background: #101524 url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
+  background: transparent;
   color: transparent;
   font-size: 0;
   object-fit: contain;

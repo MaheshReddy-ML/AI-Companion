@@ -293,3 +293,10 @@
   .focus-hero-orbit i:nth-child(2) { animation: none; }
   .focus-emora-typing i { animation: none; }
 }
+
+.focus-cycle-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.focus-cycle-options label { display:grid; gap:7px; }
+.focus-cycle-options select { width:100%; padding:11px 9px; border:1px solid rgba(255,255,255,.13); background:rgba(5,10,17,.62); color:inherit; }
+.focus-cycle-options option { background:#101722; }
+.focus-cycle-state { margin-top:12px; color:#cbb589; font-size:.75rem; text-transform:capitalize; }
+@media(max-width:700px){.focus-cycle-options{grid-template-columns:1fr;}}

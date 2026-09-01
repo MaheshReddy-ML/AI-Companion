@@ -1,6 +1,6 @@
 import {
   accessDisplayForUser, apiRequest, copyText, ensureSession, escapeHtml,
-  getStoredUser, getToken, guardEntitlement, initChrome,
+  getStoredUser, getToken, guardEntitlement, initChrome, publishEmoraPresence,
 } from "./common.js?v=20260823-focus-realtime-v2";
 
 const byId = (id) => document.getElementById(id);
@@ -30,6 +30,10 @@ function setStatus(message, tone = "") {
   const status = byId("focus-room-status");
   status.textContent = message;
   status.dataset.state = tone;
+  if (tone === "error") {
+    publishEmoraPresence("ERROR");
+    window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: "error" } }));
+  }
 }
 
 function setConnectionStatus(value) {
@@ -147,6 +151,11 @@ function renderRoom(room, { statusMessage = "" } = {}) {
   byId("focus-live-members").textContent = String(room.members);
   byId("focus-member-plural").textContent = room.members === 1 ? "" : "s";
   byId("focus-live-code").textContent = room.code;
+  const cycleState = byId("focus-cycle-state");
+  if (cycleState && room.cycle) {
+    cycleState.hidden = false;
+    cycleState.textContent = `${room.cycle.phase === "BREAK" ? "Gentle break" : "Focus cycle"} · ${Math.max(1, Math.ceil(Number(room.cycle.phaseRemainingSeconds || 0) / 60))} min · ${String(room.ambience || "quiet").replaceAll("_", " ")}`;
+  }
   byId("focus-code-wrap").hidden = false;
   byId("focus-shared-chat").hidden = false;
   byId("focus-end-session").hidden = ended || !room.isHost;
@@ -288,11 +297,16 @@ byId("focus-room-form").addEventListener("submit", async (event) => {
       body: {
         name: byId("focus-room-name").value,
         minutes: state.unlimitedSelected ? null : Number(byId("focus-room-minutes").value),
+        focus_minutes: Number(byId("focus-cycle-minutes").value),
+        break_minutes: Number(byId("focus-break-minutes").value),
+        ambience: byId("focus-room-ambience").value,
         unlimited: state.unlimitedSelected,
         connection_id: state.connectionId,
       },
     });
     activateRoom(result.room, { statusMessage: state.unlimitedSelected ? "Your open-ended room is ready." : "Your synchronized focus room is ready." });
+    publishEmoraPresence("IDLE");
+    window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: "joined" } }));
     byId("focus-chat-input").focus();
   } catch (error) {
     setStatus(error.message || "Could not create this focus room.", "error");
@@ -313,6 +327,8 @@ byId("focus-join-form").addEventListener("submit", async (event) => {
       body: { code: byId("focus-room-code").value.trim(), connection_id: state.connectionId },
     });
     activateRoom(result.room, { statusMessage: "You joined the live room and its shared conversation." });
+    publishEmoraPresence("IDLE");
+    window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: "joined" } }));
     byId("focus-chat-input").focus();
   } catch (error) {
     setStatus(error.message || "Could not join that focus room.", "error");
@@ -335,6 +351,7 @@ byId("focus-chat-form").addEventListener("submit", async (event) => {
       method: "POST", auth: true, body: { message },
     });
     input.value = "";
+    window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: "accepted" } }));
     renderRoom(result.room, { statusMessage: /(?:^|\s)@emora\b/i.test(message) ? "Emora was invited into the shared conversation." : "Your message is live for everyone in the room." });
   } catch (error) {
     if (error.status === 410) {

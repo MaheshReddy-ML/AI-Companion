@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/emora-sessions.css?v=20260828-v1" />
+{% endblock %}
+
+{% block body_class %}app-body editorial-workspace editorial-sessions{% endblock %}
+
+{% block content %}
+<div class="workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
+<main class="sessions-shell unified-workspace-main">
+
+  <header class="sessions-hero">
+    <div>
+      <p class="sessions-kicker">A GUIDED SPACE WITH EMORA</p>
+      <h1>Begin with an intention.<br><em>Leave with what matters.</em></h1>
+      <p>Choose how you want Emora to meet you. Talk, reflect, plan, or focus without turning an ordinary conversation into a crowded dashboard.</p>
+    </div>
+    <aside class="sessions-current" id="sessions-current" aria-live="polite">
+      <small>CURRENT SESSION</small>
+      <strong>No session in progress</strong>
+      <p>Start below whenever you are ready.</p>
+    </aside>
+  </header>
+
+  <section class="sessions-builder" aria-labelledby="sessions-builder-title">
+    <header><div><p class="sessions-kicker">ARRIVE / 01</p><h2 id="sessions-builder-title">How would you like to begin?</h2></div><p>Your selection controls the real chat mode, environment, and voice destination.</p></header>
+    <form id="session-create-form">
+      <label class="sessions-intention"><span>What are you making room for?</span><textarea id="session-intention" maxlength="240" rows="3" placeholder="I want to understand what has been weighing on me…"></textarea><small>Optional and private. This becomes the opening context only when you start.</small></label>
+
+      <fieldset><legend>Choose the shape of this session</legend><div class="session-choice-grid" id="session-mode-grid">
+        <label><input type="radio" name="sessionMode" value="listen" checked><span><i>◌</i><strong>Listen</strong><small>Presence before solutions</small></span></label>
+        <label><input type="radio" name="sessionMode" value="reflect"><span><i>◇</i><strong>Reflect</strong><small>Notice meaning and patterns</small></span></label>
+        <label><input type="radio" name="sessionMode" value="plan"><span><i>↗</i><strong>Gentle plan</strong><small>Find one doable next step</small></span></label>
+        <label><input type="radio" name="sessionMode" value="focus"><span><i>◎</i><strong>Focus</strong><small>Reduce scope and begin</small></span></label>
+        <label data-entitlement="deep_sessions" data-plan-label="Pro"><input type="radio" name="sessionMode" value="deep"><span><i>✦</i><strong>Deep Session</strong><small>Longer context · Pro</small></span></label>
+      </div></fieldset>
+
+      <div class="sessions-options">
+        <fieldset><legend>Continue through</legend><div class="session-inline-choices"><label><input type="radio" name="sessionChannel" value="text" checked><span>Text</span></label><label data-entitlement="voice" data-plan-label="Plus"><input type="radio" name="sessionChannel" value="voice"><span>Live room · Plus</span></label></div></fieldset>
+        <label><span>Environment</span><select id="session-environment"><option value="midnight">Midnight room</option><option value="dawn">First light</option><option value="rainy-window">Rainy window · Plus</option><option value="quiet-forest">Quiet forest · Plus</option><option value="observatory">Observatory · Pro</option><option value="fireplace">Fireplace · Pro</option><option value="aurora">Aurora · Complete</option></select></label>
+        <label><span>Gentle time boundary</span><select id="session-duration"><option value="10">10 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label>
+      </div>
+      <p class="sessions-status" id="session-create-status" role="status" aria-live="polite"></p>
+      <button class="sessions-primary" type="submit">Begin Emora Session <span>→</span></button>
+    </form>
+  </section>
+
+  <section class="weekly-review" id="weekly-review" aria-labelledby="weekly-review-title">
+    <header><div><p class="sessions-kicker">LOOK BACK / PLUS</p><h2 id="weekly-review-title">Your week, confirmed by you.</h2></div><p>Emora gathers only real account activity. Nothing becomes a review, memory, or next step until you save it.</p></header>
+    <div class="weekly-source-strip" id="weekly-source-strip" aria-live="polite"><p>Loading this week's private activity…</p></div>
+    <form id="weekly-review-form" data-entitlement="weekly_review" data-plan-label="Plus">
+      <label><span>What felt meaningful?</span><textarea id="weekly-meaningful" maxlength="1200" rows="3"></textarea></label>
+      <label><span>What changed, even a little?</span><textarea id="weekly-changed" maxlength="1200" rows="3"></textarea></label>
+      <div><label><span>Something Emora may remember</span><input id="weekly-remember" maxlength="300" placeholder="Optional — review it before teaching Emora"></label><label><span>Something that is no longer current</span><input id="weekly-forget" maxlength="300" placeholder="Optional — this does not delete automatically"></label></div>
+      <label><span>One tiny next step</span><input id="weekly-next-step" maxlength="240" placeholder="Small enough to begin"></label>
+      <p class="sessions-status" id="weekly-review-status" role="status" aria-live="polite"></p>
+      <button class="sessions-primary" type="submit">Save my Weekly Review <span>→</span></button>
+    </form>
+  </section>
+
+  <section class="memory-center" id="memory-center" aria-labelledby="memory-center-title">
+    <header><div><p class="sessions-kicker">MEMORY CENTER / PLUS</p><h2 id="memory-center-title">Why Emora remembers.</h2></div><p>Review the value, source, last use, expiry, and any possible contradiction. You stay authoritative.</p></header>
+    <div class="memory-center-list" id="memory-center-list" aria-live="polite"><p>Loading your memory controls…</p></div>
+  </section>
+
+  <section class="sessions-history" aria-labelledby="sessions-history-title">
+    <header><div><p class="sessions-kicker">RETURN / PRIVATE</p><h2 id="sessions-history-title">Recent sessions</h2></div><p>Resume paused sessions or revisit only the closing reflection you chose to save.</p></header>
+    <div id="sessions-history-list"><p>No completed sessions yet.</p></div>
+  </section>
+
+  <dialog class="session-complete-dialog" id="session-complete-dialog" aria-labelledby="session-complete-title">
+    <form id="session-complete-form" method="dialog">
+      <button class="session-dialog-close" value="cancel" aria-label="Close">×</button>
+      <p class="sessions-kicker">CLOSE GENTLY</p><h2 id="session-complete-title">What should leave with you?</h2>
+      <label><span>Optional reflection</span><textarea id="session-reflection" maxlength="1200" rows="4"></textarea></label>
+      <label><span>One next step</span><input id="session-next-step" maxlength="240"></label>
+      <label class="session-memory-review"><input id="session-memory-review" type="checkbox"><span>Take me to Memory Center after closing so I can review what Emora holds.</span></label>
+      <p class="sessions-status" id="session-complete-status" role="status" aria-live="polite"></p>
+      <button class="sessions-primary" type="submit">Complete session <span>✓</span></button>
+    </form>
+  </dialog>
+
+  <footer class="sessions-footer"><a href="/dashboard">← Workspace</a><span>EMORA SESSIONS · PRIVATE BY DESIGN</span><a href="/focus-together">Focus Together →</a></footer>
+</main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="/static/js/emora-sessions.js?v=20260828-v1"></script>
+{% endblock %}

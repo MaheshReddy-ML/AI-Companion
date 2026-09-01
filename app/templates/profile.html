@@ -3,35 +3,8 @@
 {% block body_class %}app-body profile-settings-page{% endblock %}
 
 {% block content %}
-<div class="app-layout app-section-layout">
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <a class="logo" href="/">
-        <span class="logo-mark"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /></span>
-        <span class="logo-name">Emora</span>
-      </a>
-    </div>
-
-    <div class="sidebar-scroll-region">
-    <div class="nav-group"><div class="nav-group-label">Space</div>
-      <a class="nav-item" href="/dashboard"><span class="nav-item-icon">⌂</span> Overview</a><a class="nav-item" href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><span class="nav-item-icon">✦</span> Meet Emora <span class="nav-badge nav-live-state" data-emora-live-state hidden></span></a><a class="nav-item" href="/chat?new=1" aria-label="Chat with Emora using text"><span class="nav-item-icon">▣</span> Chat with Emora</a><a class="nav-item" href="/play"><span class="nav-item-icon">✧</span> Emora Play <span class="nav-badge nav-play-progress" data-play-progress hidden></span></a><a class="nav-item" href="/focus-together"><span class="nav-item-icon">◌</span> Focus Together <span class="nav-badge" aria-label="Premium capability">✦</span></a>
-    </div>
-    <div class="nav-group"><div class="nav-group-label">Reflect</div><a class="nav-item" href="/insights"><span class="nav-item-icon">↗</span> Insights</a><a class="nav-item" href="/journal"><span class="nav-item-icon">▣</span> Journal</a><a class="nav-item" href="/goals"><span class="nav-item-icon">◎</span> Gentle Goals</a></div>
-    <div class="nav-group"><div class="nav-group-label">Connect</div><a class="nav-item" href="/community"><span class="nav-item-icon">◉</span> Community</a><a class="nav-item" href="/notifications"><span class="nav-item-icon">◇</span> Notifications</a></div>
-    {% include "_sidebar_plan.html" %}
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="user-pill">
-        <div class="user-avatar" data-session-avatar data-session-user-initial>M</div>
-        <div class="user-pill-info">
-          <h6 data-session-user-name>Mahesh Reddy</h6>
-          <span data-session-user-email>user@example.com</span>
-        </div>
-      </div>
-      <div class="sidebar-account-actions" aria-label="Account controls"><button type="button" data-theme-toggle><span>Light mode</span></button><button type="button" data-logout><span>Sign out</span></button></div>
-    </div>
-  </aside>
+<div class="app-layout app-section-layout workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
 
   <main class="main-content">
     <div class="top-bar">
@@ -158,6 +131,8 @@
           <div class="settings-section-header"><h3>Privacy & data</h3></div>
           <div class="settings-list">
             <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Data minimisation mode</h4><p>Use camera observations for the current reply without saving them</p></div><button class="toggle on" type="button" role="switch" aria-checked="true" aria-label="Toggle data minimisation mode" data-profile-preference="dataMinimisation"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Sound and haptic state cues</h4><p>Optional brief cues for confirmed save, completion, interruption, and error states. Off by default; never used for reminders or emotional nudging.</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle sound and haptic state cues" data-profile-preference="sensoryFeedback"></button></div>
+            <div class="settings-row profile-setting-row"><div class="settings-row-label"><h4>Help improve Emora</h4><p>Share a small allowlist of journey events such as onboarding completed or source saved. Message, journal, attachment, camera, name, and email content are never included. Events expire after 90 days.</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle privacy-safe product analytics" data-profile-preference="productAnalytics"></button></div>
             <div class="settings-row"><div class="settings-row-label"><h4>Community privacy</h4><p>Community posts always use your private anonymous identity; your account name is never shown.</p></div><span class="badge badge-blue">Always anonymous</span></div>
             <div class="settings-row profile-setting-stack">
               <div class="settings-row-label"><h4>Download my data</h4><p>Export all your sessions and emotional history</p></div>

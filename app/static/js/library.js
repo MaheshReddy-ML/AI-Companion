@@ -1,4 +1,4 @@
-import { apiRequest, ensureSession, escapeHtml, getToken, initChrome } from "./common.js";
+import { apiRequest, ensureSession, escapeHtml, getToken, guardEntitlement, initChrome } from "./common.js";
 const input = document.getElementById("help-search");
 const searchState = document.getElementById("help-search-state");
 const emptyState = document.getElementById("help-search-empty");
@@ -31,6 +31,7 @@ clearButton?.addEventListener("click", () => {
 });
 const shelfList = document.getElementById("research-shelf-list");
 const shelfExport = document.getElementById("research-shelf-export");
+const researchStudioForm = document.getElementById("research-studio-form");
 
 async function loadShelf() {
   if (!shelfList) return;
@@ -50,6 +51,23 @@ shelfList?.addEventListener("click", async (event) => {
   } catch (error) { shelfList.insertAdjacentHTML("afterbegin", `<p class="status error">${escapeHtml(error.message || "Could not update the shelf.")}</p>`); }
 });
 shelfExport?.addEventListener("click", (event) => { event.preventDefault(); fetch(shelfExport.href, { headers: { Authorization: `Bearer ${getToken()}` } }).then(async (response) => { if (!response.ok) throw new Error(); const link = document.createElement("a"); link.href = URL.createObjectURL(await response.blob()); link.download = "emora-research-shelf.json"; link.click(); URL.revokeObjectURL(link.href); }).catch(() => alert("Could not export your shelf.")); });
+
+researchStudioForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!guardEntitlement("research_studio")) return;
+  const question = document.getElementById("research-studio-question").value.trim();
+  if (!question) return;
+  const options = [...researchStudioForm.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+  const requirements = [
+    "Use explicit Research mode. Search the web because this request requires current, verifiable evidence.",
+    "Cite each important factual claim to a source and let me save useful sources to my Research Shelf.",
+    options.includes("dates") ? "Distinguish publication dates from the dates events happened." : "",
+    options.includes("conflicts") ? "Call out material disagreement between credible sources." : "",
+    options.includes("queries") ? "Briefly summarize the searches performed without exposing private reasoning." : "",
+  ].filter(Boolean).join(" ");
+  const prompt = `${requirements}\n\nResearch question: ${question}`;
+  window.location.assign(`/chat?new=1&mode=think&prompt=${encodeURIComponent(prompt)}`);
+});
 
 initChrome();
 (async () => { const session = await ensureSession({ redirectTo: "/login" }); if (session?.verified) await loadShelf(); })();

@@ -63,8 +63,9 @@ def test_core_static_assets_are_served():
         "/static/css/home-flagship.css",
         "/static/js/home.js",
         "/static/js/cinematic-room.js",
-        "/static/images/logo.svg",
-        "/static/images/logo.png",
+        "/static/images/emora-logo-v2.png",
+        "/static/images/emora-logo-v2-192.png",
+        "/static/images/emora-logo-v2-64.png",
         "/static/images/emora-night-room-v1.webp",
         "/static/css/play-cinematic.css",
         "/static/css/focus-together.css",
@@ -116,27 +117,49 @@ def test_browser_security_headers_cover_pages_static_assets_and_private_apis():
     assert "strict-transport-security" not in client.get("/").headers
 
 
-def test_home_uses_the_cinematic_emora_play_scene():
+def test_home_uses_the_cinematic_emora_companion_scene():
     response = TestClient(app).get("/")
 
-    assert "The part of your day" in response.text
+    assert "An AI companion" in response.text
     assert '<span>EMORA</span>' in response.text
     assert '<span>EMORA PLAY</span>' not in response.text
-    assert 'src="/static/images/logo.svg?v=20260822-emora-mark"' in response.text
-    assert "Step into Play" in response.text
+    assert 'src="/static/images/emora-logo-v2.png?v=20260828-orbit"' in response.text
+    assert "Meet Emora" in response.text
     assert "data-cinematic-mount" in response.text
     assert "landing-vrm-stage" not in response.text
 
 
 def test_emora_brand_mark_is_available_across_platform_surfaces():
     client = TestClient(app)
-    favicon = '<link rel="icon" type="image/svg+xml" href="/static/images/logo.svg?v=20260822-emora-mark" />'
+    favicon = '<link rel="icon" type="image/png" sizes="64x64" href="/static/images/emora-logo-v2-64.png?v=20260828-orbit" />'
 
     for path in ["/", "/login", "/register", "/dashboard", "/chat", "/insights", "/community", "/profile", "/payment", "/play", "/focus-together", "/journal", "/goals", "/help", "/research"]:
         assert favicon in client.get(path).text
 
     for path in ["/chat", "/insights", "/community", "/profile", "/forgot-password", "/verify-otp", "/reset-password"]:
-        assert 'src="/static/images/logo.svg?v=20260822-emora-mark"' in client.get(path).text
+        assert 'src="/static/images/emora-logo-v2-' in client.get(path).text or 'src="/static/images/emora-logo-v2.png' in client.get(path).text
+
+    assert client.get("/favicon.ico", follow_redirects=False).headers["location"].startswith("/static/images/emora-logo-v2-64.png")
+
+
+def test_notification_center_is_actionable_friendly_and_motion_safe():
+    client = TestClient(app)
+    page = client.get("/notifications").text
+    css = client.get("/static/css/notifications.css").text
+    script = client.get("/static/js/notifications.js").text
+
+    assert "Small things worth" in page
+    assert 'data-notification-filter="unread"' in page
+    assert 'data-notification-filter="security"' in page
+    assert "notification-celebration" in page
+    assert "notification-live-note" in page
+    assert "EMORA IS HERE" in page
+    assert "prefers-reduced-motion:reduce" in css
+    assert "@media(max-width:390px)" in css
+    assert "refreshNotificationBadge" in script
+    assert "actionLabel" in script
+    assert "notificationResponse" in script
+    assert "restartLiveRotation" in script
 
 
 def test_play_keeps_features_inside_the_cinematic_world():
@@ -303,7 +326,8 @@ def test_product_depth_stays_inside_existing_sections():
         assert "data-theme-toggle" in account_html
         assert "data-logout" in account_html
     for path in ["/chat", "/insights", "/community", "/profile"]:
-        assert 'class="sidebar-scroll-region"' in client.get(path).text
+        assert "sidebar-scroll-region" in client.get(path).text
+        assert "shared-workspace-rail" in client.get(path).text
 
     editorial_css = client.get("/static/css/workspace-editorial.css").text
     companion_css = client.get("/static/css/companion-chat.css").text
@@ -443,7 +467,7 @@ def test_companion_room_uses_compact_spacing_for_laptop_height():
     page = client.get("/chat").text
     styles = client.get("/static/css/companion-chat.css").text
 
-    assert "companion-chat.css?v=20260824-atmospheres-v1" in page
+    assert "companion-chat.css?v=20260901-message-centering-v2" in page
     assert "@media (max-height: 920px) and (min-width: 901px)" in styles
 
 

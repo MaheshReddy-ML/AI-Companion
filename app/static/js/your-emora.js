@@ -17,6 +17,9 @@ import {
   showStatus,
 } from "./common.js";
 
+const ENTRY_PARAMS = new URLSearchParams(window.location.search);
+const ENTRY_SESSION_ID = ENTRY_PARAMS.get("session");
+
 const ASSET_VERSION = "20260511-anime-vroid";
 const AVATAR_STAGE_MODULE = "./emora-avatar-stage.js?v=20260822-runtime-recovery-v1";
 
@@ -1022,6 +1025,9 @@ async function sendMessage(messageOverride = "") {
     state.conversationId = response?.conversation?.id || state.conversationId;
     if (state.conversationId) {
       localStorage.setItem(getConversationStorageKey(), state.conversationId);
+      if (ENTRY_SESSION_ID) {
+        await apiRequest(`/api/premium/sessions/${encodeURIComponent(ENTRY_SESSION_ID)}`, { method: "PATCH", auth: true, body: { conversationId: state.conversationId, status: "active" } });
+      }
     }
 
     const reply = response?.aiMessage?.message || response?.aiMessage?.content || "I am here with you.";
@@ -1187,6 +1193,11 @@ function bindEvents() {
   renderMessages();
   updateSignals();
   bindEvents();
+  const sessionPrompt = (ENTRY_PARAMS.get("prompt") || "").slice(0, 2000);
+  if (sessionPrompt) {
+    elements.messageInput.value = sessionPrompt;
+    setStatus("Your Emora Session is ready. Send or speak when you choose.", "info");
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.cameraButton.disabled = true;
     elements.micButton.disabled = true;

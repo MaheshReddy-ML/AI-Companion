@@ -65,6 +65,12 @@ function applyAccessibility() {
   document.body.dataset.emoraMotion = state.preferences.motion || "system";
   document.body.dataset.emoraContrast = state.preferences.contrast || "system";
   document.body.dataset.emoraCalmEffects = String(Boolean(state.preferences.calmEffects));
+  try {
+    localStorage.setItem("emora:sensory-feedback", state.preferences.sensoryFeedback ? "on" : "off");
+    localStorage.setItem("emora:motion", state.preferences.motion || "system");
+    localStorage.setItem("emora:contrast", state.preferences.contrast || "system");
+    localStorage.setItem("emora:text-size", state.preferences.textSize || "system");
+  } catch (_) { /* storage may be unavailable */ }
 }
 
 function formatDate(value) {

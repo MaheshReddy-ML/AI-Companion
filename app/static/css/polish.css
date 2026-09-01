@@ -312,7 +312,7 @@ button,
   aspect-ratio: 1;
   right: max(-120px, -8vw);
   top: 48px;
-  background: url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
+  background: url("/static/images/emora-logo-v2-192.png?v=20260828-orbit") center / contain no-repeat;
   opacity: 0.08;
   filter: saturate(1.2);
   pointer-events: none;
@@ -427,7 +427,7 @@ button,
   bottom: 44px;
   width: 220px;
   aspect-ratio: 1;
-  background: url("/static/images/logo.svg?v=20260822-emora-mark") center / contain no-repeat;
+  background: url("/static/images/emora-logo-v2-192.png?v=20260828-orbit") center / contain no-repeat;
   opacity: 0.12;
 }
 

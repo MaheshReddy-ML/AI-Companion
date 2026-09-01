@@ -254,8 +254,8 @@ function renderPosts() {
               ${isOwner ? `
                 <button class="post-action post-action-button" type="button" data-edit-post-id="${escapeHtml(postId)}">Edit</button>
                 <button class="post-action post-action-button" type="button" data-delete-post-id="${escapeHtml(postId)}">Delete</button>
-              ` : `<button class="post-action post-action-button" type="button" data-report-post-id="${escapeHtml(postId)}">Report privately</button>`}
-              ${isOwner && moderationStatus !== "visible" ? `<span class="post-action">In review</span>` : ""}
+              ` : `<button class="post-action post-action-button" type="button" data-report-post-id="${escapeHtml(postId)}">Report privately</button><button class="post-action post-action-button" type="button" data-mute-post-id="${escapeHtml(postId)}">Mute reflection</button><button class="post-action post-action-button" type="button" data-block-post-id="${escapeHtml(postId)}">Block anonymous author</button>`}
+              ${isOwner && moderationStatus !== "visible" ? `<span class="post-action">${moderationStatus === "appeal_requested" ? "Appeal requested" : "In review"}</span>${moderationStatus !== "appeal_requested" ? `<button class="post-action post-action-button" type="button" data-appeal-post-id="${escapeHtml(postId)}">Appeal review</button>` : ""}` : ""}
             </div>
             <span class="community-pill">No profile attached</span>
           </div>
@@ -551,8 +551,29 @@ function bindEvents() {
 
 async function initCommunityPage() {
   if (!isCommunityPage()) {
-    return;
-  }
+      return;
+    }
+    const muteButton = event.target.closest("[data-mute-post-id]");
+    if (muteButton) {
+      if (!window.confirm("Hide this reflection from your feed?")) return;
+      try { await apiRequest(`/posts/${muteButton.dataset.mutePostId}/mute`, { method: "POST", auth: true }); await loadPosts(); }
+      catch (error) { showStatus(elements.feedStatus, error.message || "Could not mute this reflection."); }
+      return;
+    }
+    const blockButton = event.target.closest("[data-block-post-id]");
+    if (blockButton) {
+      if (!window.confirm("Hide reflections from this anonymous author? Their identity will remain private.")) return;
+      try { await apiRequest(`/posts/${blockButton.dataset.blockPostId}/block-author`, { method: "POST", auth: true }); await loadPosts(); }
+      catch (error) { showStatus(elements.feedStatus, error.message || "Could not block this anonymous author."); }
+      return;
+    }
+    const appealButton = event.target.closest("[data-appeal-post-id]");
+    if (appealButton) {
+      if (!window.confirm("Ask a moderator to review this decision? The post will remain hidden meanwhile.")) return;
+      try { const response = await apiRequest(`/posts/${appealButton.dataset.appealPostId}/appeal`, { method: "POST", auth: true }); showStatus(elements.feedStatus, response.message, "success"); await loadPosts(); }
+      catch (error) { showStatus(elements.feedStatus, error.message || "Could not request an appeal."); }
+      return;
+    }
 
   const session = await ensureSession({ redirectTo: "/login" });
   if (!session?.verified) {

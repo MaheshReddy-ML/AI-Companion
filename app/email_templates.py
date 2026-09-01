@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-OTP_EMAIL_LOGO_PATH = Path(__file__).resolve().parent / "static" / "images" / "logo.png"
+OTP_EMAIL_LOGO_PATH = Path(__file__).resolve().parent / "static" / "images" / "emora-logo-v2-192.png"
 
 
 def build_otp_verification_email(otp: str) -> tuple[str, str]:

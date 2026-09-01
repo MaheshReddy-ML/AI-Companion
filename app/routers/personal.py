@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.access import has_entitlement
 from app.database import feature_collection, parse_object_id, utc_now
+from app.notifications import create_notification
 from app.preferences import get_preference_version, get_user_preferences, update_user_preferences
 from app.security import get_current_user
 
@@ -53,6 +54,8 @@ class PreferencesRequest(BaseModel):
     motion: str | None = Field(default=None, pattern="^(system|reduced|full)$")
     contrast: str | None = Field(default=None, pattern="^(system|strong|standard)$")
     calmEffects: bool | None = None
+    productAnalytics: bool | None = None
+    sensoryFeedback: bool | None = None
     expectedVersion: int | None = Field(default=None, ge=1)
 
 
@@ -61,7 +64,8 @@ def _serialize_journal(item: dict) -> dict:
 
 
 def _serialize_goal(item: dict) -> dict:
-    return {"id": str(item["_id"]), "title": item["title"], "note": item["note"], "completed": bool(item.get("completed")), "isTinyThing": bool(item.get("is_tiny_thing")), "version": int(item.get("version", 1)), "createdAt": item["created_at"].isoformat(), "completedAt": item.get("completed_at").isoformat() if item.get("completed_at") else None}
+    status = item.get("status") or ("completed" if item.get("completed") else "active")
+    return {"id": str(item["_id"]), "title": item["title"], "note": item["note"], "status": status, "completed": status == "completed", "isTinyThing": bool(item.get("is_tiny_thing")), "version": int(item.get("version", 1)), "createdAt": item["created_at"].isoformat(), "completedAt": item.get("completed_at").isoformat() if item.get("completed_at") else None}
 
 
 @router.get("/preferences")
@@ -201,10 +205,49 @@ def list_goals(current_user: dict = Depends(get_current_user)) -> dict:
 
 @router.post("/goals", status_code=201)
 def create_goal(payload: GoalRequest, current_user: dict = Depends(get_current_user)) -> dict:
-    document = {"user_id": current_user["_id"], "title": payload.title.strip(), "note": payload.note.strip(), "completed": False, "created_at": utc_now(), "version": 1}
+    document = {"user_id": current_user["_id"], "title": payload.title.strip(), "note": payload.note.strip(), "status": "active", "completed": False, "created_at": utc_now(), "version": 1}
     result = feature_collection("goals").insert_one(document)
     document["_id"] = result.inserted_id
     return {"goal": _serialize_goal(document)}
+
+
+@router.patch("/goals/{goal_id}")
+def update_goal(goal_id: str, payload: GoalRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    object_id = parse_object_id(goal_id)
+    query = {"_id": object_id, "user_id": current_user["_id"]}
+    if payload.expected_version is not None:
+        query["$or"] = [{"version": payload.expected_version}, {"version": {"$exists": False}}] if payload.expected_version == 1 else [{"version": payload.expected_version}]
+    goal = feature_collection("goals").find_one_and_update(query, {"$set": {"title": payload.title.strip(), "note": payload.note.strip(), "updated_at": utc_now()}, "$inc": {"version": 1}}, return_document=True) if object_id else None
+    if not goal:
+        current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if current and payload.expected_version is not None:
+            raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _serialize_goal(current)})
+        raise HTTPException(status_code=404, detail="Goal not found.")
+    return {"goal": _serialize_goal(goal)}
+
+
+def _set_goal_status(goal_id: str, status: str, expected_version: int | None, current_user: dict) -> dict:
+    object_id = parse_object_id(goal_id)
+    query = {"_id": object_id, "user_id": current_user["_id"]}
+    if expected_version is not None:
+        query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
+    goal = feature_collection("goals").find_one_and_update(query, {"$set": {"status": status, "completed": False, "is_tiny_thing": False, "updated_at": utc_now()}, "$unset": {"completed_at": ""}, "$inc": {"version": 1}}, return_document=True) if object_id else None
+    if not goal:
+        current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
+        if current and expected_version is not None:
+            raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _serialize_goal(current)})
+        raise HTTPException(status_code=404, detail="Goal not found.")
+    return {"goal": _serialize_goal(goal)}
+
+
+@router.patch("/goals/{goal_id}/pause")
+def pause_goal(goal_id: str, expected_version: int | None = Query(default=None, alias="expectedVersion", ge=1), current_user: dict = Depends(get_current_user)) -> dict:
+    return _set_goal_status(goal_id, "paused", expected_version, current_user)
+
+
+@router.patch("/goals/{goal_id}/archive")
+def archive_goal(goal_id: str, expected_version: int | None = Query(default=None, alias="expectedVersion", ge=1), current_user: dict = Depends(get_current_user)) -> dict:
+    return _set_goal_status(goal_id, "archived", expected_version, current_user)
 
 
 @router.patch("/goals/{goal_id}/complete")
@@ -212,11 +255,21 @@ def complete_goal(goal_id: str, expected_version: int | None = Query(default=Non
     object_id = parse_object_id(goal_id)
     query = {"_id": object_id, "user_id": current_user["_id"]}
     if expected_version is not None: query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
-    goal = feature_collection("goals").find_one_and_update(query, {"$set": {"completed": True, "completed_at": utc_now(), "is_tiny_thing": False}, "$inc": {"version": 1}}, return_document=True) if object_id else None
+    goal = feature_collection("goals").find_one_and_update(query, {"$set": {"status": "completed", "completed": True, "completed_at": utc_now(), "is_tiny_thing": False}, "$inc": {"version": 1}}, return_document=True) if object_id else None
     if not goal:
         current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
-        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _serialize_goal(current)})
         raise HTTPException(status_code=404, detail="Goal not found.")
+    create_notification(
+        current_user["_id"],
+        category="celebration",
+        title="You did it ✨",
+        message=f"{str(goal.get('title') or 'That step')[:120]} is complete. I hope you let that count.",
+        action_path="/goals",
+        action_label="See your progress",
+        dedupe_key=f"goal-complete:{goal['_id']}:{goal.get('version', 1)}",
+        celebration=True,
+    )
     return {"goal": _serialize_goal(goal)}
 
 
@@ -227,12 +280,12 @@ def reopen_goal(goal_id: str, expected_version: int | None = Query(default=None,
     if expected_version is not None: query["$or"] = [{"version": expected_version}, {"version": {"$exists": False}}] if expected_version == 1 else [{"version": expected_version}]
     goal = feature_collection("goals").find_one_and_update(
         query,
-        {"$set": {"completed": False, "is_tiny_thing": False}, "$unset": {"completed_at": ""}, "$inc": {"version": 1}},
+        {"$set": {"status": "active", "completed": False, "is_tiny_thing": False}, "$unset": {"completed_at": ""}, "$inc": {"version": 1}},
         return_document=True,
     ) if object_id else None
     if not goal:
         current = feature_collection("goals").find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
-        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _serialize_goal(current)})
         raise HTTPException(status_code=404, detail="Goal not found.")
     return {"goal": _serialize_goal(goal)}
 
@@ -246,7 +299,7 @@ def choose_tiny_thing(goal_id: str, expected_version: int | None = Query(default
     goal = collection.find_one(lookup) if object_id else None
     if not goal:
         current = collection.find_one({"_id": object_id, "user_id": current_user["_id"]}) if object_id else None
-        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _goal(current)})
+        if expected_version is not None and current: raise HTTPException(status_code=409, detail={"message": "This goal changed on another device.", "current": _serialize_goal(current)})
         raise HTTPException(status_code=404, detail="Active goal not found.")
     collection.update_many({"user_id": current_user["_id"]}, {"$set": {"is_tiny_thing": False}})
     goal = collection.find_one_and_update(

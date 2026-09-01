@@ -50,6 +50,7 @@ def export_account_data(current_user: dict = Depends(get_current_user)) -> Respo
         "checkInSchedule": {"enabled": bool(schedule.get("enabled", False)), "channel": schedule.get("channel", "in_app"), "days": schedule.get("days", []), "time": schedule.get("time"), "timezone": schedule.get("timezone")},
         "notifications": [{"category": item.get("category"), "title": item.get("title"), "message": item.get("message"), "readAt": to_iso(item.get("read_at")), "createdAt": to_iso(item.get("created_at"))} for item in notifications],
         "preferences": get_user_preferences(current_user["_id"]),
+        "productOnboarding": {key: value for key, value in (feature_collection("product_state").find_one({"user_id": current_user["_id"]}) or {}).items() if key in {"onboarding_status", "onboarding_goal", "onboarding_step"}},
     }
     audit_event("account.export", user_id=current_user["_id"])
     record_security_event(current_user["_id"], "account_export", "Downloaded account data export")
@@ -90,7 +91,7 @@ def delete_account(current_user: dict = Depends(get_current_user)) -> dict:
         "auth_sessions", "security_events", "conversation_collections", "response_feedback", "research_shelf", "check_in_schedules",
         "journal_entries", "goals", "daily_check_ins", "user_preferences", "billing_requests", "quests", "user_spaces",
         "emora_moments", "daily_drops", "constellation_hidden", "taught_memories", "focus_room_presence",
-        "notifications", "chat_turn_requests", "check_in_deliveries",
+        "notifications", "chat_turn_requests", "check_in_deliveries", "product_state", "product_events",
     ):
         feature_collection(collection_name).delete_many({"user_id": current_user["_id"]})
     memories_collection().delete_many({"user_id": current_user["_id"]})

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block body_class %}app-body editorial-workspace together-page{% endblock %}
+
+{% block head_extra %}
+  <link rel="stylesheet" href="/static/css/together.css?v=20260901-together-v1" />
+{% endblock %}
+
+{% block content %}
+<div class="app-layout together-layout workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
+
+  <main class="main-content unified-workspace-main together-main">
+    <header class="together-hero">
+      <div>
+        <p class="together-kicker">PRIVATE SOCIAL SPACE / CONSENT FIRST</p>
+        <h1>Your people,<br><em>one shared orbit.</em></h1>
+        <p>Add people you know, see who has chosen to be available, and make a private duo, couple, or group circle for conversation and small shared moments.</p>
+      </div>
+      <div class="together-presence-card">
+        <span class="together-presence-orb" data-presence-orb aria-hidden="true"></span>
+        <label for="together-presence-select"><small>YOUR AVAILABILITY</small><strong id="together-presence-label">Visible to friends</strong></label>
+        <select id="together-presence-select" aria-describedby="together-presence-note">
+          <option value="online">Online</option>
+          <option value="away">Away</option>
+          <option value="hidden">Appear offline</option>
+        </select>
+        <p id="together-presence-note">Only accepted friends can see this. It expires automatically when you leave.</p>
+      </div>
+    </header>
+
+    <section class="together-overview" aria-label="Together overview">
+      <article><span id="together-online-count">0</span><p>friends online now</p></article>
+      <article><span id="together-friend-count">0</span><p>accepted friends</p></article>
+      <article><span id="together-circle-count">0</span><p>private circles</p></article>
+      <p class="together-state" id="together-state" role="status" aria-live="polite">Connecting to your private space…</p>
+    </section>
+
+    <section class="together-connection-grid">
+      <article class="together-panel together-invite-panel">
+        <header><div><p class="together-kicker">ADD A FRIEND / 01</p><h2>Invite someone you know.</h2></div><span>Account email only</span></header>
+        <form id="together-friend-form">
+          <label for="together-friend-email">Their Emora account email</label>
+          <div><input id="together-friend-email" type="email" autocomplete="email" required placeholder="friend@example.com"><button type="submit">Send request <span>→</span></button></div>
+        </form>
+        <p>No contact upload, public search, or suggested strangers. A connection begins only after they accept.</p>
+      </article>
+
+      <article class="together-panel together-requests-panel">
+        <header><div><p class="together-kicker">REQUESTS / 02</p><h2>Waiting at the door.</h2></div><b id="together-request-count">0</b></header>
+        <div class="together-request-list" id="together-request-list"><p class="together-empty">No requests waiting.</p></div>
+      </article>
+    </section>
+
+    <section class="together-friends-section" aria-labelledby="together-friends-title">
+      <header><div><p class="together-kicker">YOUR PEOPLE / 03</p><h2 id="together-friends-title">Friends, without a public count.</h2></div><button id="together-new-circle" type="button">Create a circle <span>＋</span></button></header>
+      <div class="together-friend-grid" id="together-friend-grid"><div class="together-empty-card"><span>∞</span><h3>Your friend space is quiet.</h3><p>Send a private request above. Accepted friends will appear here with the availability they choose.</p></div></div>
+      <details class="together-outgoing"><summary>Sent requests <b id="together-outgoing-count">0</b></summary><div id="together-outgoing-list"></div></details>
+    </section>
+
+    <section class="together-circles-section" aria-labelledby="together-circles-title">
+      <header><div><p class="together-kicker">SHARED ORBITS / 04</p><h2 id="together-circles-title">A room that belongs to all of you.</h2></div><p>Circle messages stay inside the circle. Emora does not use them as personal memory.</p></header>
+      <div class="together-circle-workspace">
+        <nav class="together-circle-list" id="together-circle-list" aria-label="Your circles"><p class="together-empty">No circles yet.</p></nav>
+
+        <article class="together-circle-room" id="together-circle-room" data-empty="true">
+          <div class="together-room-empty" id="together-room-empty"><span>∞</span><h3>Choose or create a circle.</h3><p>Make a duo for a close friendship, a couple space, or a group for up to eight people.</p></div>
+          <div class="together-room-content" id="together-room-content" hidden>
+            <header class="together-room-header">
+              <div><p class="together-kicker" id="together-room-kind">PRIVATE CIRCLE</p><h3 id="together-room-name">Together</h3><div class="together-member-stack" id="together-member-stack"></div></div>
+              <div><a href="/focus-together">Start Focus Together</a><button id="together-circle-menu" type="button" aria-expanded="false">Circle controls</button></div>
+            </header>
+            <div class="together-circle-controls" id="together-circle-controls" hidden><button id="together-add-member" type="button">Add accepted friend</button><button class="danger" id="together-leave-circle" type="button">Leave or delete circle</button></div>
+
+            <section class="together-play-deck" aria-labelledby="together-play-title">
+              <header><div><span>PLAY SOMETHING SMALL</span><h4 id="together-play-title">Bring the circle to life.</h4></div><p>No score, streak, or winner required.</p></header>
+              <div><button type="button" data-circle-activity="question"><i>?</i><strong>Question round</strong><small>Learn something new</small></button><button type="button" data-circle-activity="would_you_rather"><i>↔</i><strong>Would you rather</strong><small>Pick a side</small></button><button type="button" data-circle-activity="gratitude"><i>♡</i><strong>Appreciation</strong><small>Say the good thing</small></button><button type="button" data-circle-activity="quick_pick"><i>✦</i><strong>Quick pick</strong><small>Choose the vibe</small></button></div>
+            </section>
+
+            <section class="together-activity" id="together-activity" hidden aria-live="polite">
+              <span id="together-activity-kind">CIRCLE PROMPT</span><h4 id="together-activity-prompt"></h4>
+              <form id="together-activity-form"><label class="sr-only" for="together-activity-response">Your response</label><input id="together-activity-response" maxlength="160" required placeholder="Add your answer…"><button type="submit">Share</button></form>
+              <div id="together-activity-responses"></div>
+            </section>
+
+            <section class="together-chat" aria-labelledby="together-chat-title">
+              <header><h4 id="together-chat-title">Circle conversation</h4><span>Private to members</span></header>
+              <div class="together-message-list" id="together-message-list" role="log" aria-live="polite"><p class="together-empty">Say hello when you are ready.</p></div>
+              <form id="together-message-form"><label class="sr-only" for="together-message-input">Message your circle</label><textarea id="together-message-input" maxlength="2000" rows="2" required placeholder="Write to your circle…"></textarea><button type="submit" aria-label="Send message">↗</button></form>
+            </section>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="together-safety">
+      <div><p class="together-kicker">YOUR BOUNDARIES</p><h2>You stay in control.</h2></div>
+      <p>Remove ends the friendship without announcing it. Block immediately hides your presence and prevents new requests or shared invitations. Circle content is never added to your personal Emora memories.</p>
+      <a href="/trust">Review trust and privacy facts →</a>
+    </section>
+  </main>
+</div>
+
+<dialog class="together-dialog" id="together-circle-dialog" aria-labelledby="together-circle-dialog-title">
+  <form id="together-circle-form">
+    <button class="together-dialog-close" type="button" data-dialog-close aria-label="Close">×</button>
+    <p class="together-kicker">NEW PRIVATE CIRCLE</p><h2 id="together-circle-dialog-title">Who is this space for?</h2>
+    <label>Circle name<input id="together-circle-name" maxlength="60" required placeholder="Weekend people"></label>
+    <fieldset><legend>Circle type</legend><div class="together-kind-picker"><label><input type="radio" name="circle-kind" value="duo" checked><span>DUO<small>Two friends</small></span></label><label><input type="radio" name="circle-kind" value="couple"><span>COUPLE<small>A space for two</small></span></label><label><input type="radio" name="circle-kind" value="group"><span>GROUP<small>Up to eight</small></span></label></div></fieldset>
+    <fieldset><legend>Choose accepted friends</legend><div class="together-member-picker" id="together-member-picker"><p class="together-empty">Add a friend first.</p></div></fieldset>
+    <p id="together-circle-form-status" role="status" aria-live="polite"></p>
+    <button class="together-dialog-primary" type="submit">Create private circle <span>→</span></button>
+  </form>
+</dialog>
+
+<dialog class="together-dialog together-small-dialog" id="together-member-dialog" aria-labelledby="together-member-dialog-title">
+  <form id="together-member-form"><button class="together-dialog-close" type="button" data-dialog-close aria-label="Close">×</button><p class="together-kicker">ADD TO CIRCLE</p><h2 id="together-member-dialog-title">Choose an accepted friend.</h2><div class="together-member-picker" id="together-add-member-picker"></div><p id="together-member-form-status" role="status" aria-live="polite"></p><button class="together-dialog-primary" type="submit">Add friend</button></form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}<script type="module" src="/static/js/together.js?v=20260901-together-v1"></script>{% endblock %}

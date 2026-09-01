@@ -9,7 +9,7 @@
 {% block content %}
 <main class="focus-world">
   <nav class="focus-nav" aria-label="Focus Together navigation">
-    <a class="focus-brand" href="/dashboard"><img src="/static/images/logo.svg?v=20260822-emora-mark" alt="" /> <span>EMORA</span><i>FOCUS TOGETHER</i></a>
+    <a class="focus-brand" href="/dashboard"><img src="/static/images/emora-logo-v2-192.png?v=20260828-orbit" alt="" /> <span>EMORA</span><i>FOCUS TOGETHER</i></a>
     <div><a href="/play">Emora Play</a><a href="/community">Community</a><a href="/dashboard">Workspace</a></div>
   </nav>
 
@@ -36,6 +36,7 @@
         <label><span>Room name</span><input id="focus-room-name" value="Quiet focus" maxlength="60" required placeholder="What are you making room for?" /></label>
         <fieldset><legend>Choose a rhythm</legend><div class="focus-presets" role="radiogroup" aria-label="Focus duration"><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-minutes="15">15 min <small>Settle</small></button><button class="active" type="button" role="radio" aria-checked="true" tabindex="0" data-focus-minutes="25">25 min <small>Focus</small></button><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-minutes="50">50 min <small>Deep work</small></button><button type="button" role="radio" aria-checked="false" tabindex="-1" data-focus-unlimited="true">Unlimited <small>Open-ended</small></button></div></fieldset>
         <label class="focus-custom-time"><span>Custom minutes</span><input id="focus-room-minutes" type="number" min="5" max="120" value="25" /></label>
+        <div class="focus-cycle-options"><label><span>Focus cycle</span><select id="focus-cycle-minutes"><option value="15">15 minutes</option><option value="25" selected>25 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label><label><span>Gentle break</span><select id="focus-break-minutes"><option value="0">No breaks</option><option value="5" selected>5 minutes</option><option value="10">10 minutes</option></select></label><label><span>Room ambience</span><select id="focus-room-ambience"><option value="quiet">Quiet</option><option value="rain">Soft rain</option><option value="night_wind">Night wind</option><option value="fireplace">Fireplace</option></select></label></div>
         <button class="focus-primary" type="submit">Create private room <span>→</span></button>
       </form>
 
@@ -51,7 +52,7 @@
         <div class="focus-live-sigil">◷</div><small>ROOM STATE</small>
         <h3 class="serif" id="focus-live-name">No active room yet</h3>
         <p id="focus-room-status">Create or join a room when you are ready.</p>
-        <div class="focus-live-meta"><span><b id="focus-live-members">0</b> quiet member<span id="focus-member-plural">s</span></span><span><b id="focus-live-time">—</b> <span id="focus-time-label">remaining</span></span></div>
+        <div class="focus-live-meta"><span><b id="focus-live-members">0</b> quiet member<span id="focus-member-plural">s</span></span><span><b id="focus-live-time">—</b> <span id="focus-time-label">remaining</span></span></div><p class="focus-cycle-state" id="focus-cycle-state" hidden></p>
         <div class="focus-participants" id="focus-participants" hidden><span>IN THIS ROOM</span><ul id="focus-participant-list"></ul></div>
         <div class="focus-room-code" id="focus-code-wrap" hidden><span>INVITE CODE</span><strong id="focus-live-code"></strong><button id="focus-copy-code" type="button">Copy code</button></div>
         <button class="focus-end-session" id="focus-end-session" type="button" hidden>End session</button>

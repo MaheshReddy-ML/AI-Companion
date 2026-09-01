@@ -55,8 +55,16 @@ class FakePostsCollection:
 
     def _matches(self, document, query):
         for key, value in query.items():
+            if key == "$and":
+                if not all(self._matches(document, item) for item in value):
+                    return False
+                continue
             if key == "$or":
                 if not any(self._matches(document, item) for item in value):
+                    return False
+                continue
+            if isinstance(value, dict) and "$nin" in value:
+                if document.get(key) in value["$nin"]:
                     return False
                 continue
             if isinstance(value, dict) and "$ne" in value:

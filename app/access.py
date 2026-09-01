@@ -20,42 +20,42 @@ PLAN_CATALOG: dict[str, dict[str, Any]] = {
         "tagline": "More continuity with Emora",
         "monthly": 499,
         "yearly": 4790,
-        "features": ["Everything in Free", "Voice conversations", "Expanded companion memory", "Look Back, Ritual Archive, and conversation exports"],
+        "features": ["Everything in Free", "Voice conversations", "Expanded companion memory with review controls", "Weekly Review, Look Back, Ritual Archive, and exports"],
     },
     "pro": {
         "name": "Pro",
         "tagline": "Deeper reflection and personalisation",
         "monthly": 899,
         "yearly": 8630,
-        "features": ["Everything in Plus", "Nine-mode Conversation Remix", "World Atelier and shared Emora focus rooms", "Reflection timeline and opt-in adaptive context"],
+        "features": ["Everything in Plus", "Guided Emora and Deep Sessions", "World Atelier and shared Emora focus rooms", "Research Studio, reflection timeline, and adaptive context"],
     },
     "complete": {
         "name": "Complete",
         "tagline": "Every Emora capability",
         "monthly": 1499,
         "yearly": 14390,
-        "features": ["Everything in Pro", "Voice keepsakes", "Extended usage limits", "Priority local generation", "Early access features"],
+        "features": ["Everything in Pro", "Private long-term archive and voice keepsakes", "Extended usage limits", "Priority local generation", "Carefully selected early access"],
     },
 }
 
 PLAN_ENTITLEMENTS = {
     "free": {
         "text_chat", "journal", "gentle_goals", "community", "basic_insights", "data_controls",
-        "daily_drop", "moments", "taught_memory", "starter_environments", "basic_ambient",
+        "daily_drop", "moments", "taught_memory", "starter_environments", "basic_ambient", "guided_sessions",
     },
     "plus": {
         "voice", "extended_chat", "companion_memory", "conversation_export", "look_back",
         "weekly_story", "expanded_moments", "expanded_taught_memory", "expanded_environments",
-        "expanded_ambient", "personalization",
+        "expanded_ambient", "personalization", "memory_center", "weekly_review",
     },
     "pro": {
         "conversation_remix", "ambient_rooms", "focus_rooms", "advanced_insights", "adaptive_companion",
         "deep_conversation", "session_reflection", "personal_constellation", "advanced_moments",
-        "evolving_personality", "advanced_personalization",
+        "evolving_personality", "advanced_personalization", "deep_sessions", "research_studio",
     },
     "complete": {
         "voice_postcards", "extended_limits", "priority_generation", "early_access",
-        "historical_constellation", "long_term_story", "complete_personalization",
+        "historical_constellation", "long_term_story", "complete_personalization", "personal_archive",
     },
 }
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from app.config import settings
@@ -82,6 +82,11 @@ def community_page(request: Request) -> HTMLResponse:
     return render_page(request, "community.html", "Community")
 
 
+@router.get("/together", response_class=HTMLResponse)
+def together_page(request: Request) -> HTMLResponse:
+    return render_page(request, "together.html", "Together")
+
+
 @router.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request) -> HTMLResponse:
     return render_page(request, "profile.html", "Profile")
@@ -125,3 +130,55 @@ def research_page(request: Request) -> HTMLResponse:
 @router.get("/notifications", response_class=HTMLResponse)
 def notifications_page(request: Request) -> HTMLResponse:
     return render_page(request, "notifications.html", "Notifications")
+
+
+@router.get("/sessions", response_class=HTMLResponse)
+def sessions_page(request: Request) -> HTMLResponse:
+    return render_page(request, "sessions.html", "Emora Sessions")
+
+
+@router.get("/trust", response_class=HTMLResponse)
+def trust_page(request: Request) -> HTMLResponse:
+    return render_page(request, "trust.html", "Trust Center")
+
+
+@router.get("/status", response_class=HTMLResponse)
+def status_page(request: Request) -> HTMLResponse:
+    return render_page(request, "status.html", "Service Status")
+
+
+@router.get("/changelog", response_class=HTMLResponse)
+def changelog_page(request: Request) -> HTMLResponse:
+    return render_page(request, "changelog.html", "Changelog")
+
+
+@router.get("/offline", response_class=HTMLResponse, include_in_schema=False)
+def offline_page(request: Request) -> HTMLResponse:
+    return render_page(request, "offline.html", "Offline")
+
+
+@router.get("/ui-lab", response_class=HTMLResponse, include_in_schema=False)
+def ui_lab_page(request: Request) -> HTMLResponse:
+    """Development-only, data-free fixtures for state and accessibility review."""
+    if not settings.companion_debug:
+        raise HTTPException(status_code=404)
+    return render_page(request, "ui_lab.html", "UI State Lab")
+
+
+@router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
+def robots() -> str:
+    return "User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /chat\nDisallow: /profile\nSitemap: " + settings.public_app_url.rstrip("/") + "/sitemap.xml\n"
+
+
+@router.get("/sitemap.xml", include_in_schema=False)
+def sitemap() -> Response:
+    base = settings.public_app_url.rstrip("/")
+    paths = ("/", "/help", "/trust", "/status", "/changelog")
+    body = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(f"<url><loc>{base}{path}</loc></url>" for path in paths) + "</urlset>"
+    return Response(body, media_type="application/xml")
+
+
+@router.get("/service-worker.js", include_in_schema=False)
+def service_worker() -> Response:
+    path = Path(__file__).resolve().parent.parent / "static" / "service-worker.js"
+    return Response(path.read_text(encoding="utf-8"), media_type="application/javascript", headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"})

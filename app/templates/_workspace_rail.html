@@ -1,0 +1,78 @@
+<aside class="workspace-rail shared-workspace-rail sidebar"{% if page_title == 'Chat with Emora' %} id="dashboard-sidebar"{% endif %} aria-label="Emora workspace">
+  <a class="workspace-logo" href="/dashboard" aria-label="Emora dashboard"><span><img src="/static/images/emora-logo-v2-192.png?v=20260828-orbit" alt="" aria-hidden="true" /></span><strong>emora</strong></a>
+
+  <div class="workspace-presence" role="status" aria-live="polite" aria-atomic="true">
+    <span class="workspace-presence-light" aria-hidden="true"></span>
+    <span>Emora is <strong data-emora-presence-label>idle</strong></span>
+  </div>
+
+  <div class="workspace-rail-scroll sidebar-scroll-region">
+    <nav aria-label="Workspace navigation">
+      <p>SPACE</p>
+      <a class="{% if page_title == 'Dashboard' %}active{% endif %}" href="/dashboard"><i aria-hidden="true">⌂</i> Overview</a>
+      <a class="{% if page_title == 'Meet Emora' %}active{% endif %}" href="/your-emora" aria-label="Meet Emora in the live voice and VRM room"><i aria-hidden="true">✦</i> Meet Emora <b data-emora-live-state hidden></b></a>
+      <a class="{% if page_title == 'Chat with Emora' %}active{% endif %}" href="/chat?new=1" aria-label="Chat with Emora using text"><i aria-hidden="true">□</i> Chat with Emora</a>
+      <a class="{% if page_title == 'Emora Sessions' %}active{% endif %}" href="/sessions"><i aria-hidden="true">✦</i> Emora Sessions</a>
+      <a href="/play"><i aria-hidden="true">✧</i> Emora Play <b data-play-progress hidden></b></a>
+      <a class="{% if page_title == 'Focus Together' %}active{% endif %}" href="/focus-together"><i aria-hidden="true">◌</i> Focus Together <b aria-label="Premium capability">✦</b></a>
+
+      <p>REFLECT</p>
+      <a class="{% if page_title == 'Insights' %}active{% endif %}" href="/insights"><i aria-hidden="true">↗</i> Insights</a>
+      <a class="{% if page_title == 'Journal' %}active{% endif %}" href="/journal"><i aria-hidden="true">▣</i> Journal</a>
+      <a class="{% if page_title == 'Goals' %}active{% endif %}" href="/goals"><i aria-hidden="true">◎</i> Gentle Goals</a>
+
+      <p>CONNECT</p>
+      <a class="{% if page_title == 'Together' %}active{% endif %}" href="/together"><i aria-hidden="true">∞</i> Together <b data-together-online hidden></b></a>
+      <a class="{% if page_title == 'Community' %}active{% endif %}" href="/community"><i aria-hidden="true">◉</i> Community</a>
+      <a class="{% if page_title == 'Notifications' %}active{% endif %}" href="/notifications"><i aria-hidden="true">◇</i> Notifications <b data-notification-count hidden></b></a>
+
+      <p>LIBRARY</p>
+      <a class="{% if page_title == 'Research' %}active{% endif %}" href="/research"><i aria-hidden="true">◈</i> Research</a>
+      <a class="{% if page_title == 'Help Center' %}active{% endif %}" href="/help"><i aria-hidden="true">?</i> Help & safety</a>
+      <button class="workspace-concierge-open" type="button" data-emora-concierge-open><i aria-hidden="true">↗</i> Help beside this page</button>
+    </nav>
+
+    {% if page_title == 'Chat with Emora' %}
+      <button class="workspace-rail-new-chat" id="new-chat-button" type="button"><span aria-hidden="true">＋</span> New session</button>
+      <label class="workspace-rail-search" for="conversation-search">
+        <span aria-hidden="true">⌕</span>
+        <input id="conversation-search" type="search" placeholder="Search conversations" autocomplete="off" />
+        <kbd>⌘ K</kbd>
+      </label>
+      <section class="workspace-rail-conversations" aria-labelledby="workspace-pinned-title">
+        <h2 id="workspace-pinned-title">PINNED</h2><div id="pinned-conversations" class="conversation-list"></div>
+      </section>
+      <section class="workspace-rail-conversations" aria-labelledby="workspace-recent-title">
+        <h2 id="workspace-recent-title">RECENT</h2><div id="recent-conversations" class="conversation-list"></div>
+      </section>
+      <div class="companion-secondary-actions">
+        <div class="sidebar-note"><span id="sidebar-plan-badge" data-session-plan>Free Plan</span><p id="sidebar-workspace-badge">Stable workspace</p></div>
+        <button id="settings-button" type="button">Settings</button>
+        <button id="policy-button" type="button">Terms</button>
+      </div>
+    {% endif %}
+  </div>
+
+  {% include "_sidebar_plan.html" %}
+
+  <div class="workspace-rail-footer sidebar-footer">
+    {% if page_title == 'Chat with Emora' %}
+      <div class="workspace-person">
+        <div class="workspace-avatar" id="sidebar-user-avatar" data-session-avatar>AI</div>
+        <div><strong id="sidebar-user-name" data-session-user-name>AI Companion</strong><span id="sidebar-user-email" data-session-user-email>Signed in workspace</span></div>
+        <button class="sidebar-settings-shortcut" type="button" aria-label="Open workspace menu" aria-expanded="false" title="Workspace menu">•••</button>
+      </div>
+    {% else %}
+      <a class="workspace-person{% if page_title == 'Profile' %} current{% endif %}" href="/profile" aria-label="Open profile and settings"{% if page_title == 'Profile' %} aria-current="page"{% endif %}>
+        <div class="workspace-avatar" data-session-avatar data-session-user-initial>M</div>
+        <div><strong data-session-user-name>Friend</strong><span data-session-plan>Free plan</span></div>
+        <span aria-hidden="true">⌄</span>
+      </a>
+    {% endif %}
+    <div class="workspace-rail-actions sidebar-account-actions" aria-label="Account controls">
+      <button type="button" data-theme-toggle><span>Theme</span></button>
+      <a href="/profile" aria-label="Settings"><span>Settings</span></a>
+      <button type="button" data-logout><span>Sign out</span></button>
+    </div>
+  </div>
+</aside>

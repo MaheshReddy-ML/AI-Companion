@@ -1,0 +1,977 @@
+EMORA / AI-COMPANION-FASTAPI
+FEATURE AND STABILITY ROADMAP
+Prepared from the current repository architecture - 2026-08-25
+
+PURPOSE
+=======
+
+This is a recommendation backlog, not a claim that every item should be built.
+The order favors trust, data safety, predictable runtime behavior, and features
+that deepen Emora's existing companion experience without turning normal chat
+into a crowded dashboard.
+
+IMPLEMENTATION UPDATE - 2026-08-25
+==================================
+
+PREMIUM EXPERIENCE UPDATE - 2026-08-28
+======================================
+
+- Added persisted Emora Sessions with guided modes, text/voice destinations,
+  environment and duration choices, pause/resume, confirmed closing reflection,
+  next step, and session history.
+- Added a Plus Weekly Review built from real account activity and saved only
+  after confirmation.
+- Added a Plus Memory Center with provenance, why-held explanations, last use,
+  expiry, correction, deletion, and conflict review. Stable facts are not
+  silently replaced by contradictory inferred candidates.
+- Added visible per-reply memory-use disclosure and server-acknowledged durable
+  cancellation for chat turns.
+- Added an explicit Pro Research Studio entry using existing grounded chat,
+  citations, source saving, dates, and conflict disclosure.
+- Extended Focus Together with server-derived focus/break phase and room
+  ambience while preserving its authenticated SSE contract.
+- Repositioned landing copy around the companion relationship, clarified the
+  premium value ladder, and fixed authenticated logos to return to /dashboard.
+- Unified Dashboard, Chat, Sessions, Insights, Community, Profile, Journal,
+  Goals, Help, Research, and Notifications around one dashboard-style sidebar,
+  while preserving the intentionally immersive Play and Meet Emora layouts.
+- Replaced the old vector mark across web, favicon, authentication, checkout,
+  immersive experiences, and OTP email with a generated transparent raster
+  Emora orbit logo and optimized 512 px, 192 px, and 64 px variants.
+- Rebuilt Notifications as a friendly companion inbox with real-state reminders,
+  filters, grouped activity, unread badges, reduced-motion-safe animations, and
+  celebrations for confirmed goal, session, and Weekly Review completion.
+- Added rotating live notes from Emora, animated unread presence, persistent
+  “This helped” acknowledgements, one-day “Tomorrow” snoozing, and dedicated
+  900 px, 620 px, and 390 px mobile layouts with touch-sized controls.
+- Centralized shared-sidebar identity rendering so every normal workspace route
+  shows the authenticated name, avatar, email, and real plan/admin access instead
+  of route-dependent Friend and Free plan placeholders.
+- Token-by-token persisted chat streaming, full device-verified duplex audio,
+  real billing, provider integrations, document indexing, native clients, and
+  browser/device QA remain incomplete for the reasons documented in
+  visual-premium-upgrade-recommendations.txt.
+
+Completed in the first implementation pass:
+
+- S01 core: cross-process scheduler lease, per-day delivery deduplication,
+  bounded retry/backoff records, and delivery retention.
+- S02 core: client turn IDs, pre-generation user-turn persistence, atomic reply
+  append, failed-turn recovery, replay without regeneration, and no whole-
+  conversation replacement during chat sends.
+- S04: HTTP 503 readiness with required MongoDB, configured Redis, and writable
+  storage checks; optional integrations remain separately visible.
+- S05: cross-setting validation plus clear boolean/integer/number parsing errors.
+- S06: numbered, recorded, repeatable MongoDB migrations and retention backfill.
+- S09: atomic Redis rate limiting, expiring local buckets, Redis reconnection,
+  accurate retry time, and added limits on expensive/destructive routes.
+- S10: forwarded IP/protocol values are honored only from configured trusted
+  proxy networks.
+- Q01/Q02 core: privacy-safe normalized HTTP metrics, structured request IDs,
+  and hashed email values in audit events.
+- F13 core: a server-owned Notifications page and API for security activity and
+  opted-in scheduled check-ins, with read, read-all, dismiss, expiry, privacy
+  counts, account export, and account deletion coverage.
+- M03 core: per-message Copy control.
+
+Partially completed and still requiring more production work:
+
+- S03: the async chat path moves blocking Mongo work to bounded threads; a full
+  router-by-router database-boundary migration and slow-database load test remain.
+- S07/S08: backup and dry-run-first retention/orphan tooling exist; encrypted
+  off-site operation and an observed restore drill remain deployment tasks.
+- S11: chat and TTS queues stop admitting new work during shutdown; explicit
+  bounded drain reporting remains.
+- Q03-Q06: CI now checks all Python/scripts, JavaScript syntax, dependencies,
+  whitespace, Mongo integration, and tests; real browser/device and failure-
+  injection coverage is still incomplete.
+- SEC02/SEC03: CSP report-only headers, protocol-safe external links, and current
+  escaping are present; enforced nonce-based CSP and a complete DOM sink audit
+  remain.
+
+Provider/account-dependent items such as real billing, passkeys, calendar/task
+connections, native mobile clients, and off-site encrypted backups must not be
+marked complete until those services are selected, connected, and observed.
+
+CURRENT BASELINE (DO NOT REBUILD THESE AS NEW FEATURES)
+======================================================
+
+The project already includes:
+
+- Account registration, Google authentication, OTP password recovery, JWT
+  sessions, session revocation, account export/restore, and account deletion.
+- Persistent conversations, search, pinning, collections, attachments,
+  per-conversation export, response feedback, modes, personas, and characters.
+- Local Qwen3 4B MLX chat with bounded generation queues, provider fallback,
+  optional web grounding, and private Companion Brain metadata.
+- Selective companion memory, editable taught memories, Moments, daily drops,
+  weekly stories, constellation views, and adaptive context.
+- Optional local camera check-ins that do not persist frames.
+- Qwen3-TTS/Kokoro voice, a bounded TTS queue, VRM behavior, and lip sync.
+- Journal, Gentle Goals, check-ins, scheduled email/in-app check-ins, quiet
+  hours, insights, research shelf, and universal workspace search.
+- Anonymous community posts with moderation, reports, likes, editing, and
+  deletion.
+- Emora Play quests, garden, ritual history, remix tools, personal spaces, and
+  voice keepsakes.
+- Authenticated Focus Together rooms with server-owned state, SSE presence,
+  anonymous room chat, @emora, refresh recovery, expiry, and host ending.
+- Free/Plus/Pro/Complete server-side entitlements and a non-production checkout
+  request flow. Real payment activation is not implemented yet.
+- Security headers, rate limiting, audit events, MongoDB indexes, health routes,
+  CI, and a production deployment guide.
+
+
+PRIORITY LEGEND
+===============
+
+P0 = address before serious production use or multiple app instances
+P1 = high-value next release
+P2 = valuable after the foundation is reliable
+P3 = later experiment; validate demand before building deeply
+
+Effort: S = small, M = medium, L = large, XL = multi-release
+
+
+RECOMMENDED DELIVERY ORDER
+==========================
+
+Release A - Reliability foundation
+  S01, S02, S03, S04, S05, S06, S07, S08, S09, S10
+
+Release B - Trust and quality
+  Q01, Q02, Q03, Q04, Q05, Q06, SEC01, SEC02, SEC03
+
+Release C - Companion depth
+  F01, F02, F03, F04, F05, F06, F07, F08
+
+Release D - Product expansion
+  F09 through F27, based on user feedback and measured retention
+
+
+SECTION 1 - PRODUCTION STABILITY AND DATA SAFETY
+================================================
+
+S01 - SINGLE-DELIVERY BACKGROUND JOBS [P0, M]
+
+Problem:
+The scheduled check-in loop starts inside every FastAPI process. Running two
+Uvicorn workers or multiple instances can send the same check-in more than once.
+
+Recommendation:
+- Move scheduled delivery to one dedicated worker, or guard each job with a
+  MongoDB/Redis lease containing owner, acquired_at, and expires_at.
+- Make each delivery idempotent with a unique user_id + local_date + channel key.
+- Retry transient email failures with bounded exponential backoff and jitter.
+- Record attempted, delivered, failed, skipped, and unsubscribed outcomes.
+
+Done when:
+Two API workers can run for a full schedule window and exactly one message is
+delivered per eligible user.
+
+
+S02 - DURABLE CHAT TURN STATE MACHINE [P0, L]
+
+Problem:
+A user message and AI reply are assembled in memory and the conversation is
+replaced after generation. A crash, timeout, duplicate browser submit, or two
+simultaneous tabs can lose a turn, duplicate a turn, or overwrite newer data.
+
+Recommendation:
+- Accept an idempotency key/client_turn_id for every send.
+- Persist the user turn first with state=queued/generating.
+- Generate outside the database critical section.
+- Atomically finalize the matching turn with state=complete or state=failed.
+- Use conversation version checks and $push/$set updates instead of replacing
+  the whole conversation document.
+- Provide Retry and Cancel without resending the user's message.
+
+Done when:
+Repeated identical requests, process interruption, and concurrent tabs cannot
+lose or duplicate a completed turn.
+
+
+S03 - ASYNC DATABASE BOUNDARY [P0, L]
+
+Problem:
+Most routes are async-capable, but synchronous PyMongo operations can block the
+event loop during slow database calls, including chat and live room activity.
+
+Recommendation:
+- Adopt PyMongo's supported async API or isolate all blocking database work in a
+  bounded executor.
+- Add explicit connect, read, and write timeouts.
+- Keep one documented database access boundary rather than mixing patterns.
+- Load-test chat, Focus Together SSE, and account export while MongoDB is slow.
+
+Done when:
+A deliberately slow database request does not freeze unrelated health, SSE, or
+static/API requests.
+
+
+S04 - REAL READINESS AND DEPENDENCY HEALTH [P0, S]
+
+Recommendation:
+- Return HTTP 503 from /health/ready when required dependencies are unavailable;
+  do not only return a JSON field saying degraded with HTTP 200.
+- Separate required components from optional ones such as email, web search,
+  camera, and voice.
+- Include bounded checks for MongoDB, Redis when required, model/provider state,
+  storage writeability, and background-worker lease health.
+- Keep /health lightweight and content-free.
+
+
+S05 - CONFIGURATION VALIDATION [P0, M]
+
+Recommendation:
+- Validate environment settings once at startup with clear field-level errors.
+- Reject malformed integers, negative queue sizes, invalid URLs, unsafe public
+  callback URLs, and conflicting provider flags.
+- Fail closed in production when trusted proxies, CORS/origins, storage paths,
+  or required services are not configured.
+- Print a sanitized startup summary that never includes secrets.
+
+
+S06 - DATABASE MIGRATION AND SCHEMA VERSIONING [P0, M]
+
+Recommendation:
+- Add numbered, repeatable migrations for indexes and document-shape changes.
+- Record the applied migration version in MongoDB.
+- Make migrations safe to resume after interruption.
+- Add forward/backward compatibility for at least one deployed version during
+  rolling releases.
+- Test migrations against a copy of realistic older data.
+
+
+S07 - BACKUP, RESTORE, AND DISASTER-RECOVERY DRILLS [P0, M]
+
+Recommendation:
+- Automate encrypted MongoDB backups with retention tiers.
+- Back up required user-uploaded files consistently with their database records.
+- Perform scheduled restore drills into an isolated database.
+- Document recovery time objective (RTO) and recovery point objective (RPO).
+- Verify that account deletion propagates to backups according to the published
+  retention policy.
+
+
+S08 - RETENTION AND ORPHAN CLEANUP [P0, M]
+
+Recommendation:
+- Define retention for auth sessions, security events, OTP fields, billing
+  requests, generated audio, abandoned attachments, ended focus rooms, presence,
+  web-search cache, and failed generation records.
+- Add TTL indexes where MongoDB cleanup is appropriate.
+- Add a safe reconciliation job for database rows whose files are missing and
+  files that have no database owner.
+- Expose retention rules in the privacy UI and account export.
+
+
+S09 - ATOMIC DISTRIBUTED RATE LIMITING [P0, M]
+
+Problem:
+The Redis limiter counts and inserts in separate operations, which allows races.
+The in-process fallback can accumulate identity buckets for a long-running app.
+
+Recommendation:
+- Use one Lua script or transaction for prune + count + insert + expiry.
+- Return an accurate Retry-After value.
+- Periodically evict empty/old in-memory buckets.
+- Define fail-open versus fail-closed behavior per route class.
+- Add limits for exports, restore commits, account deletion, expensive insights,
+  and room creation in addition to inference/auth endpoints.
+
+
+S10 - TRUSTED PROXY AND CLIENT-IP HANDLING [P0, S]
+
+Recommendation:
+- Honor X-Forwarded-For and X-Forwarded-Proto only from configured trusted
+  proxies.
+- Prefer the reverse proxy's canonical real-IP header configuration.
+- Test that a direct client cannot spoof HTTPS detection or obtain another rate
+  limit identity through arbitrary forwarded headers.
+
+
+S11 - GRACEFUL SHUTDOWN AND QUEUE DRAINING [P1, M]
+
+- Stop admitting new chat/TTS jobs during shutdown.
+- Give active jobs a bounded grace period, then mark unfinished turns retryable.
+- Close MongoDB/Redis/HTTP clients and SSE streams explicitly.
+- Ensure model loading cannot continue after application shutdown starts.
+
+
+S12 - CIRCUIT BREAKERS AND RETRY BUDGETS [P1, M]
+
+- Add per-provider circuit breakers for web search, SMTP, local/cloud inference,
+  Redis, and voice fallback.
+- Retry only idempotent operations and use jittered backoff.
+- Show a useful degraded-mode message without inventing an AI answer.
+- Record provider state transitions without storing prompts or responses.
+
+
+S13 - LARGE-CONVERSATION STORAGE STRATEGY [P1, L]
+
+Problem:
+Embedding an ever-growing messages array in one MongoDB conversation document
+will eventually make reads, replacements, exports, and the document-size limit
+problematic.
+
+Recommendation:
+- Store turns in a separate conversation_messages collection.
+- Index conversation_id + sequence and paginate older messages.
+- Keep a compact conversation summary and recent-window cache.
+- Migrate existing embedded messages without breaking saved links.
+
+
+S14 - SAFE, STREAMING ACCOUNT EXPORTS [P1, M]
+
+- Stream large exports instead of loading every record into memory.
+- Include all user-owned domains with an explicit manifest and schema version.
+- Optionally include attachment bytes in an encrypted archive.
+- Create export jobs with expiry for large accounts.
+- Add export/restore compatibility tests across versions.
+
+
+S15 - CONSISTENT DELETE WORKFLOWS [P1, M]
+
+- Use a deletion job/saga with a durable checklist for Mongo collections, files,
+  sessions, rooms, billing metadata, caches, and derived records.
+- Make retries safe and visible to the user.
+- Add a final reconciliation report without retaining deleted content.
+
+
+S16 - RESOURCE QUOTAS [P1, M]
+
+- Enforce per-user and global limits for stored attachment bytes, conversation
+  count, export frequency, saved research, memories, room messages, and audio.
+- Return usage and remaining quota from server-owned access metadata.
+- Never enforce critical limits only in JavaScript.
+
+
+SECTION 2 - OBSERVABILITY, TESTING, AND RELEASE ENGINEERING
+==========================================================
+
+Q01 - PRIVACY-SAFE METRICS [P1, M]
+
+Add counters, gauges, and latency histograms for:
+- HTTP status/latency by normalized route.
+- MongoDB operation latency and timeout count.
+- Chat queue depth, queue wait, first-token time, completion time, cancellation,
+  provider fallback, and failure category.
+- TTS queue depth, generation time, disconnect cancellation, cache hit, and
+  fallback engine.
+- SSE connections, room transitions, scheduler deliveries, and cleanup jobs.
+
+Never label metrics with email, user ID, prompts, messages, URLs, or room codes.
+
+
+Q02 - STRUCTURED LOGGING AND ERROR TAXONOMY [P1, M]
+
+- Emit JSON logs consistently with request_id, operation, safe error code,
+  duration, and component.
+- Add a global exception handler that returns a stable public error shape.
+- Distinguish validation, authentication, authorization, capacity, dependency,
+  timeout, conflict, and internal errors.
+- Redact Authorization, cookies, OTPs, email credentials, prompts, and frames.
+
+
+Q03 - END-TO-END BROWSER TESTS [P1, L]
+
+Automate critical real-browser journeys:
+- Register/login/logout and password recovery with a fake email backend.
+- New chat, refresh recovery, retry, cancellation, saved conversation, export.
+- Journal/goal autosave and conflict behavior.
+- Three-browser Focus Together join/presence/chat/host-end/expiry flows.
+- Entitlement changes and locked route enforcement.
+- Account export, restore preview/commit, and deletion.
+
+Keep real microphone, speaker audibility, camera permission, and VRM rendering as
+separate device/browser QA because DOM mocks cannot prove them.
+
+
+Q04 - FAILURE-INJECTION TESTS [P1, M]
+
+Test Mongo disconnects, Redis loss, SMTP timeouts, provider timeouts, model load
+failure, disk-full behavior, corrupt uploads, browser disconnects, and process
+shutdown during generation. Verify recovery and idempotency, not only error text.
+
+
+Q05 - STATIC QUALITY GATES [P1, S]
+
+- Add Ruff formatting/linting and a practical type checker such as Pyright or
+  mypy for service boundaries and schemas.
+- Run JavaScript syntax checks over every first-party JS file in CI.
+- Add template rendering checks and broken local-asset/link detection.
+- Keep git diff --check and Python compile checks.
+
+
+Q06 - DEPENDENCY REPRODUCIBILITY [P1, M]
+
+- Split runtime, development/test, Apple-MLX, Modal/cloud, and optional voice
+  dependencies.
+- Generate a locked requirements file with hashes for deployment.
+- Add pip check, vulnerability scanning, license inventory, and an SBOM to CI.
+- Cache large model downloads outside the app build and verify model revision.
+
+
+Q07 - PERFORMANCE BUDGETS [P2, M]
+
+Define and test budgets for page weight, API p95 latency, chat queue wait,
+first-token latency, TTS start latency, memory usage after model warmup, SSE fanout,
+and database query counts. Fail performance tests only on meaningful regressions.
+
+
+Q08 - CANARY AND ROLLBACK RELEASES [P2, M]
+
+- Add immutable build versions and a visible diagnostics build identifier.
+- Run migration checks before traffic is switched.
+- Support canary traffic, automated smoke checks, and one-command rollback.
+- Never roll back code past an incompatible completed migration.
+
+
+SECTION 3 - SECURITY AND PRIVACY HARDENING
+==========================================
+
+SEC01 - MOVE AUTH TOKENS OUT OF LOCALSTORAGE [P1, L]
+
+Current browser bearer tokens are accessible to JavaScript. A successful XSS can
+therefore steal a long-lived session.
+
+Recommendation:
+- Prefer Secure, HttpOnly, SameSite session cookies.
+- Add CSRF protection to state-changing requests.
+- Rotate refresh tokens and keep access tokens short-lived.
+- Preserve session listing/revocation and multi-device behavior.
+- If bearer storage must remain temporarily, shorten expiry and strengthen CSP.
+
+
+SEC02 - STRICT CONTENT SECURITY POLICY [P1, M]
+
+- Inventory scripts, styles, fonts, model assets, workers, media, and connections.
+- Remove inline executable code where practical or use per-response nonces.
+- Deploy CSP in report-only mode, fix violations, then enforce it.
+- Add object-src 'none', base-uri 'self', frame-ancestors 'none', and narrow
+  connect-src/media-src/img-src directives.
+
+
+SEC03 - XSS-SAFE DOM CONSTRUCTION [P1, M]
+
+- Audit every innerHTML/insertAdjacentHTML site that includes server/user data.
+- Prefer textContent and DOM element construction.
+- Keep one well-tested escaping utility for the small number of HTML templates
+  that remain.
+- Add payload tests for text, attributes, URLs, SVG, malformed Unicode, and
+  stored community/chat/research content.
+
+
+SEC04 - MULTI-FACTOR AUTHENTICATION AND PASSKEYS [P2, L]
+
+- Add passkeys/WebAuthn as the preferred strong login option.
+- Offer TOTP with recovery codes for users who need it.
+- Require recent authentication for password, email, MFA, export, restore,
+  session-revocation, billing, and account-deletion actions.
+
+
+SEC05 - EMAIL OWNERSHIP AND ACCOUNT-LINKING RULES [P1, M]
+
+- Store email_verified_at and make verification state explicit.
+- Define safe linking behavior when Google and local accounts use the same email.
+- Notify users about new sign-ins, password changes, linked providers, export,
+  and account deletion.
+- Add recovery paths that do not reveal whether an email exists.
+
+
+SEC06 - UPLOAD PIPELINE HARDENING [P1, L]
+
+- Replace large base64 JSON uploads with bounded multipart streaming.
+- Validate extension, declared MIME type, magic bytes, decoded dimensions, and
+  decompression ratio.
+- Store uploads outside the public static tree when authorization is required.
+- Quarantine until malware scanning completes.
+- Generate server-owned filenames and prevent active HTML/SVG execution.
+
+
+SEC07 - ADMIN SAFETY [P1, M]
+
+- Remove production owner identities from code defaults; require deployment
+  configuration.
+- Require strong authentication and recent re-auth for subscription changes.
+- Record immutable audit entries with actor, target, before/after state, reason,
+  request ID, and time.
+- Add pagination and least-privilege admin roles.
+
+
+SEC08 - PRIVACY THREAT MODEL [P1, M]
+
+Document data flows and threats for chat, memory, camera, voice, web search,
+community, focus rooms, backups, exports, and third-party providers. For every
+data type record purpose, storage, retention, access, deletion, and whether it
+leaves the device. Revisit the model before each new integration.
+
+
+SEC09 - FIELD-LEVEL PROTECTION FOR HIGH-SENSITIVITY DATA [P2, L]
+
+Evaluate application-level encryption for journal content, explicit memories,
+conversation content, and exports. Keep keys outside MongoDB, support rotation,
+and understand that encryption can limit server-side search and analytics.
+
+
+SEC10 - SAFETY RESPONSE LAYER [P1, M]
+
+- Keep Emora explicitly non-clinical.
+- Add deterministic handling for credible self-harm or immediate-danger language
+  that encourages contacting local emergency/crisis and trusted human support.
+- Do not diagnose, score risk publicly, contact others, or silently escalate.
+- Localize resources by user-selected region and test false positives carefully.
+
+
+SECTION 4 - AI QUALITY AND COMPANION INTELLIGENCE
+================================================
+
+F01 - STREAMING CHAT WITH CANCEL AND RESUME [P1, L]
+
+- Stream tokens/events end to end instead of waiting for the entire response.
+- Support Cancel while preserving the user turn and any safe partial response.
+- Persist the final authoritative text once, with idempotent reconnect recovery.
+- Emit separate private events for status, citations, and avatar behavior rather
+  than exposing reasoning or Companion Brain JSON in text.
+
+
+F02 - EDIT, RETRY, AND BRANCH A CONVERSATION [P1, L]
+
+- Let users edit their most recent message, regenerate an answer, and branch from
+  any earlier turn without destroying the original path.
+- Show branches quietly in conversation history, not as clutter in normal chat.
+- Keep memory extraction and feedback attached to the correct branch/version.
+
+
+F03 - MEMORY INBOX AND EXPLANATIONS [P1, M]
+
+- Add a review inbox for newly inferred memory candidates before long-term save,
+  or provide an Undo window depending on the user's preference.
+- Show source conversation, reason remembered, confidence, last used, expiry, and
+  which answer used a memory.
+- Support Always remember, Never remember this kind, Correct, Merge, and Expire.
+
+
+F04 - MEMORY CONFLICT RESOLUTION [P1, M]
+
+- Detect likely contradictions such as changed city, job, preference, or goal.
+- Ask a neutral clarification instead of silently replacing facts.
+- Keep bounded provenance and allow the user to choose current, historical, or
+  delete both.
+
+
+F05 - CONVERSATION SUMMARIES WITH USER CONTROL [P1, M]
+
+- Create compact summaries for long conversations to reduce prompt size.
+- Keep summaries factual, versioned, and editable/deletable.
+- Never treat a generated summary as more authoritative than the user's current
+  profile or explicit memory.
+- Measure factual retention against a regression set.
+
+
+F06 - PERSONAL AI QUALITY EVALUATION SUITE [P1, M]
+
+Build a repository-owned evaluation set covering:
+- Warm but not overdramatic responses.
+- Correct use and non-use of memory.
+- No invented personal facts.
+- No private reasoning/schema leakage.
+- Emotional follow-ups that stay local instead of triggering web search.
+- Current questions that do use web grounding and cite supported claims.
+- Safety boundaries, refusal quality, and response brevity.
+- Character consistency without dependence or manipulation.
+
+Run it against model/config changes and compare quality plus latency.
+
+
+F07 - SOURCE-AWARE RESEARCH MODE [P1, L]
+
+- Keep ordinary companion chat calm and local-first.
+- Add an explicit research mode for multi-query web work, source cards, dates,
+  claim-level citations, conflicting-source notes, and Save to Research Shelf.
+- Let users inspect the exact search queries before/after execution.
+- Treat web content as untrusted data and prevent prompt injection from sources.
+
+
+F08 - BETTER RESPONSE FEEDBACK LOOP [P1, M]
+
+- Expand feedback beyond one reason: too long, too clinical, forgot context,
+  incorrect fact, unwanted search, wrong tone, repetitive, or unsafe.
+- Let the user optionally provide a preferred rewrite.
+- Use aggregate feedback for evals and settings suggestions, never silent
+  personality changes.
+
+
+F09 - USER-SELECTED LANGUAGE AND MULTILINGUAL MEMORY [P2, L]
+
+- Add explicit language preference and per-conversation language choice.
+- Preserve names and code-switching in memory/search.
+- Verify the selected text and voice models for each supported language.
+- Localize safety resources, dates, time zones, and email templates.
+
+
+F10 - VOICE CONVERSATION TURN-TAKING [P2, XL]
+
+- Add real streaming speech recognition, endpointing, barge-in, interruption,
+  partial transcript correction, and low-latency TTS playback.
+- Keep microphone use explicit and visually obvious.
+- Make text chat fully usable when speech APIs or device audio fail.
+- Verify with real devices; mocks cannot prove audible output or turn-taking.
+
+
+F11 - PERSONAL PRONUNCIATION AND NAME GUIDE [P2, M]
+
+Allow users to teach pronunciations for their name and important people/places,
+preview them locally, and delete them. Store phonetic guidance separately from
+the displayed text and never infer sensitive identity attributes.
+
+
+F12 - MODEL DOWNLOAD AND DEVICE CAPABILITY CENTER [P2, M]
+
+- Show model installed/downloading/loading/ready/failed status.
+- Estimate required disk and unified memory before download.
+- Allow retry, verified cleanup, and selection only among supported models.
+- Provide a low-resource mode that disables camera/voice before destabilizing
+  normal text chat.
+
+
+SECTION 5 - USER-FACING PRODUCT FEATURES
+========================================
+
+F13 - NOTIFICATION CENTER [P1, M]
+
+Create a server-owned inbox for check-ins, goal reminders, security alerts,
+weekly-story readiness, export completion, and room invitations. Include read,
+dismiss, mute category, quiet hours, and expiry. Do not rely on ephemeral toasts.
+
+
+F14 - WEEKLY REVIEW WORKFLOW [P1, M]
+
+Turn existing real insights, goals, journal entries, Moments, and check-ins into
+an optional user-led weekly review:
+- What felt meaningful?
+- What changed?
+- What should Emora remember or forget?
+- Which goal gets one tiny next step?
+
+Save only the choices the user confirms.
+
+
+F15 - GOAL STEPS, SCHEDULES, AND REFLECTIONS [P1, M]
+
+- Add ordered substeps, optional due dates, recurring cadence, pause/archive,
+  and completion reflection.
+- Keep language gentle and avoid punitive streaks.
+- Let Emora propose a tiny step, but require user confirmation before saving.
+
+
+F16 - CALENDAR AND TASK INTEGRATION [P2, L]
+
+- Begin with one provider and explicit read/write scopes.
+- Show a confirmation screen before creating, editing, or deleting anything.
+- Store external IDs and sync cursors, not unnecessary event content.
+- Make disconnection and data removal obvious.
+- Never imply reminders are reliable until background delivery is production
+  hardened.
+
+
+F17 - PERSONAL DOCUMENT LIBRARY [P2, XL]
+
+Allow opt-in PDF/TXT/DOCX uploads for conversation-grounded questions:
+- Parse deterministically and show extracted text/source page references.
+- Chunk and index per user with deletion and re-index controls.
+- Cite document title/page in answers.
+- Defend against prompt injection inside documents.
+- Keep this separate from ordinary small chat attachments.
+
+
+F18 - SEMANTIC SEARCH WITH A PRIVATE INDEX [P2, L]
+
+Enhance universal search across conversation turns, journal entries, memories,
+Moments, goals, and research notes. Keep indexes user-scoped, support exact/date
+filters, explain why results matched, and rebuild/delete the index on demand.
+
+
+F19 - OFFLINE-SAFE DRAFTS AND PWA SHELL [P2, L]
+
+- Make the app installable and keep navigation/static assets available offline.
+- Queue only explicit draft saves, never pretend AI replies or server writes
+  succeeded while offline.
+- Encrypt or minimize sensitive local drafts and provide Clear this device.
+- Reconcile drafts after reconnect with conflict-aware prompts.
+
+
+F20 - ACCESSIBILITY PROGRAM [P1, M]
+
+- Target WCAG 2.2 AA for keyboard access, focus order, labels, error summaries,
+  contrast, reflow, zoom, reduced motion, and screen-reader announcements.
+- Provide avatar motion intensity, autoplay voice, transcript, font size, and
+  high-contrast controls.
+- Run automated checks plus keyboard and screen-reader QA on every core route.
+
+
+F21 - FOCUS TOGETHER QUALITY-OF-LIFE [P2, M]
+
+Build on the current authoritative SSE room contract:
+- Host-configured focus/break cycles.
+- Ready state and gentle shared milestones.
+- Reconnect indicator and explicit ended-room summary.
+- Optional post-room private reflection saved only to each user's account.
+- Abuse report/block controls that preserve anonymous identities.
+
+Do not reintroduce polling or persistent shared transcripts after room end.
+
+
+F22 - COMMUNITY SAFETY AND DISCOVERY [P2, L]
+
+- Add topic tags, sort/filter, saved posts, block/mute, moderation queue, appeal,
+  and rate/velocity abuse detection.
+- Keep identity anonymous to other users while retaining server-side abuse
+  controls.
+- Publish clear community rules and moderation outcomes.
+
+
+F23 - SUBSCRIPTION SELF-SERVICE AFTER REAL BILLING [P2, L]
+
+Only after connecting a real billing provider:
+- Hosted checkout/customer portal and signed webhook verification.
+- Idempotent subscription event processing.
+- Trial, renewal, invoice, cancellation, grace period, and refund state handling.
+- Clear downgrade behavior that retains data but enforces access.
+- Reconciliation between provider state and server entitlements.
+
+Until then, keep the current checkout explicitly labeled as a preview/request and
+never collect or persist payment credentials.
+
+
+F24 - COMPANION RELATIONSHIP CONTROLS [P2, M]
+
+Let users explicitly choose:
+- How proactive Emora may be.
+- Preferred response length and directness.
+- Whether to celebrate streaks/milestones.
+- Topics Emora should not raise unprompted.
+- Memory strictness and automatic expiry.
+
+Display all active controls in one understandable page and make Reset to defaults
+safe and reversible.
+
+
+F25 - DATA TIMELINE AND CORRECTION CENTER [P2, L]
+
+Provide a chronological, filterable view of what Emora stored or derived:
+check-ins, memories, Moments, goals, behavior reports, feedback, and searches.
+Users should be able to correct/delete source data and see which derived views
+will change.
+
+
+F26 - IMPORTERS WITH EXPLICIT MAPPING [P3, L]
+
+Support carefully scoped imports from exported notes/chat/journal formats. Always
+preview counts and examples, map fields explicitly, detect duplicates, and make
+the import reversible for a limited window.
+
+
+F27 - NATIVE MOBILE COMPANION [P3, XL]
+
+Consider only after the web API contracts, background jobs, token security,
+notifications, and offline conflict rules are stable. Start with a thin client
+that preserves server ownership rather than duplicating business logic.
+
+
+SECTION 6 - PERFORMANCE AND ARCHITECTURE CLEANUP
+================================================
+
+A01 - DOMAIN SERVICE BOUNDARIES [P1, L]
+
+Several routers contain database queries, policy decisions, serialization, and
+business workflows together. Gradually move logic into focused services for
+chat turns, focus rooms, schedules, billing, account lifecycle, insights, and
+experiences. Keep routes thin and preserve their public contracts.
+
+
+A02 - REQUEST/RESPONSE SCHEMAS EVERYWHERE [P1, M]
+
+Use explicit Pydantic response models for private APIs, with stable camelCase or
+snake_case policy. This catches accidental exposure of Mongo fields and private
+brain/analysis metadata. Version breaking response changes deliberately.
+
+
+A03 - QUERY AND PAGINATION AUDIT [P1, M]
+
+- Replace unbounded list conversions and full conversation scans.
+- Use cursor pagination for messages, posts, search, memories, journal, goals,
+  events, and admin users.
+- Add indexes based on real explain plans and slow-query metrics.
+- Cache only derived, non-sensitive results with clear invalidation.
+
+
+A04 - FRONTEND MODULE AND DOM-SAFETY CLEANUP [P2, L]
+
+- Break very large page scripts into small repository-owned ES modules.
+- Centralize authenticated fetch, cancellation, retry, error mapping, escaping,
+  date/time formatting, and state transitions.
+- Keep the existing server-rendered/vanilla-JS architecture unless measured
+  complexity justifies a framework migration.
+
+
+A05 - STATIC ASSET DELIVERY [P2, M]
+
+- Fingerprint assets in production and use immutable cache headers.
+- Compress/minify first-party CSS and JS in a repeatable build step.
+- Lazy-load VRM, camera, voice, and heavy room assets only on their routes.
+- Add image dimensions, modern formats, and responsive variants.
+
+
+A06 - MODEL RESOURCE COORDINATOR [P1, L]
+
+Chat, vision, and TTS can compete for unified memory on Apple Silicon. Add one
+resource coordinator that knows active models, job priority, memory budget, idle
+unload policy, and low-memory fallback. Protect normal text chat from optional
+camera/voice workloads.
+
+
+A07 - CACHE CONTRACTS [P2, M]
+
+Document ownership, key format, size limits, TTL, privacy level, invalidation,
+and multi-process behavior for web search, provider health, audio, model state,
+and dashboard-derived results. Avoid module-global caches that silently diverge
+across workers.
+
+
+A08 - API VERSIONING AND COMPATIBILITY [P2, M]
+
+Before native clients or external integrations, define /api/v1 or an equivalent
+versioning policy, deprecation headers, schema changelog, and compatibility tests.
+
+
+SECTION 7 - SMALL HIGH-VALUE IMPROVEMENTS
+==========================================
+
+M01 [P1, S] Add a visible status page for local model, voice, search, email, and
+database availability using safe readiness data.
+
+M02 [P1, S] Show exact save state: Saving, Saved, Offline draft, Conflict, or
+Failed. Never use a permanent optimistic success state.
+
+M03 [P1, S] Add copy-message, copy-code, retry, and report controls with keyboard
+labels and mobile-friendly hit targets.
+
+M04 [P1, S] Add timezone preview to scheduled check-ins and warn before daylight
+saving changes affect the next delivery.
+
+M05 [P1, S] Add session names users can edit (for example, "MacBook Chrome") and
+show approximate last activity without precise location tracking.
+
+M06 [P1, S] Warn before leaving a page with an unsaved journal/goal/profile edit.
+
+M07 [P1, S] Add archive/unarchive for conversations and goals instead of forcing
+delete for cleanup.
+
+M08 [P1, S] Add a Download diagnostics button that exports sanitized version,
+provider state, browser capabilities, and recent error codes without private text.
+
+M09 [P2, S] Add conversation date separators and a Jump to latest button for long
+threads.
+
+M10 [P2, S] Allow users to rename and reorder conversation collections.
+
+M11 [P2, S] Add source availability checks and duplicate merging in Research Shelf.
+
+M12 [P2, S] Add a clear explanation whenever a feature is locked, including what
+happens to existing data after downgrade.
+
+M13 [P2, S] Add a per-conversation switch for web search, memory use, voice
+autoplay, and camera; default to account preferences.
+
+M14 [P2, S] Add a privacy indicator beside every composer attachment/camera/search
+action explaining what is sent, stored, and deleted.
+
+M15 [P2, S] Add Empty, Loading, Error, Offline, Unauthorized, and Rate-limited UI
+states for every dynamic panel.
+
+M16 [P2, S] Add conflict-aware optimistic concurrency to journals, taught memories,
+Moments, collections, and profile changes, similar to goal version checks.
+
+M17 [P2, S] Add Unicode normalization and case-insensitive uniqueness tests for
+emails, collection names, tags, and memory keys.
+
+M18 [P2, S] Add a user-controlled reduced-data mode that disables derived behavior
+reports, web search, and automatic memory while retaining basic chat.
+
+M19 [P2, S] Add clear model/provider attribution in diagnostics, but keep it out of
+the emotional conversation unless the user asks.
+
+M20 [P2, S] Add a first-run privacy tour with separate choices for memory, camera,
+voice, web search, check-ins, and community participation.
+
+
+FEATURES TO AVOID OR DELAY
+==========================
+
+1. Do not add VRM, preset prompts, companion cards, or insight panels back into
+   normal Chat with Emora. Keep immersive behavior on the dedicated companion
+   experience.
+
+2. Do not implement autonomous messages, calendar writes, emails, or contacts
+   without explicit consent, confirmation, auditability, and reliable jobs.
+
+3. Do not claim therapy, diagnosis, medical monitoring, or crisis intervention.
+
+4. Do not store camera frames, continuous video, face identity, demographics, or
+   inferred medical conditions.
+
+5. Do not activate paid access from client-side checkout success. Subscription
+   state must come from verified server-side billing events or an administrator.
+
+6. Do not add a larger local language model until benchmarked with chat, voice,
+   and VRM active on the target machine. The current Qwen3 4B path is the baseline.
+
+7. Do not replace the server-owned Focus Together SSE contract with browser-only
+   state or polling.
+
+8. Do not add embeddings/vector search before defining per-user isolation,
+   deletion, rebuild, encryption, and memory/disk budgets.
+
+9. Do not introduce a frontend framework only for visual polish. The current
+   Jinja + vanilla JS architecture can be modularized incrementally.
+
+10. Do not expose chain-of-thought, private prompts, memory-ranking internals, or
+    Companion Brain JSON as companion text.
+
+
+FIRST 12 ISSUES TO CREATE
+=========================
+
+1. Distributed lease and idempotency for scheduled check-in delivery (S01).
+2. Durable, idempotent chat-turn persistence (S02).
+3. Root configuration validation and production startup checks (S05).
+4. HTTP 503 readiness semantics with required/optional dependencies (S04).
+5. Atomic Redis rate limiting and trusted proxy configuration (S09 + S10).
+6. Database migration/version framework (S06).
+7. Retention policy, TTL indexes, and orphan-file cleanup (S08).
+8. Privacy-safe metrics and structured error codes (Q01 + Q02).
+9. Browser-token migration design: HttpOnly cookies, CSRF, refresh rotation
+   (SEC01).
+10. CSP report-only deployment and DOM XSS audit (SEC02 + SEC03).
+11. Full three-browser Focus Together end-to-end test (Q03).
+12. AI behavior regression/evaluation suite (F06).
+
+
+SUCCESS MEASURES
+================
+
+Track outcomes rather than feature count:
+
+- Zero lost or duplicate chat turns in interruption and concurrency tests.
+- Zero duplicate scheduled check-ins across multiple workers.
+- Successful restore drills and measured RTO/RPO.
+- p95 chat queue wait, first-token time, and TTS-start time within defined budgets.
+- Error and fallback rates categorized without collecting private content.
+- Reduced repeated/regenerated responses and fewer "forgot context" reports.
+- Accessibility completion rate for keyboard and screen-reader journeys.
+- Retention improvement for users who opt into weekly review or goal steps.
+- Correct account deletion and export coverage verified automatically.
+- No claims of production payment, audio playback, camera privacy, or real-time
+  synchronization based only on unit tests.

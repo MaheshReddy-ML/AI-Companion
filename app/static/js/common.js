@@ -6,10 +6,12 @@ export const STORAGE_KEYS = {
 };
 
 const EMORA_PRESENCE_KEY = "emora:live-presence";
-const EMORA_LIVE_STATES = new Set(["LIVE", "LISTENING", "THINKING", "SPEAKING", "WITH YOU", "OFFLINE"]);
+const EMORA_LIVE_STATES = new Set(["LIVE", "IDLE", "LISTENING", "THINKING", "SEARCHING", "SPEAKING", "SAVING", "INTERRUPTED", "WITH YOU", "OFFLINE", "ERROR"]);
 let navigationStateStarted = false;
 let lastPublishedPresence = "";
 let presenceChannel = null;
+let togetherPresenceStarted = false;
+let togetherPresenceTimer = 0;
 
 function renderEmoraPresenceState(state) {
   const normalized = EMORA_LIVE_STATES.has(state) ? state : "OFFLINE";
@@ -18,6 +20,7 @@ function renderEmoraPresenceState(state) {
     element.dataset.state = normalized.toLowerCase().replaceAll(" ", "-");
     element.hidden = false;
   });
+  window.dispatchEvent(new CustomEvent("emora:presence", { detail: { state: normalized } }));
 }
 
 export function publishEmoraPresence(state) {
@@ -74,6 +77,29 @@ function initDynamicNavigation() {
     .catch(() => renderPlayNavigationProgress({}));
 }
 
+function initTogetherPresence() {
+  if (togetherPresenceStarted || !getToken() || !document.body.classList.contains("emora-system")) return;
+  togetherPresenceStarted = true;
+  const heartbeat = async () => {
+    if (document.hidden) return;
+    const stored = localStorage.getItem("emora:together-presence") || "online";
+    const visibility = ["online", "away", "hidden"].includes(stored) ? stored : "online";
+    try {
+      const response = await apiRequest("/api/together/presence", { method: "POST", auth: true, body: { visibility }, cache: "no-store" });
+      const count = Number(response.onlineFriends || 0);
+      document.querySelectorAll("[data-together-online]").forEach((badge) => {
+        badge.textContent = count ? String(count) : "";
+        badge.hidden = count === 0;
+        badge.setAttribute("aria-label", `${count} friend${count === 1 ? "" : "s"} online`);
+      });
+    } catch (_) { /* presence expires server-side if the workspace disconnects */ }
+  };
+  heartbeat();
+  togetherPresenceTimer = window.setInterval(heartbeat, 30000);
+  window.addEventListener("pagehide", () => window.clearInterval(togetherPresenceTimer), { once: true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); });
+}
+
 export const COMPANION_PROFILES = [
   {
     id: "grok-companion",
@@ -118,12 +144,16 @@ const ENTITLEMENT_EXPLANATIONS = {
   look_back: { plan: "Plus", title: "Return to moments worth revisiting", copy: "Plus uses your real conversation history to surface gentle Look Back reflections." },
   personalization: { plan: "Plus", title: "Choose how Emora meets you", copy: "Plus adds explicit response-style controls. Emora follows what you choose and never guesses sensitive traits." },
   weekly_story: { plan: "Plus", title: "See your real week take shape", copy: "Plus turns your actual conversations, goals, moments, and journals into a private weekly reflection." },
+  memory_center: { plan: "Plus", title: "See why Emora remembers", copy: "Plus lets you review sources, use, expiry, corrections, and possible contradictions for private memories." },
+  weekly_review: { plan: "Plus", title: "Close the week in your own words", copy: "Plus gathers real activity into a review that is saved only after you confirm it." },
   conversation_remix: { plan: "Pro", title: "Turn a conversation into something useful", copy: "Pro can transform an existing conversation into a real journal draft, plan, or other supported format." },
   ambient_rooms: { plan: "Pro", title: "Shape a calmer conversation space", copy: "Pro saves ambient room choices to your account for a more immersive Companion experience." },
   focus_rooms: { plan: "Pro", title: "Hold a quiet focus room together", copy: "Pro adds private invite-only focus rooms with a chosen duration and no public feed." },
   advanced_insights: { plan: "Pro", title: "See the bigger picture", copy: "Pro adds deeper patterns built only from your actual activity, check-ins, goals, and conversations." },
   adaptive_companion: { plan: "Pro", title: "Let Emora understand the bigger picture", copy: "With your permission, Pro can use active goals and your latest check-in when they are relevant. Journal entries remain private." },
   personal_constellation: { plan: "Pro", title: "Explore what is beginning to connect", copy: "Pro opens the full Personal Constellation built only from goals, memories, and moments you created." },
+  deep_sessions: { plan: "Pro", title: "Make room for a deeper session", copy: "Pro adds longer-context guided sessions with a private intention, environment, and confirmed closing reflection." },
+  research_studio: { plan: "Pro", title: "Ask for evidence, not just an answer", copy: "Pro opens explicit source-aware research with dates, citations, conflicting-source notes, and Research Shelf saving." },
   voice_postcards: { plan: "Complete", title: "Keep a conversation in voice", copy: "Complete can create a private voice postcard from a conversation you choose." },
 };
 
@@ -338,6 +368,7 @@ function updateThemeButtons() {
 export function syncChrome() {
   const user = getStoredUser();
   const name = displayNameForUser(user);
+  const email = user?.email || "Signed in workspace";
 
   document.querySelectorAll("[data-guest-nav]").forEach((element) => {
     element.hidden = Boolean(user);
@@ -360,6 +391,21 @@ export function syncChrome() {
   const plan = access.isAdmin ? "admin" : access.plan || "free";
   const isPaid = Boolean(user && plan !== "free");
   const accessDisplay = accessDisplayForUser(user);
+  document.querySelectorAll("[data-session-user-name]").forEach((element) => {
+    element.textContent = name;
+  });
+  document.querySelectorAll("[data-session-user-email]").forEach((element) => {
+    element.textContent = email;
+  });
+  document.querySelectorAll("[data-session-plan]").forEach((element) => {
+    element.textContent = accessDisplay.compact;
+  });
+  document.querySelectorAll("[data-session-user-initial]:not([data-session-avatar])").forEach((element) => {
+    element.textContent = getInitials(name);
+  });
+  document.querySelectorAll("[data-session-avatar]").forEach((element) => {
+    renderUserAvatar(element, user, name);
+  });
   document.body.dataset.accessPlan = plan;
   document.body.dataset.accessPaid = String(isPaid);
   document.querySelectorAll("[data-sidebar-plan-access]").forEach((element) => {
@@ -414,10 +460,30 @@ export function guardEntitlement(entitlement) {
   return false;
 }
 
+export async function refreshNotificationBadge() {
+  const badges = document.querySelectorAll("[data-notification-count]");
+  if (!badges.length || !getToken()) return 0;
+  try {
+    const response = await apiRequest("/api/workspace/notifications?unreadOnly=true&limit=1", { auth: true, cache: "no-store" });
+    const count = Number(response.unreadCount || 0);
+    badges.forEach((badge) => {
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.hidden = count === 0;
+      badge.setAttribute("aria-label", `${count} unread notification${count === 1 ? "" : "s"}`);
+    });
+    return count;
+  } catch {
+    badges.forEach((badge) => { badge.hidden = true; });
+    return 0;
+  }
+}
+
 export function initChrome() {
   applyTheme();
   syncChrome();
   initDynamicNavigation();
+  refreshNotificationBadge();
+  initTogetherPresence();
 
   const upgradeDialog = document.getElementById("upgrade-dialog");
   if (upgradeDialog && upgradeDialog.dataset.bound !== "true") {
@@ -532,6 +598,7 @@ export function showStatus(element, message, tone = "error") {
   element.hidden = false;
   element.textContent = message;
   element.dataset.tone = tone;
+  if (tone === "success" || tone === "error") window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: tone === "success" ? "saved" : "error" } }));
 }
 
 export function escapeHtml(value) {

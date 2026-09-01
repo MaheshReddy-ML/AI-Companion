@@ -1,12 +1,30 @@
 {% extends "base.html" %}
 {% block body_class %}app-body notification-body{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/css/notifications.css?v=20260825-v1" />{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/notifications.css?v=20260828-live-notes-v3" />{% endblock %}
 {% block content %}
-<main class="notification-shell">
-  <header class="notification-nav"><a class="studio-brand" href="/dashboard"><span>e</span> Emora</a><a href="/profile">Preferences</a><a class="studio-back" href="/dashboard">Workspace ↗</a></header>
-  <section class="notification-hero"><div><p class="eyebrow">YOUR INBOX</p><h1 class="serif">Updates that<br><em>belong to you.</em></h1><p>Scheduled check-ins and account security activity, kept private and easy to dismiss.</p></div><button id="notification-read-all" type="button">Mark all read</button></section>
-  <div class="notification-status" id="notification-status" role="status" aria-live="polite">Loading your notifications…</div>
+<div class="workspace-unified-layout">
+  {% include "_workspace_rail.html" %}
+<main class="notification-shell unified-workspace-main">
+  <section class="notification-hero">
+    <div class="notification-hero-copy"><p class="eyebrow">A NOTE FROM EMORA</p><h1 class="serif">Small things worth<br><em>noticing.</em></h1><p>Useful reminders, gentle returns, progress worth celebrating, and important account activity—never a noisy feed.</p><div class="notification-summary" aria-label="Inbox summary"><span><strong id="notification-unread-total">—</strong> unread</span><span><strong id="notification-today-total">—</strong> today</span><span><strong>90d</strong> private retention</span></div></div>
+    <aside class="notification-live-stage" aria-label="Live note from Emora">
+      <div class="notification-companion" aria-hidden="true"><span class="notification-orbit orbit-one"></span><span class="notification-orbit orbit-two"></span><div class="notification-logo-wrap"><img src="/static/images/emora-logo-v2.png?v=20260828-orbit" alt=""></div><i class="spark spark-one">✦</i><i class="spark spark-two">✧</i><i class="spark spark-three">·</i></div>
+      <article class="notification-live-note" id="notification-live-note">
+        <div class="notification-live-presence"><span></span> EMORA IS HERE</div>
+        <small id="notification-live-category">A NOTE FOR YOU</small>
+        <h2 id="notification-live-title">Gathering what matters…</h2>
+        <p id="notification-live-message">Your most useful unread note will appear here.</p>
+        <div class="notification-live-actions"><a id="notification-live-action" href="/notifications" hidden>Open</a><button id="notification-live-next" type="button" aria-label="Show next notification">Next note <span>→</span></button></div>
+        <div class="notification-live-progress" id="notification-live-progress" aria-hidden="true"></div>
+      </article>
+    </aside>
+  </section>
+  <div class="notification-toolbar"><div class="notification-filters" id="notification-filters" role="group" aria-label="Filter notifications"><button class="active" type="button" data-notification-filter="all">All</button><button type="button" data-notification-filter="unread">Unread</button><button type="button" data-notification-filter="emora">From Emora</button><button type="button" data-notification-filter="progress">Progress</button><button type="button" data-notification-filter="security">Security</button></div><button id="notification-read-all" type="button">Mark all as read <span>✓</span></button></div>
+  <div class="notification-muted-controls" id="notification-muted-controls" aria-live="polite" hidden></div>
+  <div class="notification-status" id="notification-status" role="status" aria-live="polite">Gathering what matters…</div>
   <section class="notification-list" id="notification-list" aria-label="Notifications"></section>
+  <div class="notification-celebration" id="notification-celebration" aria-hidden="true"><i>✦</i><i>✧</i><i>●</i><i>✦</i><i>·</i><i>✧</i></div>
 </main>
+</div>
 {% endblock %}
-{% block scripts %}<script type="module" src="/static/js/notifications.js?v=20260825-v1"></script>{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/notifications.js?v=20260828-live-notes-v3"></script>{% endblock %}

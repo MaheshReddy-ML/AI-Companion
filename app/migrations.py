@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import timedelta
 
 from app.config import settings
-from app.database import ensure_indexes, get_database, utc_now
+from app.database import ensure_indexes, ensure_together_indexes, get_database, utc_now
 
 
 Migration = tuple[int, str, Callable[[], None]]
@@ -30,6 +30,7 @@ def _backfill_retention_deadlines() -> None:
 MIGRATIONS: tuple[Migration, ...] = (
     (1, "baseline-and-retention-indexes", ensure_indexes),
     (2, "backfill-retention-deadlines", _backfill_retention_deadlines),
+    (3, "together-friends-presence-and-circles", ensure_together_indexes),
 )
 
 

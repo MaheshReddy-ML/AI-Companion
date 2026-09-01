@@ -22,6 +22,12 @@ PREFERENCE_DEFAULTS = {
     "motion": "system",
     "contrast": "system",
     "calmEffects": False,
+    # Product events are disabled until the user explicitly opts in. Event
+    # payloads use a small allowlist and never include conversation content.
+    "productAnalytics": False,
+    # Optional state cues. Off by default; all information remains visible and
+    # audible cues are short, nonverbal, and never used for emotional nudging.
+    "sensoryFeedback": False,
 }
 
 

@@ -16,12 +16,15 @@ import {
   getStoredUser,
   initChrome,
   openExternal,
+  publishEmoraPresence,
   renderUserAvatar,
   safeExternalUrl,
   showStatus,
 } from "./common.js";
 
 const SIDEBAR_STATE_KEY = "ai-companion:chat-sidebar-collapsed";
+const ENTRY_PARAMS = new URLSearchParams(window.location.search);
+const ENTRY_SESSION_ID = ENTRY_PARAMS.get("session");
 
 const elements = {
   chatLayout: document.querySelector(".chat-route-layout"),
@@ -45,6 +48,7 @@ const elements = {
   pinChatLabel: document.getElementById("pin-chat-label"),
   activeChatMeta: document.getElementById("active-chat-meta"),
   chatMessages: document.getElementById("chat-messages"),
+  jumpToLatest: document.getElementById("jump-to-latest"),
   chatToast: document.getElementById("chat-toast"),
   messageInput: document.getElementById("message-input"),
   sendButton: document.getElementById("send-button"),
@@ -115,6 +119,7 @@ const state = {
   listening: false,
   recognition: null,
   requestController: null,
+  activeClientTurnId: null,
   space: { background: "forest", ambience: "none", accessory: "none" },
   environment: "midnight",
   availableEnvironments: [],
@@ -122,6 +127,8 @@ const state = {
   collections: [],
   pendingCompanionMode: "listen",
   ambientAudio: null,
+  messageRenderSignature: "",
+  pendingMessageRender: false,
 };
 
 const MODE_LABELS = { listen: "Just listen", think: "Help me think", reflect: "Reflect with me", plan: "Gentle plan", quiet: "Quiet presence", distract: "Distract me", laugh: "Make me laugh", honest: "Be honest", focus: "Help me focus", deep: "Deep Conversation" };
@@ -475,6 +482,12 @@ function renderWebSources(webSearch) {
     </details>`;
 }
 
+function renderMemoryUse(memoryUse) {
+  const items = Array.isArray(memoryUse) ? memoryUse : [];
+  if (!items.length) return "";
+  return `<details class="memory-use-panel"><summary>◌ Used ${items.length} private memor${items.length === 1 ? "y" : "ies"}</summary><div>${items.map((item) => `<article><strong>${escapeHtml(item.value || item.key || "Saved detail")}</strong><p>${escapeHtml(item.why || "Relevant to this response.")}</p></article>`).join("")}<a href="/sessions#memory-center">Review, correct, or forget in Memory Center →</a></div></details>`;
+}
+
 function renderMessages() {
   const activeConversation = getActiveConversation();
 
@@ -482,6 +495,7 @@ function renderMessages() {
     elements.chatMessages.classList.add("is-empty");
     elements.chatMessages.innerHTML = "";
     elements.chatEmptyCopy.hidden = false;
+    state.messageRenderSignature = "";
     return;
   }
 
@@ -489,6 +503,7 @@ function renderMessages() {
     elements.chatMessages.classList.add("is-empty");
     elements.chatMessages.innerHTML = "";
     elements.chatEmptyCopy.hidden = false;
+    state.messageRenderSignature = `${activeConversation.id}|empty`;
     return;
   }
 
@@ -496,10 +511,28 @@ function renderMessages() {
   elements.chatEmptyCopy.hidden = true;
   const userInitials = getInitials(displayNameForUser(state.user));
   const assistantInitials = getInitials(activeConversation.characterName || "AI Companion");
+  const messages = activeConversation.messages || [];
+  const signature = `${activeConversation.id}|${state.isThinking}|${state.isSearching}|${messages.map((message) => `${message.id || message.clientTurnId}:${message.content}:${message.timestamp || ""}`).join("|")}`;
+  if (signature === state.messageRenderSignature) return;
+  const selection = window.getSelection?.();
+  if (selection && !selection.isCollapsed && elements.chatMessages.contains(selection.anchorNode)) {
+    state.pendingMessageRender = true;
+    return;
+  }
+  const distanceFromBottom = elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop - elements.chatMessages.clientHeight;
+  const stayAtLatest = !state.messageRenderSignature.startsWith(`${activeConversation.id}|`) || distanceFromBottom < 96;
+  state.messageRenderSignature = signature;
+  state.pendingMessageRender = false;
 
-  const messagesMarkup = activeConversation.messages
+  const messagesMarkup = messages
     .map(
-      (message) => `
+      (message, index) => {
+        const day = message.timestamp ? new Date(message.timestamp) : null;
+        const previousDay = index && messages[index - 1].timestamp ? new Date(messages[index - 1].timestamp) : null;
+        const validDay = day && !Number.isNaN(day.getTime());
+        const startsChapter = validDay && (!previousDay || Number.isNaN(previousDay.getTime()) || day.toDateString() !== previousDay.toDateString());
+        const chapter = startsChapter ? `<div class="chat-date-chapter" role="separator"><span>${escapeHtml(new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(day))}</span></div>` : "";
+        return `${chapter}
         <article
           class="message-row ${message.role === "assistant" ? "assistant" : "user"}"
           data-avatar="${escapeHtml(message.role === "assistant" ? assistantInitials : userInitials)}"
@@ -511,11 +544,12 @@ function renderMessages() {
             </div>
             <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
             ${message.role === "assistant" ? renderWebSources(message.webSearch) : ""}
+            ${message.role === "assistant" ? renderMemoryUse(message.memoryUse) : ""}
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
             ${message.id ? `<div class="message-actions"><button type="button" data-copy-message="${escapeHtml(message.id)}">Copy</button><button class="message-moment-action" type="button" data-save-moment="${escapeHtml(message.id)}">Keep as a moment</button>${message.role === "assistant" ? `<span>Private feedback · sent to Emora</span><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="helpful">Helpful</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_long">Too long</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_generic">Too generic</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="missed_request">Missed request</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="tone_wrong">Tone felt wrong</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="incorrect_or_unsafe">Incorrect or unsafe</button></div>` : "</div>"}` : ""}
           </div>
         </article>
-      `,
+      `; },
     )
     .join("");
 
@@ -534,9 +568,14 @@ function renderMessages() {
 
   elements.chatMessages.innerHTML = messagesMarkup + thinkingMarkup;
   window.requestAnimationFrame(() => {
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    if (stayAtLatest || state.isThinking) elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    else elements.jumpToLatest.hidden = false;
   });
 }
+
+document.addEventListener("selectionchange", () => {
+  if (state.pendingMessageRender && window.getSelection?.().isCollapsed) renderMessages();
+});
 
 function renderAttachment() {
   if (!state.selectedFile) {
@@ -611,7 +650,7 @@ async function createConversation(payload = {}) {
   const conversation = await apiRequest("/api/chat/conversations", {
     method: "POST",
     auth: true,
-    body: payload,
+    body: { companionMode: state.pendingCompanionMode, ...payload },
   });
 
   replaceConversation(conversation);
@@ -920,6 +959,7 @@ async function handleSend(promptOverride = null) {
   const cameraFrame = captureCameraFrame();
   const existingDraft = state.drafts[activeConversation.id];
   const clientTurnId = existingDraft?.clientTurnId || `turn-${crypto.randomUUID()}`;
+  state.activeClientTurnId = clientTurnId;
   const snapshot = JSON.parse(JSON.stringify(activeConversation));
   const optimisticMessage = {
     id: clientTurnId,
@@ -947,12 +987,14 @@ async function handleSend(promptOverride = null) {
   render();
 
   try {
+    if (selectedFile) publishEmoraPresence("SAVING");
     const attachment = await uploadSelectedAttachment(selectedFile);
     try {
       const decision = await apiRequest("/api/chat/search-decision", {
         method: "POST", auth: true, body: { message: outgoingContent }, signal: state.requestController.signal,
       });
       state.isSearching = Boolean(decision?.needsWeb);
+      publishEmoraPresence(state.isSearching ? "SEARCHING" : "THINKING");
       render();
     } catch (error) {
       if (error?.name === "AbortError") throw error;
@@ -977,12 +1019,17 @@ async function handleSend(promptOverride = null) {
     });
 
     replaceConversation(response.conversation);
+    publishEmoraPresence("IDLE");
+    if (ENTRY_SESSION_ID && response.conversation?.id) {
+      await apiRequest(`/api/premium/sessions/${encodeURIComponent(ENTRY_SESSION_ID)}`, { method: "PATCH", auth: true, body: { conversationId: response.conversation.id, status: "active" } });
+    }
     if (response.warning) {
       showToast(response.warning, "warning");
     }
   } catch (error) {
     if (error?.name === "AbortError") {
       replaceConversation(snapshot);
+      publishEmoraPresence("INTERRUPTED");
       return;
     }
     replaceConversation(snapshot);
@@ -991,15 +1038,26 @@ async function handleSend(promptOverride = null) {
     elements.messageInput.value = draft;
     resizeComposer();
     showToast(error.message || "Failed to get a response.", "error");
+    publishEmoraPresence("ERROR");
   } finally {
     state.isThinking = false;
     state.isSearching = false;
     state.requestController = null;
+    state.activeClientTurnId = null;
     render();
   }
 }
 
 function bindStaticEvents() {
+  elements.chatMessages?.addEventListener("scroll", () => {
+    const distance = elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop - elements.chatMessages.clientHeight;
+    if (elements.jumpToLatest) elements.jumpToLatest.hidden = distance < 96;
+  }, { passive: true });
+  elements.jumpToLatest?.addEventListener("click", () => {
+    elements.chatMessages.scrollTo({ top: elements.chatMessages.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    elements.jumpToLatest.hidden = true;
+    elements.chatMessages.focus({ preventScroll: true });
+  });
   const closeContextMenu = () => {
     if (!elements.contextMenu || !elements.addContextButton) return;
     elements.contextMenu.hidden = true;
@@ -1221,7 +1279,11 @@ function bindStaticEvents() {
   });
 
   elements.sendButton.addEventListener("click", () => handleSend());
-  elements.stopButton.addEventListener("click", () => {
+  elements.stopButton.addEventListener("click", async () => {
+    const clientTurnId = state.activeClientTurnId;
+    if (clientTurnId) {
+      try { await apiRequest(`/api/chat/turns/${encodeURIComponent(clientTurnId)}/cancel`, { method: "POST", auth: true }); } catch { /* The local abort remains available if cancellation acknowledgement fails. */ }
+    }
     state.requestController?.abort();
     state.isThinking = false;
     render();
@@ -1491,6 +1553,8 @@ function bindStaticEvents() {
   render();
 
   const entryParams = new URLSearchParams(window.location.search);
+  const requestedMode = entryParams.get("mode");
+  if (requestedMode && Object.hasOwn(MODE_LABELS, requestedMode)) state.pendingCompanionMode = requestedMode;
   const shouldStartFresh = entryParams.get("new") === "1";
   const [conversationsResult, toolsResult] = await Promise.allSettled([
     fetchConversations({ selectMostRecent: !shouldStartFresh }),

@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block body_class %}app-body public-information-page{% endblock %}
+{% block content %}<main class="public-information" id="main-content"><a class="workspace-logo" href="/"><img src="/static/images/emora-logo-v2-64.png" alt=""><span>EMORA</span></a><p class="workspace-kicker">OFFLINE</p><h1>Your private actions are paused.</h1><p class="public-lead">The application cannot reach the server. Nothing has been reported as saved, sent, charged, or completed.</p><p>Reconnect and retry the specific action. Draft-aware editors keep local text where supported, but private API responses are never stored in the shared offline cache.</p><a class="btn btn-primary" href="/">Try again</a></main>{% endblock %}

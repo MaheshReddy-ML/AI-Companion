@@ -7,6 +7,7 @@ const status = document.getElementById(isJournal ? "journal-status" : "goal-stat
 let journalEntries = [];
 let goalEntries = [];
 let editingJournalId = null;
+let editingGoalId = null;
 let draftTimer = null;
 let journalDirty = false;
 
@@ -25,6 +26,17 @@ function setJournalEditor(entry = null) {
   document.getElementById("journal-submit").textContent = isEditing ? "Save changes" : "Save reflection";
   document.getElementById("journal-cancel-edit").hidden = !isEditing;
   journalDirty = false;
+}
+
+function setGoalEditor(goal = null, { smaller = false } = {}) {
+  if (isJournal) return;
+  editingGoalId = goal?.id || null;
+  document.getElementById("goal-title").value = goal?.title || "";
+  document.getElementById("goal-note").value = goal?.note || "";
+  document.getElementById("goal-submit").textContent = editingGoalId ? (smaller ? "Save smaller step" : "Save revision") : "Add to my path";
+  document.getElementById("goal-cancel-edit").hidden = !editingGoalId;
+  document.getElementById("goal-editor-status").textContent = smaller ? "Rewrite this as the smallest useful next step" : editingGoalId ? "Revise without losing its history" : "Progress is personal";
+  document.getElementById("goal-title").focus({ preventScroll: true });
 }
 
 function saveJournalDraft() {
@@ -57,11 +69,11 @@ function renderJournal(entries) {
 function renderGoals(goals) {
   goalEntries = goals;
   list.innerHTML = goals.map((item) => `
-    <article class="personal-item ${item.completed ? "done" : ""} ${item.isTinyThing ? "tiny-thing" : ""}" data-record-id="${item.id}">
-      <div>${item.isTinyThing ? '<span class="entry-mood">TODAY’S TINY THING</span>' : ""}<h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.note || "A meaningful next step.")}</p></div>
+    <article class="personal-item ${item.completed ? "done" : ""} ${item.isTinyThing ? "tiny-thing" : ""}" data-goal-status="${escapeHtml(item.status || (item.completed ? "completed" : "active"))}" data-record-id="${item.id}">
+      <div>${item.isTinyThing ? '<span class="entry-mood">TODAY’S TINY THING</span>' : ""}${item.status && item.status !== "active" ? `<span class="entry-mood">${escapeHtml(item.status.toUpperCase())}</span>` : ""}<h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.note || "A meaningful next step.")}</p></div>
       <div class="personal-actions">
-        ${!item.completed ? `<button data-tiny="${item.id}" class="btn btn-ghost btn-sm" ${item.isTinyThing ? "disabled" : ""}>${item.isTinyThing ? "In view today" : "Make Tiny Thing"}</button>` : ""}
-        <button data-${item.completed ? "reopen" : "complete"}="${item.id}" class="btn btn-outline btn-sm">${item.completed ? "Reopen" : "Complete"}</button>
+        ${(!item.status || item.status === "active") && !item.completed ? `<button data-tiny="${item.id}" class="btn btn-ghost btn-sm" ${item.isTinyThing ? "disabled" : ""}>${item.isTinyThing ? "In view today" : "Make Tiny Thing"}</button><button data-smaller="${item.id}" class="btn btn-ghost btn-sm">Smaller next step</button><button data-edit-goal="${item.id}" class="btn btn-ghost btn-sm">Revise</button><button data-pause="${item.id}" class="btn btn-ghost btn-sm">Pause</button><button data-complete="${item.id}" class="btn btn-outline btn-sm">Complete</button>` : `<button data-reopen="${item.id}" class="btn btn-outline btn-sm">${item.status === "paused" ? "Resume" : "Reopen"}</button>`}
+        ${item.status !== "archived" ? `<button data-archive="${item.id}" class="btn btn-ghost btn-sm">Archive</button>` : ""}
         <button data-delete="${item.id}" class="btn btn-ghost btn-sm">Delete</button>
       </div>
     </article>
@@ -115,6 +127,7 @@ if (isJournal) {
     event.returnValue = "";
   });
 }
+document.getElementById("goal-cancel-edit")?.addEventListener("click", () => setGoalEditor());
 
 document.getElementById(isJournal ? "journal-form" : "goal-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -122,11 +135,12 @@ document.getElementById(isJournal ? "journal-form" : "goal-form")?.addEventListe
     const body = isJournal
       ? { title: document.getElementById("journal-title").value || "Untitled reflection", content: document.getElementById("journal-content").value, mood: document.getElementById("journal-mood").value }
       : { title: document.getElementById("goal-title").value, note: document.getElementById("goal-note").value };
-    const endpoint = isJournal && editingJournalId ? `/api/personal/journal/${editingJournalId}` : isJournal ? "/api/personal/journal" : "/api/personal/goals";
+    const endpoint = isJournal && editingJournalId ? `/api/personal/journal/${editingJournalId}` : isJournal ? "/api/personal/journal" : editingGoalId ? `/api/personal/goals/${editingGoalId}` : "/api/personal/goals";
     if (isJournal && editingJournalId) body.expectedVersion = journalEntries.find((entry) => entry.id === editingJournalId)?.version || 1;
+    if (!isJournal && editingGoalId) body.expectedVersion = goalEntries.find((entry) => entry.id === editingGoalId)?.version || 1;
     const submit = event.target.querySelector("button[type='submit']");
     submit.disabled = true;
-    await apiRequest(endpoint, { method: isJournal && editingJournalId ? "PATCH" : "POST", auth: true, body });
+    await apiRequest(endpoint, { method: (isJournal && editingJournalId) || (!isJournal && editingGoalId) ? "PATCH" : "POST", auth: true, body });
     journalDirty = false;
     event.target.reset();
     if (isJournal) {
@@ -134,6 +148,7 @@ document.getElementById(isJournal ? "journal-form" : "goal-form")?.addEventListe
       setJournalEditor();
       document.getElementById("journal-draft-status").textContent = "Private by default";
     }
+    else setGoalEditor();
     showStatus(status, isJournal ? "Reflection saved." : "Goal added.", "success");
     await load();
   } catch (error) {
@@ -160,12 +175,22 @@ list?.addEventListener("click", async (event) => {
   const reopenButton = event.target.closest("[data-reopen]");
   const tinyButton = event.target.closest("[data-tiny]");
   const editButton = event.target.closest("[data-edit]");
+  const editGoalButton = event.target.closest("[data-edit-goal]");
+  const smallerButton = event.target.closest("[data-smaller]");
+  const pauseButton = event.target.closest("[data-pause]");
+  const archiveButton = event.target.closest("[data-archive]");
   if (deleteButton && !window.confirm(`Delete this ${isJournal ? "reflection" : "goal"}? This cannot be undone.`)) return;
-  const actionButton = deleteButton || completeButton || reopenButton || tinyButton || editButton;
+  const actionButton = deleteButton || completeButton || reopenButton || tinyButton || editButton || editGoalButton || smallerButton || pauseButton || archiveButton;
   if (actionButton) actionButton.disabled = true;
   try {
     if (editButton) {
       setJournalEditor(journalEntries.find((item) => item.id === editButton.dataset.edit));
+      document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (editGoalButton || smallerButton) {
+      const id = editGoalButton?.dataset.editGoal || smallerButton?.dataset.smaller;
+      setGoalEditor(goalEntries.find((item) => item.id === id), { smaller: Boolean(smallerButton) });
       document.querySelector(".journal-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
@@ -175,6 +200,8 @@ list?.addEventListener("click", async (event) => {
     }
     if (completeButton) await apiRequest(`/api/personal/goals/${completeButton.dataset.complete}/complete?expectedVersion=${goalEntries.find((item) => item.id === completeButton.dataset.complete)?.version || 1}`, { method: "PATCH", auth: true });
     if (reopenButton) await apiRequest(`/api/personal/goals/${reopenButton.dataset.reopen}/reopen?expectedVersion=${goalEntries.find((item) => item.id === reopenButton.dataset.reopen)?.version || 1}`, { method: "PATCH", auth: true });
+    if (pauseButton) await apiRequest(`/api/personal/goals/${pauseButton.dataset.pause}/pause?expectedVersion=${goalEntries.find((item) => item.id === pauseButton.dataset.pause)?.version || 1}`, { method: "PATCH", auth: true });
+    if (archiveButton) await apiRequest(`/api/personal/goals/${archiveButton.dataset.archive}/archive?expectedVersion=${goalEntries.find((item) => item.id === archiveButton.dataset.archive)?.version || 1}`, { method: "PATCH", auth: true });
     if (tinyButton) {
       await apiRequest(`/api/personal/goals/${tinyButton.dataset.tiny}/tiny-thing?expectedVersion=${goalEntries.find((item) => item.id === tinyButton.dataset.tiny)?.version || 1}`, { method: "PATCH", auth: true });
       showStatus(status, "Your One Tiny Thing is now in view on Overview.", "success");

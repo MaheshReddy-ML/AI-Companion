@@ -15,7 +15,7 @@ from app.companion import account_profile_prompt_context, analyze_emotion, behav
 from app.companion_brain import build_companion_brain, extract_reply_and_brain
 from app.models.schemas import ChatSendRequest, PostCreateRequest
 from app.routers.api_auth import normalize_local_redirect_path
-from app.routers.api_chat import _completed_turn_response, build_adaptive_context, create_chat_title
+from app.routers.api_chat import _completed_turn_response, _finalize_chat_turn_pipeline, build_adaptive_context, create_chat_title
 from app.routers.insights import _build_period_reflection, _build_premium_brief, _classify, get_insights
 from app.routers.play import SpaceRequest, _remix_content
 from app.routers.personal import ArrivalRequest
@@ -156,6 +156,26 @@ def test_completed_chat_turn_can_be_replayed_without_regeneration():
     assert response["model"] == "test-model"
     assert response["userMessage"]["clientTurnId"] == "turn-1"
     assert response["aiMessage"]["inReplyTo"] == "turn-1"
+
+
+def test_chat_turn_finalization_uses_one_non_conflicting_atomic_pipeline():
+    timestamp = datetime(2026, 8, 30, tzinfo=timezone.utc)
+    assistant_message = {
+        "id": "assistant-1",
+        "role": "assistant",
+        "content": "$content remains literal",
+        "in_reply_to": "turn-1",
+        "timestamp": timestamp,
+    }
+
+    pipeline = _finalize_chat_turn_pipeline("turn-1", assistant_message)
+    update = pipeline[0]["$set"]
+    appended_reply = update["messages"]["$concatArrays"][1][0]
+
+    assert isinstance(pipeline, list)
+    assert appended_reply == {"$literal": assistant_message}
+    assert update["updated_at"] == {"$literal": timestamp}
+    assert update["version"] == {"$add": [{"$ifNull": ["$version", 1]}, 1]}
 
 
 def test_companion_mode_is_allowlisted_and_serialized_from_client_alias():
