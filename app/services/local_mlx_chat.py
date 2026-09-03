@@ -128,5 +128,11 @@ class LocalMLXChatProvider:
                 "generationCount": self._generation_count,
             }
 
+    def unload_models(self) -> None:
+        """Release the process-local model cache during graceful shutdown."""
+        with self._load_lock:
+            self._runtime = None
+            self._model_id = None
+
 
 local_mlx_chat = LocalMLXChatProvider()

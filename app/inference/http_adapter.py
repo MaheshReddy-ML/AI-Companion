@@ -54,3 +54,6 @@ class OpenAICompatibleChatAdapter:
 
     def runtime_stats(self) -> dict[str, Any]:
         return {"provider": self.name, "model": self._last_model, "remote": True}
+
+    def unload_models(self) -> None:
+        return None

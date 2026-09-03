@@ -7,9 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 import importlib.util
-from pathlib import Path
-
-from huggingface_hub import try_to_load_from_cache
 
 from app.config import settings
 from app.inference.base import ChatProvider, VisionProvider, VisionAnalysisError
@@ -30,14 +27,13 @@ class LocalChatAdapter:
         model_id = settings.chat_mlx_model.strip()
         if not model_id:
             return False, "MLX model is not configured"
-        local_model = Path(model_id).expanduser()
-        cached_config = local_model / "config.json" if local_model.exists() else try_to_load_from_cache(model_id, "config.json")
-        if not cached_config or not Path(str(cached_config)).is_file():
-            return False, "configured MLX model is not available locally"
-        return True, "MLX runtime and configured model are available; inference is verified on first use"
+        return True, "MLX runtime is available; the configured model loads or downloads on first use"
 
     def stream(self, **kwargs: Any):
         yield self.generate(**kwargs)
+
+    def unload_models(self) -> None:
+        local_mlx_chat.unload_models()
 
 
 class LocalVisionAdapter:
@@ -48,6 +44,9 @@ class LocalVisionAdapter:
             # Wrap provider-specific errors so callers can import a single
             # `VisionAnalysisError` from the inference layer.
             raise VisionAnalysisError(str(exc)) from exc
+
+    def unload_models(self) -> None:
+        local_mlx_vision.unload_models()
 
 
 local_chat_provider = LocalChatAdapter()

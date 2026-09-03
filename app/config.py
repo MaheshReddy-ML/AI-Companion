@@ -85,6 +85,7 @@ class Settings:
     tts_queue_wait_seconds: float = _float_env("TTS_QUEUE_WAIT_SECONDS", "3")
     tts_engine: str = os.getenv("TTS_ENGINE", "qwen3-mlx")
     tts_qwen_model: str = os.getenv("TTS_QWEN_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-6bit")
+    tts_transformers_model: str = os.getenv("TTS_MODEL", "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
     tts_streaming_interval: float = _float_env("TTS_STREAMING_INTERVAL", "0.32")
     tts_sample_rate: int = _int_env("TTS_SAMPLE_RATE", "24000")
     tts_pronunciation_dictionary: str = os.getenv("TTS_PRONUNCIATION_DICTIONARY", "")
@@ -135,6 +136,16 @@ class Settings:
     emora_web_search_max_tool_iterations: int = min(3, max(1, _int_env("WEB_SEARCH_MAX_TOOL_ITERATIONS", "3")))
     vision_mlx_model: str = os.getenv("VISION_MLX_MODEL", "mlx-community/Qwen2-VL-2B-Instruct-4bit")
     vision_mlx_max_tokens: int = _int_env("VISION_MLX_MAX_TOKENS", "180")
+    # Hardware selection is independent from optional remote-provider routing.
+    # EMORA_BACKEND owns native MLX/CUDA/CPU execution.
+    emora_backend: str = os.getenv("EMORA_BACKEND", "auto").strip().lower()
+    device: str = os.getenv("DEVICE", "auto").strip().lower()
+    enable_vision: bool = _bool_env("ENABLE_VISION", "true")
+    enable_tts: bool = _bool_env("ENABLE_TTS", "true")
+    keep_models_warm: bool = _bool_env("KEEP_MODELS_WARM", "true")
+    model_idle_timeout_seconds: int = max(0, _int_env("MODEL_IDLE_TIMEOUT_SECONDS", "900"))
+    chat_transformers_model: str = os.getenv("CHAT_MODEL", "Qwen/Qwen3-4B").strip()
+    vision_transformers_model: str = os.getenv("VISION_MODEL", "Qwen/Qwen2-VL-2B-Instruct").strip()
     # "auto" is MLX-first and falls through only to explicitly configured
     # providers. "local" remains a backwards-compatible alias for auto.
     inference_provider: str = os.getenv("LLM_PROVIDER", os.getenv("INFERENCE_PROVIDER", "auto")).strip().lower()
@@ -147,12 +158,6 @@ class Settings:
     cloud_llm_model: str = os.getenv("CLOUD_LLM_MODEL", "").strip()
     cloud_llm_api_key: str = os.getenv("CLOUD_LLM_API_KEY", "").strip()
     provider_health_ttl_seconds: int = max(10, _int_env("PROVIDER_HEALTH_TTL_SECONDS", "60"))
-    # Optional cloud model overrides for Modal provider. If unset, the code
-    # will attempt to use the MLX model ids as a starting point.
-    chat_modal_model: str = os.getenv("CHAT_MODAL_MODEL", "")
-    vision_modal_model: str = os.getenv("VISION_MODAL_MODEL", "")
-
-
     @property
     def google_audiences(self) -> list[str]:
         raw = self.google_client_ids or self.google_client_id
@@ -206,6 +211,13 @@ def validate_runtime_configuration(configuration: Settings = settings) -> None:
         errors.append("CHAT_MLX_THINKING_MODE must be auto, never, or always")
     if configuration.inference_provider not in {"auto", "mlx", "local", "cloud", "modal"}:
         errors.append("LLM_PROVIDER must be auto, mlx, local, cloud, or modal")
+    if configuration.emora_backend not in {"auto", "mlx", "cuda", "cpu"}:
+        errors.append("EMORA_BACKEND must be auto, mlx, cuda, or cpu")
+    if configuration.device not in {"auto", "metal", "cuda", "cpu"}:
+        errors.append("DEVICE must be auto, metal, cuda, or cpu")
+    expected_device = {"mlx": "metal", "cuda": "cuda", "cpu": "cpu"}.get(configuration.emora_backend)
+    if expected_device and configuration.device not in {"auto", expected_device}:
+        errors.append(f"DEVICE={configuration.device} conflicts with EMORA_BACKEND={configuration.emora_backend}")
 
     for name in ("public_app_url", "mongo_uri"):
         parsed = urlparse(getattr(configuration, name))

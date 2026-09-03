@@ -187,6 +187,8 @@ class VoiceManager:
         self._voices: Dict[str, VoiceMeta] = {}
         self._kokoro_pipelines: Dict[str, Any] = {}
         self._qwen_models: Dict[str, Any] = {}
+        self._qwen_backend_kinds: Dict[str, str] = {}
+        self._active_qwen_backend_kind = "mlx"
         self._load_lock = threading.RLock()
         self._qwen_generation_lock = threading.RLock()
         self._kokoro_generation_lock = threading.RLock()
@@ -280,6 +282,23 @@ class VoiceManager:
                 serialized["fallbackEngine"] = "kokoro"
             voices.append(serialized)
         return voices
+
+    def unload_models(self) -> None:
+        """Drop lazy TTS caches so serverless workers can release memory."""
+        with self._load_lock:
+            self._qwen_models.clear()
+            self._qwen_backend_kinds.clear()
+            self._active_qwen_backend_kind = "mlx"
+            self._kokoro_pipelines.clear()
+        try:
+            from app.inference.hardware import select_hardware_backend
+
+            if select_hardware_backend(settings.emora_backend).backend == "cuda":
+                import torch
+
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
     def find_voice(self, voice_id: str) -> Optional[VoiceMeta]:
         self._scan_models()
@@ -569,18 +588,44 @@ class VoiceManager:
             return out_path
 
     def _qwen_model(self):
-        model_id = settings.tts_qwen_model
+        # Resolve through the same centralized selector as chat and vision,
+        # while retaining the existing MLX-Audio path byte-for-byte on Macs.
+        from app.inference.hardware import select_hardware_backend
+
+        backend = select_hardware_backend(settings.emora_backend).backend
+        model_id = settings.tts_qwen_model if backend == "mlx" else settings.tts_transformers_model
         with self._load_lock:
             if model_id in self._qwen_models:
+                self._active_qwen_backend_kind = self._qwen_backend_kinds.get(model_id, "mlx")
                 return self._qwen_models[model_id]
-            try:
-                from mlx_audio.tts.utils import load_model
-            except Exception as exc:
-                raise RuntimeError("MLX-Audio is not installed. Install mlx-audio on Apple Silicon.") from exc
-            try:
-                model = load_model(model_id)
-            except Exception as exc:
-                raise RuntimeError(f"Could not load local Qwen3 model '{model_id}': {exc}") from exc
+            if backend == "mlx":
+                try:
+                    from mlx_audio.tts.utils import load_model
+                except Exception as exc:
+                    raise RuntimeError("MLX-Audio is not installed. Install the Apple Silicon requirements.") from exc
+                try:
+                    model = load_model(model_id)
+                except Exception as exc:
+                    raise RuntimeError(f"Could not load local Qwen3 model '{model_id}': {exc}") from exc
+                self._qwen_backend_kinds[model_id] = "mlx"
+            else:
+                try:
+                    import torch
+                    from qwen_tts import Qwen3TTSModel
+                except Exception as exc:
+                    raise RuntimeError("CUDA/CPU Qwen3-TTS requires torch and qwen-tts from the matching requirements file.") from exc
+                if backend == "cuda" and not torch.cuda.is_available():
+                    raise RuntimeError("CUDA Qwen3-TTS was selected but CUDA is unavailable to PyTorch.")
+                device = "cuda:0" if backend == "cuda" else "cpu"
+                dtype = torch.bfloat16 if backend == "cuda" and torch.cuda.is_bf16_supported() else (
+                    torch.float16 if backend == "cuda" else torch.float32
+                )
+                try:
+                    model = Qwen3TTSModel.from_pretrained(model_id, device_map=device, dtype=dtype)
+                except Exception as exc:
+                    raise RuntimeError(f"Could not load {backend.upper()} Qwen3-TTS model '{model_id}': {exc}") from exc
+                self._qwen_backend_kinds[model_id] = "torch"
+            self._active_qwen_backend_kind = self._qwen_backend_kinds[model_id]
             self._qwen_models[model_id] = model
             return model
 
@@ -620,20 +665,28 @@ class VoiceManager:
         with self._qwen_generation_lock:
             model = self._qwen_model()
             speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
+            runtime_kind = self._active_qwen_backend_kind
             kwargs = {
                 "text": text,
                 "speaker": speaker,
                 "language": "English",
                 "instruct": speech_profile["style_instruction"],
-                "stream": True,
-                "streaming_interval": settings.tts_streaming_interval,
             }
+            if runtime_kind == "mlx":
+                kwargs.update(stream=True, streaming_interval=settings.tts_streaming_interval)
             try:
                 results = model.generate_custom_voice(**kwargs)
             except (AttributeError, TypeError) as exc:
                 raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
             emitted = False
             try:
+                if runtime_kind == "torch":
+                    waveforms, sample_rate = results
+                    if int(sample_rate) != settings.tts_sample_rate:
+                        raise RuntimeError(
+                            f"Qwen3-TTS returned {sample_rate} Hz audio; configured TTS_SAMPLE_RATE is {settings.tts_sample_rate}."
+                        )
+                    results = [type("AudioResult", (), {"audio": waveform}) for waveform in waveforms]
                 for result in results:
                     if cancel_event.is_set():
                         return

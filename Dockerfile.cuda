@@ -1,0 +1,29 @@
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/models/huggingface \
+    EMORA_BACKEND=cuda \
+    DEVICE=cuda
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libsndfile1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/emora
+COPY requirements-base.txt requirements-cuda.txt ./
+RUN python3 -m pip install --break-system-packages -r requirements-cuda.txt
+
+COPY . .
+RUN mkdir -p cache/audio app/static/uploads /models/huggingface \
+    && useradd --create-home --uid 10001 emora \
+    && chown -R emora:emora /opt/emora /models
+USER emora
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl --fail http://127.0.0.1:8000/health || exit 1
+
+CMD ["python3", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

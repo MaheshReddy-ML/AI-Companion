@@ -87,7 +87,7 @@ flowchart LR
     R --> K[Relevant memory retriever]
     E --> P[Private companion context]
     K --> P
-    P --> A[Local Qwen3 MLX chat]
+    P --> A[Hardware-selected Qwen3 chat]
     A --> B[Companion Brain]
     B --> V[Qwen3-TTS / Kokoro]
     B --> G[VRM behavior engine]
@@ -116,13 +116,13 @@ The VRM stage is intentionally never a static model. It has full-body automatic 
 └───────────────┬───────────────────────────────┬───────────────────────────────┘
                 │                               │
      ┌──────────▼──────────┐         ┌──────────▼────────────────────┐
-     │       MongoDB        │         │     Local Qwen3 MLX chat      │
+     │       MongoDB        │         │ Hardware-aware inference API │
      │ users · chats ·     │         │  response + Companion Brain   │
      │ memories · posts    │         └───────────────────────────────┘
      └─────────────────────┘
                 │
      ┌──────────▼────────────────────────────────────────────────────┐
-     │ Local voice path: Qwen3-TTS on MLX (Apple Silicon) → Kokoro   │
+     │ MLX (Apple) · Transformers (CUDA/CPU) · local TTS fallbacks   │
      │ fallback → streamed PCM/WAV → browser analyser → avatar lip sync│
      └───────────────────────────────────────────────────────────────┘
 ```
@@ -147,6 +147,62 @@ app/
 ├── static/                      # CSS, JS, companion artwork, VRM assets
 └── templates/                   # Server-rendered application pages
 ```
+
+## Running Emora locally
+
+Emora selects one native inference backend in `app/inference/` and keeps the
+routers, companion prompts, memory, and persistence code hardware-agnostic.
+Models load on first use and remain warm by default; `/health/ready` reports
+the selected backend, device, capabilities, and load state without loading the
+large checkpoints.
+
+| Hardware | Install | `EMORA_BACKEND` | Runtime |
+| --- | --- | --- | --- |
+| Apple Silicon | `python -m pip install -r requirements.txt` | `auto` or `mlx` | Existing MLX chat, vision, and Qwen3-TTS |
+| NVIDIA GPU | `python -m pip install -r requirements-cuda.txt` | `cuda` | PyTorch/Transformers/Qwen-TTS on CUDA |
+| CPU | `python -m pip install -r requirements-cpu.txt` | `cpu` | Same native checkpoints, substantially slower |
+
+`auto` selects MLX on Apple Silicon, CUDA when PyTorch can access an NVIDIA
+GPU, and CPU otherwise. Explicit overrides fail clearly if the requested
+hardware is unavailable. `ENABLE_VISION=false` and `ENABLE_TTS=false` disable
+optional heavy capabilities. Set `KEEP_MODELS_WARM=false` for cold-per-request
+testing; graceful shutdown unloads cached chat, vision, and speech models.
+
+```env
+EMORA_BACKEND=auto
+DEVICE=auto
+CHAT_MODEL=Qwen/Qwen3-4B
+VISION_MODEL=Qwen/Qwen2-VL-2B-Instruct
+TTS_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+ENABLE_VISION=true
+ENABLE_TTS=true
+KEEP_MODELS_WARM=true
+```
+
+The existing `CHAT_MLX_MODEL`, `VISION_MLX_MODEL`, and `TTS_QWEN_MODEL`
+settings remain authoritative on Apple Silicon. Persist `HF_HOME` in deployed
+workers so model weights are not downloaded again after every restart.
+
+### NVIDIA Docker deployment
+
+On a Linux host with Docker and NVIDIA Container Toolkit:
+
+```bash
+cp .env.example .env
+# Configure JWT_SECRET, MONGO_URI, and production URLs in .env.
+docker compose -f docker-compose.cuda.yml up --build
+```
+
+The Compose file reserves one GPU and persists model/audio caches. A direct
+container run must pass `--gpus all`. Confirm the result through
+`curl http://127.0.0.1:8000/health/ready`, then run disposable chat, vision,
+and voice requests on the target GPU to validate its VRAM and checkpoint
+compatibility.
+
+Known limitation: CPU inference is intended for portability and automated
+tests, not interactive latency. CPU vision and Qwen3-TTS can be prohibitively
+slow and may be disabled. The Transformers chat backend currently emits its
+completed reply as one streaming chunk; the existing MLX behavior is unchanged.
 
 ## Quick start
 
@@ -252,11 +308,12 @@ Copy `.env.example`; it documents every available setting. These are the setting
 | **Core** | `APP_NAME`, `APP_ENV`, `HOST`, `PORT` | Keep `APP_ENV=production` in deployed environments. |
 | **Security** | `JWT_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_DAYS`, `ADMIN_API_KEY` | Use a strong unique secret; only enable diagnostics deliberately. |
 | **Database** | `MONGO_URI`, `MONGO_SERVER_SELECTION_TIMEOUT_MS` | A Mongo database is required for accounts, chat, memory, and community data. |
-| **Chat** | `CHAT_MLX_MODEL`, `CHAT_MLX_MAX_TOKENS`, `CHAT_MLX_TEMPERATURE`, `CHAT_MLX_THINKING_MODE` | Local Qwen3 MLX chat on Apple Silicon; `auto` keeps casual turns direct and reserves private reasoning for complex requests. |
-| **Provider fallback** | `LLM_PROVIDER`, `MLX_ENABLED`, `LOCAL_LLM_*`, `CLOUD_LLM_*`, `PROVIDER_HEALTH_TTL_SECONDS` | `auto` checks the real MLX package and cached model first, then uses only explicitly enabled OpenAI-compatible fallbacks. Credentials remain server-side. |
+| **Inference** | `EMORA_BACKEND`, `DEVICE`, `CHAT_MODEL`, `KEEP_MODELS_WARM` | Centralized `auto`/`mlx`/`cuda`/`cpu` selection; native models load lazily. |
+| **Apple chat** | `CHAT_MLX_MODEL`, `CHAT_MLX_MAX_TOKENS`, `CHAT_MLX_TEMPERATURE`, `CHAT_MLX_THINKING_MODE` | Existing Qwen3 MLX path remains first-class on Apple Silicon. |
+| **Provider fallback** | `LOCAL_LLM_*`, `CLOUD_LLM_*`, `PROVIDER_HEALTH_TTL_SECONDS` | Only explicitly enabled OpenAI-compatible endpoints are considered after the native backend. Credentials remain server-side. |
 | **Developer telemetry** | `COMPANION_DEBUG` | Opt-in local Brain/render/request telemetry; always disabled in production. |
-| **Optional camera** | `VISION_MLX_MODEL`, `VISION_MLX_MAX_TOKENS` | Local-only MLX-VLM check-ins; image pixels are never persisted. |
-| **Voice** | `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING`, `TTS_PRONUNCIATION_DICTIONARY` | The default engine is `qwen3-mlx`; set `kokoro` to force the fallback. |
+| **Optional camera** | `ENABLE_VISION`, `VISION_MODEL`, `VISION_MLX_MODEL`, `VISION_MLX_MAX_TOKENS` | Uses the selected backend; image pixels are never persisted. |
+| **Voice** | `ENABLE_TTS`, `TTS_MODEL`, `TTS_ENGINE`, `TTS_QWEN_MODEL`, `TTS_WORKER_COUNT`, `TTS_QUEUE_MAX_PENDING` | Qwen3-TTS uses MLX on Apple and the official PyTorch package on CUDA/CPU; Kokoro remains a fallback. |
 | **Google OAuth** | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_CALLBACK_URL` | Configure the same callback URL with Google. |
 | **Email / OTP** | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM_NAME` | Required when password-reset email is enabled. |
 | **Owner access** | `ADMIN_EMAILS`, `ADMIN_API_KEY` | Comma-separated owner allowlist receives administrator/full-plan access; the key remains available for diagnostics automation. Owner addresses cannot be claimed through unverified local registration. |
@@ -396,6 +453,20 @@ For deployment, follow the complete [production guide](docs/PRODUCTION_DEPLOYMEN
 
 The best contribution is one that protects the companion experience: keep changes modular, avoid sending secrets or user data to logs, preserve user ownership checks, and add/extend tests with every behavioral change.
 
-## License
+## Licensing
 
-No license file is currently included. Add an explicit license before publishing or distributing the project.
+Copyright © 2026 Mahesh. All rights reserved.
+
+No project-level open-source license is currently included, so default
+copyright restrictions apply. Except where applicable law or a hosting
+platform's terms provide otherwise, the Emora source code, original interface,
+documentation, and project-owned media may not be copied, modified,
+redistributed, sublicensed, or used commercially without explicit permission
+from the copyright holder. Add a project-owned `LICENSE` file before offering
+broader permissions; that file will take precedence over this summary.
+
+Third-party packages retain their own licenses. Model weights and hosted model
+artifacts—including Qwen, MLX community conversions, Kokoro, and companion/VRM
+assets not created by this project—remain subject to their respective license
+terms and acceptable-use requirements. Review those terms before redistribution
+or production deployment. No third-party trademark ownership is claimed.

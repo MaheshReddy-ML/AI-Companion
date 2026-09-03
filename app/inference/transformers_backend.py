@@ -41,7 +41,9 @@ class TransformersChatProvider:
             )
             kwargs: dict[str, Any] = {"torch_dtype": dtype, "low_cpu_mem_usage": True}
             if self.device == "cuda":
-                kwargs["device_map"] = "auto"
+                # Force the full model onto CUDA. Automatic placement may
+                # silently offload layers to CPU and hide insufficient VRAM.
+                kwargs["device_map"] = {"": "cuda:0"}
             try:
                 tokenizer = AutoTokenizer.from_pretrained(effective_model, use_fast=True)
                 model = AutoModelForCausalLM.from_pretrained(effective_model, **kwargs)
@@ -165,7 +167,7 @@ class TransformersVisionProvider:
             )
             kwargs: dict[str, Any] = {"torch_dtype": dtype, "low_cpu_mem_usage": True}
             if self.device == "cuda":
-                kwargs["device_map"] = "auto"
+                kwargs["device_map"] = {"": "cuda:0"}
             try:
                 processor = AutoProcessor.from_pretrained(effective_model)
                 model = Qwen2VLForConditionalGeneration.from_pretrained(effective_model, **kwargs)

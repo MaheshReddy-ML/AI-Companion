@@ -24,6 +24,8 @@ class SpeakRequest(BaseModel):
 
 @router.get("/list")
 def list_voices(_: dict = Depends(require_entitlement("voice"))):
+    if not settings.enable_tts:
+        raise HTTPException(status_code=503, detail="Speech is disabled for this deployment.")
     return JSONResponse(content={"voices": manager.list_voices()})
 
 
@@ -31,6 +33,7 @@ def list_voices(_: dict = Depends(require_entitlement("voice"))):
 def voice_status(current_user: dict = Depends(require_entitlement("voice"))):
     """Expose the local runtime contract without loading a multi-GB model."""
     return {
+        "enabled": settings.enable_tts,
         "engine": settings.tts_engine,
         "sampleRate": settings.tts_sample_rate,
         "streaming": True,
@@ -43,6 +46,8 @@ def voice_status(current_user: dict = Depends(require_entitlement("voice"))):
 
 @router.post("/speak", dependencies=[Depends(rate_limit(20, 300, "voice-speak"))])
 async def speak(req: SpeakRequest, request: Request, current_user: dict = Depends(require_entitlement("voice"))):
+    if not settings.enable_tts:
+        raise HTTPException(status_code=503, detail="Speech is disabled for this deployment.")
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="text is required")

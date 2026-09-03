@@ -477,7 +477,9 @@ async def send_message(payload: ChatSendRequest, current_user: dict = Depends(ge
         try:
             vision = await asyncio.to_thread(
                 local_mlx_vision.analyze,
-                model_id=(settings.vision_modal_model.strip() or settings.vision_mlx_model),
+                # The provider resolves this MLX-compatible default to the
+                # configured native Transformers checkpoint on CUDA/CPU.
+                model_id=settings.vision_mlx_model,
                 data_url=payload.camera_frame,
                 max_tokens=settings.vision_mlx_max_tokens,
             )

@@ -1,28 +1,26 @@
 """Modal ASGI deploy wrapper for AI-Companion-FastAPI.
 
-This file is a deployment entrypoint for Modal. It intentionally does not
-modify the existing app code. Configure `INFERENCE_PROVIDER=modal` in Modal
-secrets or environment and set `CHAT_MODAL_MODEL` / `VISION_MODAL_MODEL` as
-needed.
+This optional entrypoint uses the same CUDA backend as Docker. Configure
+`EMORA_BACKEND=cuda` and the native `CHAT_MODEL`, `VISION_MODEL`, and
+`TTS_MODEL` settings in the deployment environment.
 """
 from __future__ import annotations
+
+import os
 
 import modal
 
 # Build an image using the cloud requirements file that keeps local MLX
 # packages out of the cloud image.
 image = modal.Image.debian_slim().pip_install_from_requirements("requirements-modal.txt")
+app = modal.App("ai-companion-fastapi")
 
-stub = modal.Stub("ai_companion_fastapi_modal")
 
-
-@stub.asgi_app(image=image)
+@app.function(image=image, gpu="L4", timeout=900, scaledown_window=300)
+@modal.asgi_app()
 def asgi_app():
-    # import the FastAPI app and return it
+    os.environ.setdefault("EMORA_BACKEND", "cuda")
+    os.environ.setdefault("DEVICE", "cuda")
     from app.main import app as fastapi_app
 
     return fastapi_app
-
-
-if __name__ == "__main__":
-    print("This module is for Modal deployment. Use `modal deploy` or `modal run` as documented.")

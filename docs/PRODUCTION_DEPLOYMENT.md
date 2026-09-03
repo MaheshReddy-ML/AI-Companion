@@ -1,5 +1,33 @@
 # Production Deployment
 
+## NVIDIA inference container
+
+For an NVIDIA Linux host, build `Dockerfile.cuda` or use
+`docker-compose.cuda.yml`. The image installs `requirements-cuda.txt` rather
+than Apple MLX packages and stores Hugging Face weights under the persistent
+`/models/huggingface` mount.
+
+```env
+EMORA_BACKEND=cuda
+DEVICE=cuda
+CHAT_MODEL=Qwen/Qwen3-4B
+VISION_MODEL=Qwen/Qwen2-VL-2B-Instruct
+TTS_MODEL=Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+```
+
+Start it with `docker compose -f docker-compose.cuda.yml up --build`. The host
+must provide a compatible NVIDIA driver and NVIDIA Container Toolkit; direct
+Docker runs must pass `--gpus all`. `/health` is the liveness probe, while
+`/health/ready` includes the selected backend, device, model load state, and
+the normal database/storage readiness checks.
+
+A successful image build is not GPU acceptance evidence. Before launch, send
+disposable chat, camera-check-in, and speech requests on the target GPU and
+observe VRAM, latency, and generated media. For GridShare or another serverless
+provider, wrap this container with a persistent model cache, a warm timeout,
+and the provider's scale-to-zero policy; Emora deliberately does not embed
+cloud orchestration.
+
 This checklist covers the minimum production setup for the FastAPI version of Emora.
 
 ## Environment

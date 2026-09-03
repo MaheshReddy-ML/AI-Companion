@@ -131,6 +131,31 @@ def test_qwen_inference_receives_the_configured_character_speaker(monkeypatch, t
     assert received["stream"] is True
 
 
+def test_torch_qwen_tts_uses_native_batch_result_without_mlx_stream_options(monkeypatch, tmp_path):
+    manager = VoiceManager(models_dir=tmp_path / "models", cache_dir=tmp_path / "cache")
+    received = {}
+
+    class FakeTorchQwenModel:
+        def get_supported_speakers(self):
+            return ["Serena"]
+
+        def generate_custom_voice(self, **kwargs):
+            received.update(kwargs)
+            return [np.zeros(32, dtype=np.float32)], 24000
+
+    def fake_model():
+        manager._active_qwen_backend_kind = "torch"
+        return FakeTorchQwenModel()
+
+    monkeypatch.setattr(manager, "_qwen_model", fake_model)
+    profile = manager._build_speech_profile(None, "Yuna", None, None)
+    chunks = list(manager._iter_qwen_audio("Hello.", manager.find_voice("af_heart"), profile, threading.Event()))
+
+    assert len(chunks) == 1
+    assert "stream" not in received
+    assert received["speaker"] == "Serena"
+
+
 def test_qwen_voice_runtime_serializes_concurrent_users(monkeypatch, tmp_path):
     manager = VoiceManager(models_dir=tmp_path / "models", cache_dir=tmp_path / "cache")
     active = 0

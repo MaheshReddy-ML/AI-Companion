@@ -1,9 +1,2 @@
+-r requirements-cuda.txt
 modal
-torch
-transformers
-accelerate
-safetensors
-huggingface_hub
-uvicorn[standard]
-fastapi
-# Add any additional model runtime deps (e.g. bitsandbytes) as needed for chosen checkpoints

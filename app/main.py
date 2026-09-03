@@ -16,9 +16,9 @@ from app.config import BASE_DIR, settings, validate_runtime_configuration, valid
 from app.database import check_database_connection, close_database
 from app.http_security import request_is_https
 from app.migrations import run_migrations
-from app.voice_manager import cleanup_audio_cache
+from app.voice_manager import cleanup_audio_cache, get_manager
 from app.routers import account, admin, api_auth, api_chat, billing, companion, experiences, insights, pages, personal, play, posts, premium_experiences, product_operations, together, workspace_features
-from app.inference.provider import provider_status
+from app.inference.provider import provider_status, unload_models
 from app.audit import reset_request_id, set_request_id
 from app.metrics import observe_request
 from app.services.inference_queue import begin_chat_queue_shutdown
@@ -69,12 +69,22 @@ async def lifespan(_: FastAPI):
     cleaned = cleanup_audio_cache(settings.audio_cache_max_age_days)
     if cleaned:
         logger.info("Removed %d expired audio cache files", cleaned)
+    inference = provider_status()
+    logger.info(
+        "Emora inference backend: %s | Device: %s | Vision: %s | TTS: %s",
+        str(inference.get("backend", "unknown")).upper(),
+        inference.get("device", "unknown"),
+        inference.get("capabilities", {}).get("vision", False),
+        inference.get("capabilities", {}).get("tts", False),
+    )
     check_in_task = asyncio.create_task(_scheduled_check_in_worker())
     try:
         yield
     finally:
         begin_chat_queue_shutdown()
         begin_tts_queue_shutdown()
+        unload_models()
+        get_manager().unload_models()
         check_in_task.cancel()
         try:
             await check_in_task
