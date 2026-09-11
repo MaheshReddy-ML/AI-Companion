@@ -1,0 +1,100 @@
+#account-settings{padding:36px 40px 110px;background:var(--at-bg);min-width:0}
+#account-settings>.top-bar{padding:0 0 28px;margin:0 0 28px;background:0 0!important;border-bottom:1px solid var(--at-line);align-items:center}
+#account-settings h1{letter-spacing:-.045em;margin:12px 0!important}
+#account-settings .settings-kicker{color:var(--at-accent)!important;font-size:10px;letter-spacing:.15em}
+#account-settings .top-bar-left>p:last-child{font-size:13px;color:var(--at-muted)}
+#account-settings .profile-settings-layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:36px;align-items:start;max-width:1260px;margin:auto}
+#account-settings .profile-category-nav{position:sticky;top:24px;display:grid;gap:5px}
+#account-settings .profile-category-nav>p{font-size:9px;letter-spacing:.16em;color:var(--at-muted);margin:0 12px 12px}
+#account-settings .profile-category-nav>a{display:flex;align-items:center;gap:10px;padding:14px 12px;color:var(--at-muted);text-decoration:none;font-size:12px;border-radius:5px;border:1px solid transparent}
+#account-settings .profile-category-nav>a span{font-size:9px;opacity:.8}
+#account-settings .profile-category-nav>a b{margin-left:auto;font-weight:400}
+#account-settings .profile-category-nav>a[aria-current]{background:var(--at-paper);border-color:var(--at-line);color:var(--at-accent)}
+#account-settings .profile-category-nav aside{margin:28px 12px 0;border-top:1px solid var(--at-line);padding-top:20px}
+#account-settings .profile-category-nav aside strong{font-size:12px;font-weight:500}
+#account-settings .profile-category-nav aside a,#account-settings .profile-category-nav aside p{font-size:11px;line-height:1.8;color:var(--at-muted)}
+#account-settings .profile-category-nav aside a{text-decoration:underline;text-underline-offset:4px}
+#account-settings .profile-wrap{width:100%;max-width:none;padding:0;margin:0;min-width:0}
+#account-settings .settings-grid{display:contents}
+#account-settings [data-section-panel][hidden]{display:none!important}
+#account-settings :is(.settings-section,.avatar-studio,.profile-header){background:var(--at-paper)!important;border:1px solid var(--at-line)!important;box-shadow:none!important;border-radius:8px;margin:0 0 20px;min-width:0}
+#account-settings .profile-header{padding:26px;display:flex;flex-wrap:wrap;gap:20px}
+#account-settings .profile-avatar-lg{width:72px;height:72px;flex:0 0 72px;border-radius:50%;box-shadow:none;overflow:hidden}
+#account-settings .profile-info{flex:1;min-width:180px}
+#account-settings .profile-info h2{font:500 23px/1.3 Sora,sans-serif;letter-spacing:-.03em}
+#account-settings .profile-info p{font-size:11px;overflow-wrap:anywhere;line-height:1.8;white-space:normal}
+#account-settings .profile-badges{gap:8px;flex-wrap:wrap}
+#account-settings .badge{background:var(--at-raised)!important;color:var(--at-muted)!important;border:1px solid var(--at-line);box-shadow:none;font-size:9px}
+#account-settings .avatar-studio{display:block;padding:26px}
+#account-settings :is(.avatar-preview-card,.avatar-gallery-panel){background:0 0!important;border:0!important;box-shadow:none!important;padding:0}
+#account-settings .avatar-preview-copy{padding:0 0 24px;max-width:none}
+#account-settings .avatar-preview-copy h2{font:500 19px/1.4 Sora,sans-serif;max-width:none;margin:12px 0}
+#account-settings .avatar-preview-copy p{font-size:12px;max-width:520px;line-height:1.8}
+#account-settings .avatar-preview-badges{display:none}
+#account-settings .avatar-upload-actions{display:flex;align-items:center;flex-wrap:wrap;margin-top:20px;gap:12px}
+#account-settings .avatar-gallery-head{padding-top:24px;border-top:1px solid var(--at-line);gap:20px;flex-wrap:wrap}
+#account-settings .avatar-gallery-head h2{font:500 15px Sora,sans-serif}
+#account-settings .avatar-gallery-head p{font-size:11px;line-height:1.8}
+#account-settings .avatar-gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+#account-settings .avatar-card{padding:12px;border:1px solid var(--at-line)!important;background:var(--at-bg)!important;box-shadow:none!important;border-radius:6px;min-width:0}
+#account-settings .avatar-card.active{border:2px solid var(--at-accent)!important;background:var(--at-paper)!important;padding:11px}
+#account-settings .avatar-card-media{height:auto;aspect-ratio:1;padding:0;border:0;background:0 0}
+#account-settings .avatar-card-media img{height:100%;width:100%;max-width:none;max-height:none;object-fit:cover;border-radius:4px}
+#account-settings .avatar-card-copy strong{font:500 12px Sora,sans-serif;margin-top:10px}
+#account-settings .avatar-card-copy span{display:none}
+#account-settings .avatar-filter{min-height:36px;background:0 0;color:var(--at-muted);border:1px solid var(--at-line)}
+#account-settings .avatar-filter.active{background:var(--at-raised);color:var(--at-ink);border-color:var(--at-accent)}
+#account-settings .settings-section-header{padding:24px 26px;background:0 0!important;border-bottom:1px solid var(--at-line)}
+#account-settings .settings-section-header h2{font:500 21px/1.4 Sora,sans-serif;letter-spacing:-.03em;margin:0}
+#account-settings .settings-row{padding:22px 26px;gap:24px;background:0 0!important;border-color:var(--at-line)!important}
+#account-settings .settings-row-label h3{font:500 13px/1.5 Sora,sans-serif;margin:0 0 6px}
+#account-settings .settings-row-label p{font-size:12px!important;line-height:1.75;color:var(--at-muted)!important;max-width:560px}
+#account-settings .profile-setting-stack{align-items:stretch}
+#account-settings .toggle{flex:0 0 42px;width:42px;height:24px;background:var(--at-line)!important;box-shadow:none}
+#account-settings .toggle.on{background:var(--at-accent)!important}
+#account-settings .profile-preference-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;width:100%}
+#account-settings .profile-preference-selects label,#account-settings .profile-space-select{background:0 0!important;padding:0!important;border:0!important;box-shadow:none!important;display:grid;gap:8px}
+#account-settings .profile-preference-selects label::after,#account-settings .profile-preference-selects label::before{display:none!important}
+#account-settings label>span{color:var(--at-muted)!important;font-size:11px;letter-spacing:0}
+#account-settings :is(select,input:not([type=file])){background:var(--at-bg)!important;color:var(--at-ink)!important;border:1px solid var(--at-line)!important;border-radius:5px;min-height:44px;width:100%;padding:10px 12px;font:12px Sora,sans-serif}
+#account-settings input[type=file]{width:100%;font-size:12px}
+#account-settings .btn{border-radius:5px;font:500 11px Sora,sans-serif;min-height:40px;padding:11px 15px}
+#account-settings .btn-primary{background:var(--at-accent)!important;color:var(--at-bg)!important}
+#account-settings :is(.btn-outline,.btn-ghost){background:var(--at-bg)!important;color:var(--at-ink)!important;border:1px solid var(--at-line)!important}
+#account-settings .btn-danger{background:0 0!important;color:var(--at-accent)!important;border:1px solid var(--at-accent)!important}
+#account-settings [data-locked=true]{opacity:1!important}
+#account-settings .account-save-status{position:sticky;top:12px;z-index:20;background:var(--at-paper);color:var(--at-ink);border:1px solid var(--at-accent);padding:14px 20px;margin-bottom:20px;font-size:12px;box-shadow:0 4px 16px #0001}
+#account-settings .privacy-count-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+#account-settings .privacy-count-grid article{background:var(--at-bg)!important;border-color:var(--at-line)}
+#account-settings .privacy-count-grid strong{font:500 24px Sora,sans-serif}
+#account-settings .privacy-storage-copy{grid-template-columns:1fr 1fr}
+#account-settings .profile-mobile-account-actions{display:flex;gap:10px}
+#account-settings .profile-mobile-account-actions button{background:var(--at-paper);color:var(--at-muted);border:1px solid var(--at-line);padding:10px;border-radius:4px}
+.profile-product .privacy-flow{display:none!important}
+@media(max-width:1100px){#account-settings{padding:28px 24px 110px}
+#account-settings .profile-settings-layout{grid-template-columns:175px minmax(0,1fr);gap:20px}
+#account-settings .avatar-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:700px){#account-settings{padding:24px 16px 110px}
+#account-settings>.top-bar{display:block}
+#account-settings .profile-mobile-account-actions{margin-top:20px}
+#account-settings .profile-settings-layout{display:block}
+#account-settings .profile-category-nav{position:static;display:flex;overflow-x:auto;gap:8px;margin:0 -16px 24px;padding:0 16px 10px}
+#account-settings .profile-category-nav>a{flex:0 0 auto;border-color:var(--at-line);padding:12px}
+#account-settings .profile-category-nav>a :is(span,b),#account-settings .profile-category-nav>aside,#account-settings .profile-category-nav>p{display:none}
+#account-settings :is(.profile-header,.avatar-studio,.settings-row,.settings-section-header){padding:20px}
+#account-settings .privacy-storage-copy,#account-settings .profile-preference-selects{grid-template-columns:1fr}
+#account-settings .privacy-count-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#account-settings [data-section-panel]{scroll-margin-top:20px}}#account-settings .privacy-count-grid span{color:var(--at-muted)!important}
+#account-settings .profile-header::after{display:none}
+#account-settings :is(.settings-section,.avatar-card,.profile-avatar-lg):hover{transform:none;box-shadow:none}
+#account-settings .btn::after,#account-settings .btn::before{display:none}
+#account-settings .profile-settings-layout{width:100%;min-width:0}
+#account-settings .settings-row{border:0!important;border-bottom:1px solid var(--at-line)!important;border-radius:0;box-shadow:none}
+#account-settings .settings-list{gap:0}
+#account-settings .avatar-gallery{padding:0}
+#account-settings .profile-avatar-lg{min-width:72px}
+#account-settings .profile-category-nav{max-width:100%}
+#account-settings .profile-preference-selects label>span::after{display:none}
+
+body.profile-product{background:var(--at-bg)!important}
+#account-settings h1{font-family:'Sora',sans-serif!important;font-size:clamp(28px,3vw,42px)!important;font-weight:500!important;line-height:1.2!important}
+#account-settings .profile-settings-layout{margin:0 auto}

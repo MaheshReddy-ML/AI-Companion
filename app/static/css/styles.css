@@ -2844,3 +2844,16 @@ textarea::placeholder {
     width: calc(100% - 40px);
   }
 }
+/* Public factual pages intentionally avoid private workspace chrome. */
+.public-information-page { min-height: 100vh; background: #0b1010; color: #eef2ea; }
+.public-information { width: min(820px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 96px; }
+.public-information h1 { font: 400 clamp(2.5rem, 7vw, 5.5rem)/.95 "Instrument Serif", serif; max-width: 720px; margin: 32px 0 20px; }
+.public-information h2 { font: 400 1.7rem/1.15 "Instrument Serif", serif; margin: 0 0 10px; }
+.public-information p, .public-information li { color: #bdc8be; line-height: 1.75; }
+.public-information section, .public-information article { border-top: 1px solid rgba(255,255,255,.12); padding: 26px 0; }
+.public-information a { color: #d8efbe; }
+.public-lead { font-size: 1.15rem; max-width: 680px; }
+.public-updated { font-size: .82rem; }
+.status-component-list { display: grid; gap: 10px; margin: 28px 0; }
+.status-component-list > div { display: flex; justify-content: space-between; gap: 24px; padding: 16px 18px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; }
+.status-component-list span { color: #d8efbe; text-transform: capitalize; }

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createVRMAGestureController } from "./emora-vrma-controller.js?v=20260911-motion2";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { VRMLoaderPlugin, VRMHumanBoneName, VRMUtils } from "@pixiv/three-vrm";
@@ -85,6 +86,18 @@ const BONE_NAMES = {
   leftFoot: VRMHumanBoneName.LeftFoot,
   rightFoot: VRMHumanBoneName.RightFoot,
 };
+// Gentle finger flexion is the underlying pose; VRMA tracks may temporarily own it.
+const RELAXED_FINGERS = {};
+for (const side of ["left", "right"]) {
+  const sign = side === "left" ? 1 : -1;
+  for (const [index, finger] of ["Index", "Middle", "Ring", "Little"].entries()) {
+    for (const [joint, curl] of [["Proximal", 0.16], ["Intermediate", 0.22], ["Distal", 0.12]]) {
+      const name = `${side}${finger}${joint}`;
+      BONE_NAMES[name] = name;
+      RELAXED_FINGERS[name] = [0, 0, sign * (curl + index * 0.018)];
+    }
+  }
+}
 const COLOR_TEXTURE_KEYS = ["map", "emissiveMap", "matcap", "shadeMultiplyTexture", "shadingShiftTexture"];
 const DATA_TEXTURE_KEYS = ["normalMap", "roughnessMap", "metalnessMap", "alphaMap", "aoMap", "bumpMap"];
 const CAMERA_FRAMING = {
@@ -478,6 +491,7 @@ function fitModelToStage(vrm, targetHeight = 1.72) {
 }
 
 export function createEmoraAvatarStage(container, options = {}) {
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const framing = { ...CAMERA_FRAMING, ...(options.camera || {}) };
   const loaderElement = container.querySelector("[data-emora-avatar-loader]");
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
@@ -490,6 +504,14 @@ export function createEmoraAvatarStage(container, options = {}) {
   const loader = new GLTFLoader();
 
   let currentVrm = null;
+  let vrma = null;
+  let destroyed = false;
+  const vrmaReady = options.vrma ? createVRMAGestureController({ reducedMotion: prefersReducedMotion })
+    .then(controller => {
+      if (destroyed) { controller.dispose(); return; }
+      vrma = controller;
+      if (currentVrm) vrma.attach(currentVrm);
+    }).catch(error => console.warn("VRMA unavailable; using the existing gesture rig.", error)) : Promise.resolve();
   let activeLoadId = 0;
   let rafId = 0;
   let bones = {};
@@ -527,6 +549,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     gestureIntensity: 0.38,
     gestureSeed: 0,
     speechStartTime: 0,
+    lastOpeningGestureAt: -10,
     stanceSeed: randomBetween(0, Math.PI * 2),
     lastCueAt: -10,
     cueStrength: 0,
@@ -567,12 +590,18 @@ export function createEmoraAvatarStage(container, options = {}) {
     actionStrength: 0,
     actionSeed: randomBetween(0, Math.PI * 2),
     actionCooldownUntil: 0,
+    recentActions: [],
+    behaviorTimers: [],
+    behaviorGeneration: 0,
     actionPriority: 0,
     nextIdleActionAt: 4.2,
     introAlpha: 0,
     introTarget: 0,
     rigTargets: {},
     rigSprings: {},
+    frameCount: 0,
+    fps: 0,
+    fpsWindowStartedAt: performance.now(),
   };
 
   const springs = {
@@ -848,6 +877,7 @@ export function createEmoraAvatarStage(container, options = {}) {
   function clearCurrentModel() {
     window.clearTimeout(greetingTimer);
     greetingTimer = 0;
+    vrma?.attach(null);
     setStageReady(false);
 
     if (!currentVrm) {
@@ -942,6 +972,7 @@ export function createEmoraAvatarStage(container, options = {}) {
     }
 
     const neutralPose = {
+      ...RELAXED_FINGERS,
       hips: [0.006, 0.012, 0.018],
       head: [-0.012, 0.01, -0.006],
       neck: [0.004, 0.006, -0.004],
@@ -950,10 +981,10 @@ export function createEmoraAvatarStage(container, options = {}) {
       spine: [0.012, 0.006, 0.006],
       leftShoulder: [0.018, 0.006, 0.028],
       rightShoulder: [0.012, -0.006, -0.02],
-      leftUpperArm: [0.28, 0.035, 1.18],
-      rightUpperArm: [0.24, -0.025, -1.2],
-      leftLowerArm: [0.54, -0.04, 0.12],
-      rightLowerArm: [0.5, 0.032, -0.1],
+      leftUpperArm: [0.08, 0.018, 1.34],
+      rightUpperArm: [0.08, -0.018, -1.35],
+      leftLowerArm: [0.03, -0.02, -0.10],
+      rightLowerArm: [0.03, 0.02, 0.10],
       leftHand: [0.025, -0.018, 0.018],
       rightHand: [0.018, 0.016, -0.014],
       leftUpperLeg: [0.012, 0.012, 0.02],
@@ -1004,6 +1035,11 @@ export function createEmoraAvatarStage(container, options = {}) {
     const minGap = options.minGap ?? 0.75;
 
     if (!options.force) {
+      // Social memory prevents accidental loops such as thumbs-up / thumbs-up.
+      const recentlyUsed = motion.recentActions.some((item) => item.mode === mode && now - item.at < (options.repeatCooldown ?? 5.5));
+      if (recentlyUsed && priority < 5) {
+        return false;
+      }
       if (now < motion.actionCooldownUntil) {
         return false;
       }
@@ -1013,6 +1049,7 @@ export function createEmoraAvatarStage(container, options = {}) {
       }
     }
 
+    vrma?.play(mode, { intensity: Math.min(1, 0.45 + strength * 0.55), force: options.force, duration });
     motion.actionMode = mode;
     motion.actionStartedAt = now;
     motion.actionDuration = duration;
@@ -1020,7 +1057,44 @@ export function createEmoraAvatarStage(container, options = {}) {
     motion.actionSeed = randomBetween(0, Math.PI * 2);
     motion.actionPriority = priority;
     motion.actionCooldownUntil = now + minGap;
+    motion.recentActions = [...motion.recentActions.filter((item) => now - item.at < 12), { mode, at: now }].slice(-7);
     return true;
+  }
+
+  function cancelBehaviorTimeline() {
+    motion.behaviorGeneration += 1;
+    motion.behaviorTimers.forEach((timer) => window.clearTimeout(timer));
+    motion.behaviorTimers = [];
+  }
+
+  function scheduleBehaviorTimeline(entries = []) {
+    cancelBehaviorTimeline();
+    if (prefersReducedMotion || !motion.speaking || !Array.isArray(entries)) return;
+    const generation = motion.behaviorGeneration;
+    entries.slice(0, 5).forEach((entry) => {
+      const delay = clamp(Number(entry?.atMs) || 0, 0, 15000);
+      const timer = window.setTimeout(() => {
+        if (generation !== motion.behaviorGeneration || !motion.speaking) return;
+        const action = gestureAction(entry?.gesture);
+        if (action) triggerAction(action, clamp(Number(entry?.intensity) || 0.4, 0.16, 0.88), clamp((Number(entry?.durationMs) || 1250) / 1000, 0.45, 3), {
+          minGap: 0.72,
+          repeatCooldown: 4.8,
+        });
+      }, delay);
+      motion.behaviorTimers.push(timer);
+    });
+  }
+
+  function gestureAction(gesture) {
+    const actions = {
+      greeting: "wave", goodbye: "wave", celebration: "cheer", happiness: "sparkle",
+      concern: "heart", thinking: "shy", explanation: "explain", open_palm: "open_palm",
+      pointing: "point", emphasis: "emphasize", thumbs_up: "acknowledge",
+      thumbs_down: "disagree", acknowledgment: "acknowledge", listening: "acknowledge",
+      waiting: "idleShift", confusion: "shy", shrug: "shrug",
+      wave: "wave", nod: "nod", agreeing: "nod", disagreeing: "disagree", surprise: "surprise", excitement: "cheer",
+    };
+    return actions[String(gesture || "").toLowerCase().replace(/[\s-]+/g, "_")];
   }
 
   function greet(mode = "wave") {
@@ -1273,9 +1347,9 @@ export function createEmoraAvatarStage(container, options = {}) {
     const cue = cueAge >= 0 && cueAge < 0.95 ? (1 - cueAge / 0.95) * motion.cueStrength : 0;
     const action = currentActionState(elapsed);
     const actionAge = action.age;
-    const actionPulse = action.pulse;
+    const actionPulse = vrma?.hasActiveGesture() ? 0 : action.pulse;
     const actionProgressValue = action.progress;
-    const gesture = talk * motion.gestureIntensity * (0.16 + 0.48 * Math.max(beatPulse, cue));
+    const gesture = (vrma?.hasActiveGesture() ? 0 : talk) * motion.gestureIntensity * (0.16 + 0.48 * Math.max(beatPulse, cue));
     const gestureMode = cue > 0.18 ? motion.cueMode : motion.gestureMode;
     const talkNod =
       (Math.sin(speechElapsed * 3.7) * 0.58 + Math.sin(speechElapsed * 6.1 + 1.1) * 0.42) * talk * motion.speechEnergy;
@@ -1304,18 +1378,18 @@ export function createEmoraAvatarStage(container, options = {}) {
     modelRoot.position.y = springs.modelY.update(bodyRise, delta);
     modelRoot.rotation.z = springs.modelRotZ.update(bodyLeanZ, delta);
 
-    let leftUpperX = 0.2 + 0.018 * breath - 0.008 * weightShift + 0.01 * shoulderNoise;
+    let leftUpperX = 0.08 + 0.018 * breath - 0.008 * weightShift + 0.01 * shoulderNoise;
     let leftUpperY = 0.018 + 0.008 * slowSway + 0.005 * postureNoise;
     let leftUpperZ = 1.34 + 0.018 * sway + 0.007 * shoulderNoise;
-    let rightUpperX = 0.19 + 0.016 * breath + 0.008 * weightShift - 0.01 * shoulderNoise;
+    let rightUpperX = 0.08 + 0.016 * breath + 0.008 * weightShift - 0.01 * shoulderNoise;
     let rightUpperY = -0.018 + 0.008 * slowSway + 0.005 * postureNoise;
     let rightUpperZ = -1.35 - 0.018 * sway - 0.007 * shoulderNoise;
-    let leftLowerX = 0.43 + 0.014 * Math.sin(elapsed * 0.74 + motion.stanceSeed);
+    let leftLowerX = 0.03 + 0.014 * Math.sin(elapsed * 0.74 + motion.stanceSeed);
     let leftLowerY = -0.02 + 0.008 * slowSway;
-    let leftLowerZ = 0.07 + 0.01 * weightShift;
-    let rightLowerX = 0.42 + 0.014 * Math.sin(elapsed * 0.7 + motion.stanceSeed + 0.9);
+    let leftLowerZ = -0.10 + 0.01 * weightShift;
+    let rightLowerX = 0.03 + 0.014 * Math.sin(elapsed * 0.7 + motion.stanceSeed + 0.9);
     let rightLowerY = 0.02 + 0.008 * slowSway;
-    let rightLowerZ = -0.07 + 0.01 * weightShift;
+    let rightLowerZ = 0.10 + 0.01 * weightShift;
     let leftHandX = 0.016 * Math.sin(elapsed * 1.1);
     let leftHandY = 0.012 * Math.sin(elapsed * 0.8);
     let leftHandZ = 0.018 * Math.sin(elapsed * 0.9);
@@ -1535,12 +1609,14 @@ export function createEmoraAvatarStage(container, options = {}) {
     setRigTarget("leftFoot", -0.012, 0.006, 0.01);
     setRigTarget("rightFoot", 0.01, -0.006, -0.008);
 
+    for (const [name, offsets] of Object.entries(RELAXED_FINGERS)) setRigTarget(name, ...offsets);
     Object.keys(bones).forEach((name) => applyRigTarget(name, delta));
   }
 
   function animate() {
     rafId = window.requestAnimationFrame(animate);
-    const delta = Math.min(clock.getDelta(), 1 / 30);
+    const frameDelta = clock.getDelta();
+    const delta = Math.min(frameDelta, 1 / 30);
     const elapsed = clock.elapsedTime;
 
     motion.introAlpha = approach(motion.introAlpha, motion.introTarget, delta, 5.8);
@@ -1548,19 +1624,31 @@ export function createEmoraAvatarStage(container, options = {}) {
 
     updateCamera(delta, elapsed);
     if (currentVrm) {
-      updateGaze(delta, elapsed);
-      updateRig(delta, elapsed);
+      vrma?.beginFrame();
+      if (!prefersReducedMotion) {
+        updateGaze(delta, elapsed);
+        updateRig(delta, elapsed);
+      }
+      vrma?.update(frameDelta, motion);
       updateImpactStretch(delta);
       updateExpressions(delta, elapsed);
       currentVrm.update(delta);
     }
 
     renderer.render(scene, camera);
+    motion.frameCount += 1;
+    const nowMs = performance.now();
+    const fpsWindowMs = nowMs - motion.fpsWindowStartedAt;
+    if (fpsWindowMs >= 500) {
+      motion.fps = Math.round((motion.frameCount * 1000) / fpsWindowMs);
+      motion.frameCount = 0;
+      motion.fpsWindowStartedAt = nowMs;
+    }
   }
 
   animate();
 
-  return {
+  const stageApi = {
     async setCharacter(character) {
       if (!character?.model || currentVrm?.userData?.emoraCharacterId === character.id) {
         return;
@@ -1591,11 +1679,13 @@ export function createEmoraAvatarStage(container, options = {}) {
             vrm.userData = vrm.userData || {};
             vrm.userData.emoraCharacterId = character.id;
             currentVrm = vrm;
+            vrma?.attach(vrm);
             modelRoot.add(vrm.scene);
             setMouth("rest");
             applyNeutralPose();
             currentVrm.update(0);
             renderer.render(scene, camera);
+            void vrmaReady.then(() => { if (currentVrm === vrm && !destroyed && options.greetingAction !== false) vrma?.play("wave", { intensity: 0.8 }); });
             greetingTimer = window.setTimeout(() => {
               setStageReady(true);
               if (options.greetingAction !== false) {
@@ -1635,6 +1725,9 @@ export function createEmoraAvatarStage(container, options = {}) {
         motion.cueNod = profile.gestureMode === "firm" ? 0 : 0.25;
         motion.cueShake = profile.gestureMode === "firm" ? 0.7 : 0;
         const lowerText = text.toLowerCase();
+        const canGesture = clock.elapsedTime - motion.lastOpeningGestureAt > 5;
+        if (canGesture) {
+        motion.lastOpeningGestureAt = clock.elapsedTime;
         if (profile.gestureMode === "bright") {
           triggerAction(/[!]|yay|amazing|wonderful|great|proud/.test(lowerText) ? "emphasize" : "sparkle", 0.48, 1.8, {
             force: true,
@@ -1649,8 +1742,12 @@ export function createEmoraAvatarStage(container, options = {}) {
         } else {
           triggerAction("explain", 0.34, 1.85, { force: true, minGap: 1.35 });
         }
+        }
       }
       if (!motion.speaking) {
+        cancelBehaviorTimeline();
+        vrma?.stop();
+        motion.actionDuration = Math.min(motion.actionDuration, Math.max(0, clock.elapsedTime - motion.actionStartedAt) + 0.12);
         motion.engagementTarget = motion.listening ? 0.76 : motion.thinking ? 0.58 : 0.42;
         setMouth("rest");
         motion.emotion = motion.thinking ? "thoughtful" : "relaxed";
@@ -1675,11 +1772,11 @@ export function createEmoraAvatarStage(container, options = {}) {
         motion.cueStrength = clamp(motion.cueStrength + 0.2, 0, 0.82);
         motion.cueNod = Math.max(motion.cueNod, 0.3);
         triggerAction("emphasize", randomBetween(0.28, 0.44), randomBetween(0.85, 1.25), { minGap: 1.8 });
-      } else if (cue.mode === "bright" && Math.random() > 0.8) {
+      } else if (cue.mode === "bright") {
         triggerAction("sparkle", 0.3, 1.4, { minGap: 2.2 });
-      } else if (cue.mode === "soothe" && Math.random() > 0.78) {
+      } else if (cue.mode === "soothe") {
         triggerAction("heart", 0.26, 1.7, { minGap: 2.8 });
-      } else if (cue.mode === "explain" && Math.random() > 0.82) {
+      } else if (cue.mode === "explain") {
         triggerAction("explain", 0.25, 1.5, { minGap: 2.4 });
       }
       if (cue.emotion) {
@@ -1694,6 +1791,10 @@ export function createEmoraAvatarStage(container, options = {}) {
 
       motion.listening = nextListening;
       if (nextListening) {
+        vrma?.stop();
+        // A user taking the floor wins over every queued response action.
+        cancelBehaviorTimeline();
+        triggerAction("acknowledge", 0.26, 0.7, { force: true, minGap: 0.2 });
         motion.engagementTarget = 0.88;
         motion.nextListenNodAt = clock.elapsedTime + randomBetween(1.1, 2.8);
         motion.attentionLostUntil = 0;
@@ -1770,6 +1871,21 @@ export function createEmoraAvatarStage(container, options = {}) {
         motion.gestureMode = "explain";
       }
     },
+    playBehaviorTimeline(entries = []) {
+      scheduleBehaviorTimeline(entries);
+    },
+    reactToUser(entries = []) {
+      if (prefersReducedMotion || !Array.isArray(entries) || motion.speaking) return false;
+      const first = entries[0];
+      const action = gestureAction(first?.gesture);
+      return action ? triggerAction(action, clamp(Number(first?.intensity) || 0.35, 0.16, 0.7), clamp((Number(first?.durationMs) || 900) / 1000, 0.45, 2), { minGap: 0.4, repeatCooldown: 3.5 }) : false;
+    },
+    performGesture(gesture, intensity = 0.45) {
+      if (prefersReducedMotion) return false;
+      const requested = String(gesture || "").toLowerCase().replace(/[\s-]+/g, "_");
+      const action = gestureAction(requested);
+      return action ? triggerAction(action, clamp(Number(intensity) || 0.45, 0.18, 0.85), action === "wave" ? 1.8 : 1.45, { minGap: 1.1 }) : false;
+    },
     setMouth,
     applyImpactStretch(boneName, stretchAmount = 1.2, returnSpeed = 12) {
       const normalizedName = String(boneName || "").replace(/[-_\s]/g, "").toLowerCase();
@@ -1794,10 +1910,29 @@ export function createEmoraAvatarStage(container, options = {}) {
       motion.audioLevelTarget = clamp(Number(level) || 0, 0, 1);
     },
     getDiagnostics() {
-      return lastDiagnostics;
+      return {
+        ...(lastDiagnostics || {}),
+        runtime: {
+          pose: Object.fromEntries(["leftUpperArm", "rightUpperArm", "leftLowerArm", "rightLowerArm", "leftHand", "rightHand", "leftIndexProximal", "rightIndexProximal"].filter(name => bones[name]).map(name => [name, {
+            rotation: bones[name].quaternion.toArray(),
+            position: bones[name].getWorldPosition(new THREE.Vector3()).toArray(),
+          }])),
+          vrma: vrma?.diagnostics() || { loaded: 0, active: null },
+          fps: motion.fps,
+          renderCalls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+          pixelRatio: renderer.getPixelRatio(),
+        },
+      };
     },
     greet,
     destroy() {
+      destroyed = true;
+      activeLoadId += 1;
+      vrma?.dispose();
+      cancelBehaviorTimeline();
       window.clearTimeout(greetingTimer);
       window.cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
@@ -1809,4 +1944,6 @@ export function createEmoraAvatarStage(container, options = {}) {
       if (activeImpactStage === stageApi) activeImpactStage = null;
     },
   };
+  activeImpactStage = stageApi;
+  return stageApi;
 }

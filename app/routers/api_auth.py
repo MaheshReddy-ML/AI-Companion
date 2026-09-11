@@ -6,13 +6,13 @@ import logging
 import random
 import re
 from pathlib import Path
-from datetime import timedelta
+from datetime import datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.audit import audit_event
 from app.avatar_catalog import (
@@ -21,7 +21,8 @@ from app.avatar_catalog import (
     list_avatar_presets,
 )
 from app.config import settings
-from app.database import serialize_user, users_collection, utc_now
+from app.database import as_utc, feature_collection, serialize_user, users_collection, utc_now
+from app.email_templates import OTP_EMAIL_LOGO_PATH, build_otp_verification_email
 from app.email_utils import send_email_html
 from app.models.schemas import (
     AvatarPresetUpdateRequest,
@@ -34,6 +35,7 @@ from app.models.schemas import (
     VerifyOtpRequest,
 )
 from app.otp import hash_otp, verify_otp_hash
+from app.security_events import record_security_event
 from app.rate_limit import rate_limit
 from app.security import create_access_token, get_current_user, hash_password, verify_password
 from app.services.google_auth import (
@@ -68,6 +70,7 @@ IMAGE_SIGNATURES = {
 def build_auth_payload(user: dict) -> dict:
     return {
         "user": serialize_user(user),
+        "nextPath": "/onboarding" if serialize_user(user)["onboardingRequired"] else "/dashboard",
         "token": create_access_token(str(user["_id"]), int(user.get("token_version", 0))),
     }
 
@@ -156,6 +159,8 @@ def upsert_google_user(payload: dict) -> dict:
         "password_hash": None,
         "google_id": google_id,
         "auth_provider": "google",
+        "onboarding_required": True,
+        "google_picture": payload.get("picture", "") if str(payload.get("picture", "")).startswith("https://") else "",
         "avatar_source": "preset",
         "avatar_preset_id": choose_default_avatar_preset_id(email or name),
         "avatar_url": None,
@@ -181,6 +186,12 @@ def register_user(payload: RegisterRequest) -> dict:
     email = normalize_email(payload.email)
     password = payload.password
 
+    # Owner allowlist addresses must not be claimable through the unverified
+    # local registration form. Existing provisioned accounts can still log in,
+    # and new owner accounts must use verified Google identity.
+    if email in settings.admin_email_set:
+        raise HTTPException(status_code=403, detail="This administrator address must use Google Sign-In or be provisioned by the server owner.")
+
     if not name or not email or not password:
         raise HTTPException(status_code=400, detail="Name, email, and password are required.")
 
@@ -195,6 +206,7 @@ def register_user(payload: RegisterRequest) -> dict:
         "password_hash": hash_password(password),
         "google_id": None,
         "auth_provider": "local",
+        "onboarding_required": True,
         "avatar_source": "preset",
         "avatar_preset_id": choose_default_avatar_preset_id(email or name),
         "avatar_url": None,
@@ -222,6 +234,20 @@ def register_user(payload: RegisterRequest) -> dict:
             detail="An account with this email already exists. Please sign in or use another email.",
         ) from exc
     document["_id"] = inserted.inserted_id
+    if payload.starting_mood:
+        try:
+            feature_collection("daily_check_ins").insert_one({
+                "user_id": document["_id"],
+                "date": now.date().isoformat(),
+                "mood": payload.starting_mood,
+                "note": "Starting check-in from account creation.",
+                "created_at": now,
+                "updated_at": now,
+            })
+        except PyMongoError:
+            logger.exception("Could not save the optional registration check-in for user %s", document["_id"])
+            users.delete_one({"_id": document["_id"]})
+            raise HTTPException(status_code=503, detail="Your first check-in could not be saved, so no account was created. Please try again.")
     audit_event("auth.register.success", user_id=document["_id"], email=email)
     return build_auth_payload(document)
 
@@ -386,10 +412,13 @@ def send_otp(payload: SendOtpRequest) -> dict:
         },
     )
 
+    otp_html, otp_text = build_otp_verification_email(otp)
     delivered = send_email_html(
         email,
         "Your Verification Code",
-        f"<h3>Your OTP is: <b style='color:#1b7eb1;'>{otp}</b></h3><p>Valid for 10 minutes.</p>",
+        otp_html,
+        otp_text,
+        inline_images={"ai-companion-logo": OTP_EMAIL_LOGO_PATH},
     )
 
     if not delivered:
@@ -411,7 +440,8 @@ def verify_otp(payload: VerifyOtpRequest) -> dict:
         raise HTTPException(status_code=404, detail="User not found")
 
     expiry = user.get("reset_otp_expiry")
-    if not verify_otp_hash(otp, user.get("reset_otp_hash") or user.get("reset_otp")) or not expiry or expiry < utc_now():
+    expiry_utc = as_utc(expiry) if isinstance(expiry, datetime) else None
+    if not verify_otp_hash(otp, user.get("reset_otp_hash") or user.get("reset_otp")) or not expiry_utc or expiry_utc < utc_now():
         audit_event("auth.otp.verify.failed", user_id=user["_id"], email=email, reason="invalid_or_expired")
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
@@ -454,6 +484,7 @@ def reset_password(payload: ResetPasswordRequest) -> dict:
         },
     )
     audit_event("auth.password_reset.success", user_id=user["_id"], email=email)
+    record_security_event(user["_id"], "password_reset", "Password reset completed; older tokens invalidated")
     return {"message": "Password reset successful"}
 
 
@@ -486,6 +517,8 @@ async def google_callback(
             return RedirectResponse(append_query_to_url(failure_redirect, {"error": str(exc)}))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    if auth_payload["user"].get("onboardingRequired"):
+        success_redirect = "/onboarding"
     if success_redirect:
         return RedirectResponse(
             append_query_to_url(

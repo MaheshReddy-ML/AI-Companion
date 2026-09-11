@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import threading
 import re
+import time
 from typing import Any, Callable
 
 
@@ -23,6 +24,11 @@ class LocalMLXChatProvider:
         # MLX generation uses shared model state; serialize it rather than
         # allowing simultaneous requests to corrupt/overcommit that state.
         self._generate_lock = threading.Lock()
+        self._stats_lock = threading.Lock()
+        self._last_load_ms: float | None = None
+        self._last_generation_ms: float | None = None
+        self._last_output_tokens_approx: int | None = None
+        self._generation_count = 0
 
     def _runtime_for(self, model_id: str) -> tuple[object, object, Callable[..., str], Callable[..., object]]:
         with self._load_lock:
@@ -34,10 +40,13 @@ class LocalMLXChatProvider:
                 from mlx_lm.sample_utils import make_sampler
             except ImportError as exc:
                 raise RuntimeError(
-                    "Local MLX chat is not installed. Run `pip install -r requirements.txt`."
+                    "Local MLX chat is not installed in the Python environment running the server. "
+                    "Start Emora with `../.venv/bin/python -m uvicorn app.main:app --reload`, "
+                    "or install requirements into that interpreter."
                 ) from exc
 
             try:
+                load_started = time.perf_counter()
                 disable_progress_bars()
                 model, tokenizer = load(model_id)
             except Exception as exc:
@@ -48,37 +57,26 @@ class LocalMLXChatProvider:
 
             self._runtime = (model, tokenizer, generate, make_sampler)
             self._model_id = model_id
+            with self._stats_lock:
+                self._last_load_ms = round((time.perf_counter() - load_started) * 1000, 1)
             return self._runtime
 
     def generate(
         self,
         *,
         model_id: str,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, Any]],
         max_tokens: int,
         temperature: float,
         enable_thinking: bool = True,
+        tools: list[dict[str, Any]] | None = None,
     ) -> str:
         model, tokenizer, generate, make_sampler = self._runtime_for(model_id)
-        # The cached Qwen3 1.7B MLX tokenizer predates its
-        # ``enable_thinking`` chat-template flag.  Qwen's native directive
-        # still works for that tokenizer. Any trace is stripped before a reply
-        # can leave this provider.
-        rendered_messages = [dict(item) for item in messages]
-        if rendered_messages and rendered_messages[-1].get("role") == "user":
-            directive = "/think" if enable_thinking else "/no_think"
-            rendered_messages[-1]["content"] = f"{rendered_messages[-1].get('content', '').rstrip()}\n{directive}"
-        try:
-            rendered = tokenizer.apply_chat_template(
-                rendered_messages, add_generation_prompt=True, enable_thinking=enable_thinking
-            )
-        except TypeError:
-            rendered = tokenizer.apply_chat_template(rendered_messages, add_generation_prompt=True)
-        except Exception as exc:
-            raise RuntimeError(f"Could not format the local Qwen chat prompt: {exc}") from exc
+        rendered = self._render_prompt(tokenizer, messages, enable_thinking, tools)
 
         try:
             with self._generate_lock:
+                generation_started = time.perf_counter()
                 reply = generate(
                     model,
                     tokenizer,
@@ -93,7 +91,72 @@ class LocalMLXChatProvider:
         text = re.sub(r"^\s*<think>.*?</think>\s*", "", str(reply or ""), count=1, flags=re.DOTALL).strip()
         if not text:
             raise RuntimeError("Local Qwen returned an empty response.")
+        with self._stats_lock:
+            self._last_generation_ms = round((time.perf_counter() - generation_started) * 1000, 1)
+            self._last_output_tokens_approx = len(re.findall(r"\S+", text))
+            self._generation_count += 1
         return text
+
+    def _render_prompt(self, tokenizer, messages, enable_thinking, tools=None):
+        # The cached Qwen3 1.7B MLX tokenizer predates its
+        # ``enable_thinking`` chat-template flag.  Qwen's native directive
+        # still works for that tokenizer. Any trace is stripped before a reply
+        # can leave this provider.
+        rendered_messages = [dict(item) for item in messages]
+        if rendered_messages and rendered_messages[-1].get("role") == "user":
+            directive = "/think" if enable_thinking else "/no_think"
+            rendered_messages[-1]["content"] = f"{rendered_messages[-1].get('content', '').rstrip()}\n{directive}"
+        try:
+            template_kwargs: dict[str, Any] = {"add_generation_prompt": True, "enable_thinking": enable_thinking}
+            if tools:
+                template_kwargs["tools"] = tools
+            rendered = tokenizer.apply_chat_template(rendered_messages, **template_kwargs)
+        except TypeError:
+            fallback_kwargs: dict[str, Any] = {"add_generation_prompt": True}
+            if tools:
+                fallback_kwargs["tools"] = tools
+            rendered = tokenizer.apply_chat_template(rendered_messages, **fallback_kwargs)
+        except Exception as exc:
+            raise RuntimeError(f"Could not format the local Qwen chat prompt: {exc}") from exc
+
+        return rendered
+
+    def stream(self, *, model_id, messages, max_tokens, temperature, enable_thinking=True, tools=None):
+        from mlx_lm import stream_generate
+        model, tokenizer, _, make_sampler = self._runtime_for(model_id)
+        rendered = self._render_prompt(tokenizer, messages, enable_thinking, tools)
+        with self._generate_lock:
+            started = time.perf_counter()
+            count = 0
+            iterator = stream_generate(model, tokenizer, prompt=rendered, max_tokens=max_tokens, sampler=make_sampler(temp=temperature))
+            try:
+                for response in iterator:
+                    count += 1
+                    yield response.text
+            finally:
+                iterator.close()
+                with self._stats_lock:
+                    self._last_generation_ms = round((time.perf_counter() - started) * 1000, 1)
+                    self._last_output_tokens_approx = count
+                    self._generation_count += 1
+
+    def runtime_stats(self) -> dict[str, Any]:
+        """Return coarse local runtime telemetry without exposing prompts or replies."""
+        with self._stats_lock:
+            return {
+                "model": self._model_id,
+                "loaded": self._runtime is not None,
+                "lastModelLoadMs": self._last_load_ms,
+                "lastGenerationMs": self._last_generation_ms,
+                "lastOutputTokensApprox": self._last_output_tokens_approx,
+                "generationCount": self._generation_count,
+            }
+
+    def unload_models(self) -> None:
+        """Release the process-local model cache during graceful shutdown."""
+        with self._load_lock:
+            self._runtime = None
+            self._model_id = None
 
 
 local_mlx_chat = LocalMLXChatProvider()

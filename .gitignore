@@ -36,6 +36,7 @@ cache/
 .hf_cache/
 logs/
 *.log
+CHAT_BENCHMARK*.json
 *.sqlite3
 *.db
 app/static/uploads/

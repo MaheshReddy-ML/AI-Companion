@@ -1,0 +1,408 @@
+html body.emora-atelier{--at-bg:#151d25;--at-paper:#1e2933;--at-raised:#283640;--at-ink:#f2f0e7;--at-muted:#b8c1c5;--at-line:#45525b;--at-accent:#f4a28b;--at-on-accent:#281710;--at-soft:#3a302e;--at-rail:#10171d;--at-rail-ink:#f2f0e7;--at-shadow:0 12px 32px #0002;--bg:var(--at-bg);--bg-base:var(--at-bg);--bg-subtle:var(--at-paper);--bg-elevated:var(--at-raised);--surface:var(--at-paper);--card:var(--at-paper);--card-soft:var(--at-raised);--text:var(--at-ink);--muted:var(--at-muted);--text-primary:var(--at-ink);--text-secondary:var(--at-muted);--text-muted:var(--at-muted);--accent:var(--at-accent);--accent-strong:var(--at-accent);--accent-soft:var(--at-soft);--teal:var(--at-accent);--border:var(--at-line);--border-soft:var(--at-line);--border-strong:var(--at-line);--surface-card:var(--at-paper);--surface-card-muted:var(--at-paper);--surface-field:var(--at-paper);--editorial-bg:var(--at-bg);--editorial-panel:var(--at-paper);--editorial-panel-soft:var(--at-raised);--editorial-ink:var(--at-ink);--editorial-muted:var(--at-muted);--editorial-faint:var(--at-muted);--editorial-line:var(--at-line);--editorial-line-strong:var(--at-line);--editorial-teal:var(--at-accent);--emora-world:var(--at-bg);--emora-world-deep:var(--at-bg);--emora-ink:var(--at-ink);--emora-muted:var(--at-muted);--emora-faint:var(--at-muted);--emora-line:var(--at-line);--emora-line-strong:var(--at-line);--emora-accent:var(--at-accent);--emora-accent-rgb:240,161,127;--emora-surface:var(--at-paper);--emora-surface-quiet:var(--at-paper);--emora-surface-raised:var(--at-raised);--emora-world-glow:transparent;--auth-ink:var(--at-ink);--auth-muted:var(--at-muted);--auth-surface:var(--at-bg);--auth-field:var(--at-paper);--auth-line:var(--at-line);--auth-accent:var(--at-accent);background:var(--at-bg);color:var(--at-ink);font-family:Sora,sans-serif}
+html.light body.emora-atelier{--at-bg:#f4f1e9;--at-paper:#fffdf8;--at-raised:#e8e4d8;--at-ink:#202e36;--at-muted:#565e60;--at-line:#cdcfc5;--at-accent:#a43b29;--at-on-accent:#fffdf8;--at-soft:#f4e3d8;--at-rail:#e9e7de;--at-rail-ink:#202e36;--at-shadow:0 8px 24px #63513b0c;--emora-accent-rgb:166,62,39}
+body.emora-atelier::after,body.emora-atelier::before{display:none}
+body.emora-atelier :is(.app-layout,.flagship-workspace,.workspace-unified-layout,.studio-shell,.library-shell,.main-content,.payment-page,.cinematic-editorial){background:0 0!important}
+body.emora-atelier :is(h1,h2,.serif){color:var(--at-ink);font-family:'Instrument Serif',Georgia,serif;font-weight:400;letter-spacing:-.035em}
+body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero,.page-header,.community-intro) h1{font-size:clamp(48px,5.8vw,86px);line-height:1.02}
+body.emora-atelier :is(.eyebrow,.workspace-kicker,.sessions-kicker,.payment-eyebrow,.auth-panel-kicker){color:var(--at-accent)!important;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.14em}
+body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero){padding-block:32px 36px;border-bottom:1px solid var(--at-line);margin-bottom:32px}
+body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero) h1 em{color:var(--at-accent)}
+body.emora-atelier :is(.workspace-panel,.card,.journal-editor,.goal-composer,.personal-card,.library-cards article,.checkout-card,.weekly-review,.memory-center,.sessions-builder,.sessions-history,.journey-story,.journey-constellation,.insights-moments,.insights-premium-brief,.insights-period-reflection,.insights-reflection-timeline,.avatar-studio,.public-information section,.together-panel,.notification-card,.focus-card){background:var(--at-paper)!important;color:var(--at-ink);border:1px solid var(--at-line)!important;border-radius:6px!important;box-shadow:var(--at-shadow)!important;backdrop-filter:none}
+body.emora-atelier :is(.workspace-panel,.library-cards article,.journal-editor,.checkout-card,.sessions-builder){padding:clamp(20px,2.4vw,36px)}
+body.emora-atelier :is(.workspace-panel,.library-cards article,.public-information section) h2{font-size:32px}
+body.emora-atelier :is(.workspace-panel,.card,.journal-editor,.library-cards article,.checkout-card)::before{background:0 0}
+body.emora-atelier :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select){color:var(--at-ink)!important;background:var(--at-paper)!important;border-color:var(--at-line)!important;border-radius:5px!important;box-shadow:none}
+body.emora-atelier :is(input,textarea)::placeholder{color:var(--at-muted)!important;opacity:1}
+body.emora-atelier :is(button,a,input,textarea,select,[tabindex]):focus-visible{outline:2px solid var(--at-accent)!important;outline-offset:4px}
+body.emora-atelier :is(.btn,.doorway-submit,.doorway-secondary,.dashboard-calm-button,.cinematic-cta,.workspace-rail-new-chat){border-radius:5px!important;min-height:46px;font-weight:500;box-shadow:none!important}
+body.emora-atelier :is(.btn-primary,.doorway-submit,.dashboard-send,.dashboard-calm-button,.cinematic-cta,.workspace-rail-new-chat){background:var(--at-accent)!important;color:var(--at-on-accent)!important;border:1px solid var(--at-accent)!important}
+body.emora-atelier :is(.btn-secondary,.btn-ghost,.doorway-secondary){background:var(--at-paper)!important;color:var(--at-ink)!important;border:1px solid var(--at-line)}
+body.emora-atelier button:disabled{opacity:.5;cursor:not-allowed}
+body.emora-atelier :is(button,a){transition:background-color 160ms,color 160ms,border-color 160ms}
+body.emora-atelier :is(.btn-primary,.doorway-submit,.cinematic-cta):hover{filter:brightness(.93)}
+body.emora-atelier :is([role=tab][aria-selected=true],[role=radio][aria-checked=true],.reflection-prompts button:hover){background:var(--at-soft)!important;color:var(--at-accent)!important;border-color:var(--at-accent)!important}
+body.emora-atelier :is(dialog,.workspace-command-card,.upgrade-dialog-card,.emora-contextual-concierge,.goal-onboarding-card,.modal-content,.dropdown-menu){background:var(--at-paper)!important;color:var(--at-ink)!important;border:1px solid var(--at-line);border-radius:8px!important;box-shadow:0 24px 80px #0004}
+body.emora-atelier dialog::backdrop{background:#12131199;backdrop-filter:blur(3px)}
+body.emora-atelier :is(.status,.empty-state,.emora-empty-state){border-radius:5px}
+html body.emora-atelier .shared-workspace-rail{background:var(--at-rail)!important;border-right:1px solid var(--at-line)!important;box-shadow:none!important;color:var(--at-rail-ink)}
+html body.emora-atelier .workspace-logo strong{color:var(--at-rail-ink);font-size:39px;letter-spacing:-2px}
+html body.emora-atelier .workspace-logo{padding-bottom:22px;border-bottom:1px solid var(--at-line)}
+html body.emora-atelier .workspace-logo>span{background:var(--at-paper);border-radius:50%;border:1px solid var(--at-line)}
+html body.emora-atelier .workspace-rail nav>a,html body.emora-atelier .workspace-rail nav>button{color:var(--at-rail-ink)!important;border-radius:4px!important;margin-block:3px}
+html body.emora-atelier .workspace-rail nav>a.active{background:var(--at-paper)!important;box-shadow:inset 3px 0 var(--at-accent);color:var(--at-accent)!important}
+html body.emora-atelier .workspace-rail nav>a:hover{background:var(--at-soft)!important}
+html body.emora-atelier .workspace-rail nav>p{color:var(--at-muted);font:9px 'JetBrains Mono',monospace;letter-spacing:.18em}
+body.emora-atelier .workspace-rail nav i svg{width:18px;height:18px}
+html body.emora-atelier :is(.workspace-presence,.workspace-person,.workspace-rail-footer,.sidebar-plan-card){background:0 0!important;color:var(--at-rail-ink);border-color:var(--at-line);box-shadow:none}
+html body.emora-atelier :is(.workspace-person strong,.workspace-person span,.workspace-rail-actions button,.workspace-rail-actions a){color:var(--at-rail-ink)!important}
+html body.emora-atelier .workspace-command-trigger{background:var(--at-paper);border:1px solid var(--at-line);border-radius:5px;color:var(--at-ink);box-shadow:var(--at-shadow)}
+body.emora-atelier .mobile-app-nav{background:var(--at-paper)!important;border-top:1px solid var(--at-line);backdrop-filter:none}
+body.emora-atelier .mobile-app-nav-item{color:var(--at-muted)!important}
+body.emora-atelier .mobile-app-nav-item.active{color:var(--at-accent)!important;background:var(--at-soft)!important}
+html body.emora-atelier .atelier-arrival{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr);background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:8px;padding:0;overflow:hidden;gap:0}
+body.emora-atelier .atelier-arrival .workspace-hero-copy{padding:clamp(24px,3vw,48px)}
+html body.emora-atelier .atelier-arrival h1{font-size:clamp(48px,5.3vw,78px);line-height:1}
+html body.emora-atelier .atelier-arrival .workspace-orbit{grid-column:1/-1;display:flex;align-items:center;justify-content:space-around;flex-wrap:wrap;gap:16px;height:auto;min-height:90px;margin:0;padding:20px;border-top:1px solid var(--at-line);border-radius:0;background:0 0!important}
+body.emora-atelier .atelier-arrival :is(.orbit-ring,.orbit-trace,.orbit-core){display:none}
+html body.emora-atelier .atelier-arrival :is(.orbit-node,.orbit-status){position:static;transform:none;width:auto;background:0 0;border:0;box-shadow:none;color:var(--at-ink)}
+body.emora-atelier .emora-presence-form{background:var(--at-bg)!important;border:1px solid var(--at-line)!important;border-radius:6px!important;box-shadow:none!important}
+body.emora-atelier .emora-presence-form input{background:0 0!important}
+body.emora-atelier .journal-editor textarea{font:21px/1.9 'Instrument Serif',serif;min-height:320px}
+body.emora-atelier .library-cards{gap:16px}
+body.emora-atelier .public-information{max-width:1060px;padding-top:64px}
+body.emora-atelier .public-information h1{font-size:clamp(50px,7vw,90px)}
+body.emora-atelier :is(.companion-chat-main,.companion-chat-shell,.chat-main,.chat-messages){background:var(--at-bg)!important}
+body.emora-atelier :is(.chat-header,.companion-chat-header,.chat-input-container,.companion-composer){background:var(--at-paper)!important;border-color:var(--at-line)!important;box-shadow:none}
+body.emora-atelier :is(.emora-orbit-nav,.emora-stage-header,.emora-controls-panel,.emora-conversation-panel,.play-world-nav){background:var(--at-paper)!important;color:var(--at-ink)!important;border-color:var(--at-line)!important;border-radius:6px}
+body.emora-atelier :is(.emora-wordmark,.emora-orbit-nav a,.play-world-nav a){color:var(--at-ink)!important}
+body.emora-atelier :is(.play-ritual-archive,.play-quests,.play-premium-worlds,.play-about){background:var(--at-bg)!important;color:var(--at-ink)}
+@media(prefers-reduced-motion:reduce){body.emora-atelier :is(a,button,input,textarea,select){transition:none}}html body.emora-atelier :is(.workspace-main,.cinematic-site,.cinematic-editorial,.overview-lookback,.overview-arrival){background:var(--at-bg)!important}
+html body.emora-atelier :is(.dashboard-glance>article,.experience-depth>article,.dashboard-action-dock>*,.goal-onboarding-grid a,.goal-onboarding-grid button){background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:6px;box-shadow:none}
+html body.emora-atelier .dashboard-ambient-card{background:var(--at-soft)!important}
+html body.emora-atelier :is(.dashboard-glance,.experience-depth,.overview-arrival,.overview-lookback,.workspace-panel,.public-information,.cinematic-site,.goal-onboarding) :is(h2,h3,h4,blockquote,strong){color:var(--at-ink)!important}
+html body.emora-atelier :is(.dashboard-glance,.experience-depth,.overview-arrival,.overview-lookback,.workspace-panel,.public-information,.cinematic-site,.goal-onboarding) p:not(.workspace-kicker):not(.eyebrow):not(.status){color:var(--at-muted)!important}
+html body.emora-atelier :is(.workspace-panel header,.experience-depth,.overview-lookback,.dashboard-glance,.cinematic-demo-stage,.cinematic-about-copy) a{color:var(--at-accent)!important}
+html body.emora-atelier :is(.cinematic-how,.cinematic-about,.cinematic-closing) em{color:var(--at-accent)!important}
+html body.emora-atelier :is(.cinematic-demo header span,.cinematic-steps span,.cinematic-text-link,.cinematic-demo-tabs button){color:var(--at-muted)!important}
+html body.emora-atelier .cinematic-demo-tabs button[aria-selected=true]{color:var(--at-accent)!important}
+html body.emora-atelier .goal-onboarding-grid a{color:var(--at-ink)}
+html body.emora-atelier .orbit-insight-lock{position:static;inset:auto;background:var(--at-soft);color:var(--at-ink);width:auto;border:1px solid var(--at-line);border-radius:4px;padding:12px}
+html body.emora-atelier .orbit-insight-lock :is(small,strong,span){color:var(--at-ink)}
+@media(max-width:700px){html body.emora-atelier :is(.cinematic-how,.cinematic-about,.cinematic-closing){padding-inline:22px}}html body.emora-atelier.emora-atelier{--session-ink:var(--at-ink);--session-muted:var(--at-muted);--session-line:var(--at-line);--session-teal:var(--at-accent);--session-gold:var(--at-accent);--together-ink:var(--at-ink);--together-muted:var(--at-muted);--together-line:var(--at-line);--together-line-strong:var(--at-accent);--together-teal:var(--at-accent);--together-violet:var(--at-accent);--notice-ink:var(--at-ink);--notice-muted:var(--at-muted);--notice-line:var(--at-line);--notice-teal:var(--at-accent);--companion-ivory:var(--at-ink);--companion-muted:var(--at-muted);--companion-line:var(--at-line);--companion-night:var(--at-bg);--companion-teal:var(--at-accent);--companion-lavender:var(--at-accent)}
+html body.emora-atelier.emora-atelier :is(.sessions-shell,.together-main,.notification-shell,.focus-shell){background:var(--at-bg)!important}
+html body.emora-atelier.emora-atelier :is(.session-mode-card,.session-mode-grid button,.weekly-review-counts,.memory-upsell,.together-presence-card,.together-section,.notification-live-note,.notification-live-stage,.focus-create-card,.focus-join-card,.focus-live-card,.profile-panel,.profile-card){background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:6px;box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.editor-header,.editor-header span,.sessions-intention small,.workspace-rail nav>a i){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .dashboard-ambient-card{background:var(--at-soft)!important}
+html body.emora-atelier.emora-atelier .atelier-arrival{align-items:stretch}
+html body.emora-atelier.emora-atelier .atelier-arrival .workspace-orbit{min-height:90px;height:auto;width:auto;filter:none}
+html body.emora-atelier.emora-atelier .atelier-arrival .workspace-orbit::after,html body.emora-atelier.emora-atelier .atelier-arrival .workspace-orbit::before{display:none}
+html body.emora-atelier.emora-atelier .atelier-arrival .orbit-insight-lock{position:static;transform:none;inset:auto;width:auto;max-width:none;margin:0;background:var(--at-soft)}
+html body.emora-atelier.emora-atelier .atelier-arrival .workspace-orbit>*{filter:none;opacity:1}
+html body.emora-atelier.emora-atelier .atelier-arrival :is(.orbit-node span,.orbit-status strong,.orbit-status span,.workspace-hero-copy h1,.workspace-hero-copy h1 span){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier .dashboard-top-action{background:var(--at-accent)!important;color:var(--at-on-accent)!important;border-radius:5px}
+html body.emora-atelier.emora-atelier .chat-stage{background-blend-mode:soft-light;background-color:var(--at-bg)!important}
+html body.emora-atelier.emora-atelier :is(.chat-main,.chat-route,.chat-input-area){background:var(--at-bg)!important}
+html body.emora-atelier.emora-atelier :is(.chat-atmosphere,.chat-main::before,.chat-main::after){display:none}
+html body.emora-atelier.emora-atelier .chat-empty-copy{padding:28px;border-top:1px solid var(--at-line);border-bottom:1px solid var(--at-line);background:var(--at-bg)}
+html body.emora-atelier.emora-atelier .chat-empty-copy h1{font-size:clamp(44px,5.3vw,78px);color:var(--at-ink)}
+html body.emora-atelier.emora-atelier .chat-empty-copy h1 em{background:0 0;-webkit-text-fill-color:var(--at-accent);color:var(--at-accent)}
+html body.emora-atelier.emora-atelier .chat-empty-copy :is(p,small,span){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .chat-prompt-chips{gap:0}
+html body.emora-atelier.emora-atelier .chat-prompt-chips button{background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:0;box-shadow:none;min-height:150px}
+html body.emora-atelier.emora-atelier .chat-prompt-chips :is(strong,i){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier :is(.chat-input-wrap,.companion-tools,.context-menu,.message-bubble){background:var(--at-paper)!important;color:var(--at-ink);border:1px solid var(--at-line);border-radius:6px!important;box-shadow:var(--at-shadow)!important}
+html body.emora-atelier.emora-atelier .send-btn{background:var(--at-accent)!important;color:var(--at-on-accent)!important;border-radius:5px}
+html body.emora-atelier.emora-atelier .chat-view-switcher{background:var(--at-raised)!important;border-radius:5px}
+html body.emora-atelier.emora-atelier .chat-view-switcher button{color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier .chat-view-switcher button[aria-pressed=true]{background:var(--at-paper)!important;border-radius:4px}
+@media(max-width:700px){html body.emora-atelier.emora-atelier .chat-empty-copy{padding:18px 8px}
+html body.emora-atelier.emora-atelier .chat-prompt-chips button{min-height:105px;padding:14px}}html body.emora-atelier.emora-atelier :is(.dashboard-dayline,.dashboard-dayline span,.tiny-thing-field>span,.dashboard-space-card small){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .dashboard-tiny-link{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is(.main-content,.payment-page,.payment-main,.together-main,.sessions-shell,.notification-shell,.focus-shell){background:var(--at-bg)!important}
+html body.emora-atelier.emora-atelier :is(.settings-section,.settings-section-header,.avatar-preview-card,.avatar-gallery-panel,.profile-banner,.profile-header,.plan-comparison-grid>article,.together-circle-workspace,.together-circle-room,.together-circle-list,.together-circles-section,.session-choice-grid>button,.weekly-review-counts>div,.notification-live-stage){background:var(--at-paper)!important;border-color:var(--at-line)!important;border-radius:6px!important;box-shadow:none!important}
+html body.emora-atelier.emora-atelier :is(.settings-grid,.settings-section,.payment-page,.together-main,.sessions-shell) :is(h1,h2,h3,h4,strong){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier :is(.settings-grid,.settings-section,.payment-page,.together-main,.sessions-shell) :is(p,small,label,li){color:var(--at-muted)}
+html body.emora-atelier.emora-atelier :is(.payment-story h1,.together-hero h1) em{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is(.checkout-submit,.sessions-primary,.focus-primary,.together-dialog-primary){background:var(--at-accent)!important;color:var(--at-on-accent)!important;border-radius:5px;box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.plan-picker,.billing-toggle,.payment-methods) button{background:var(--at-raised);color:var(--at-ink);border-radius:4px}
+html body.emora-atelier.emora-atelier :is(.emora-stage-header p,.emora-stage-header .feature-badge){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .emora-compose{background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:8px;box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.emora-send-orb,.emora-listen-orb){background:var(--at-accent);color:var(--at-on-accent)}
+html body.emora-atelier.emora-atelier :is(.workspace-section-nav,.emora-page-wayfinder){background:var(--at-paper)!important;color:var(--at-ink);border:1px solid var(--at-line);border-radius:5px;box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.workspace-section-nav,.emora-page-wayfinder) a{color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .cinematic-demo{grid-column:1/-1;width:100%;margin-top:36px;padding:clamp(22px,4vw,56px)}
+html body.emora-atelier.emora-atelier .cinematic-demo>header{display:block;max-width:720px}
+html body.emora-atelier.emora-atelier .cinematic-demo>header h3{font-size:clamp(34px,4vw,56px);line-height:1.06;margin:14px 0}
+html body.emora-atelier.emora-atelier .cinematic-demo-stage{padding:26px 0 0;min-height:0}
+html body.emora-atelier.emora-atelier .cinematic-demo-stage h4{max-width:720px;font-size:clamp(32px,4vw,52px);line-height:1.12}
+html body.emora-atelier.emora-atelier .cinematic-demo-stage p{max-width:680px}
+html body.emora-atelier.emora-atelier .cinematic-steps article{padding:28px}
+html body.emora-atelier.emora-atelier :is(.cinematic-footer,.cinematic-footer span,.cinematic-meta,.cinematic-demo header>p,.cinematic-how header>p,.cinematic-steps span){color:var(--at-muted)!important}
+html body.emora-atelier{--at-shadow:0 3px 0 #00000005}
+body.emora-atelier :is(h3,h4){letter-spacing:-.025em}
+body.emora-atelier ::selection{background:var(--at-accent);color:var(--at-on-accent)}
+.edition-label{font:500 10px/1.5 Sora,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--at-accent)}
+html body.emora-atelier .front-brand{display:inline-flex;gap:0;align-items:baseline;font:400 49px/.9 'Instrument Serif',Georgia,serif;letter-spacing:-3px;text-decoration:none;color:var(--at-ink)}
+.front-brand>span{color:var(--at-accent)}
+.frontpage{max-width:1680px;margin:auto;padding:0 5%}
+html body.emora-atelier .front-nav{position:relative;inset:auto;padding:26px 0;display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--at-line);z-index:20}
+html body.emora-atelier .front-nav-links{display:flex;align-items:center;margin-left:auto;gap:32px}
+html body.emora-atelier .front-nav-links a{color:var(--at-ink);font-size:12px;text-decoration:none}
+html body.emora-atelier .front-nav-links a:hover{color:var(--at-accent)}
+.front-theme{width:44px;height:44px;display:grid;place-items:center;background:0 0;border:1px solid var(--at-line);border-radius:50%;color:var(--at-ink);cursor:pointer;font-size:23px}
+.front-nav .cinematic-menu-button{display:none}
+.front-hero{display:grid;grid-template-columns:1.05fr 1fr;gap:5%;padding:76px 0 64px;align-items:center}
+.front-hero h1{font-size:clamp(66px,7.4vw,116px);line-height:.95;margin:24px 0 30px}
+.front-hero h1 em{color:var(--at-accent)}
+.front-lead{max-width:420px;font-size:15px;line-height:1.9;color:var(--at-muted)}
+.front-actions{display:flex;flex-wrap:wrap;align-items:center;gap:22px;margin-top:32px}
+.front-primary{display:inline-flex;justify-content:space-between;gap:30px;align-items:center;padding:18px 23px;min-height:54px;background:var(--at-accent);color:var(--at-on-accent)!important;font-size:12px;font-weight:500;border-radius:3px;text-decoration:none}
+.front-primary:hover{filter:brightness(.92)}
+.front-primary span{font-size:20px}
+.front-text-link{color:var(--at-ink);font-size:11px;text-underline-offset:5px}
+.front-footnote{margin-top:22px;color:var(--at-muted);font-size:10px;line-height:1.7}
+.letter-seal{width:34px;height:34px;display:grid;place-items:center;background:var(--at-accent);color:var(--at-on-accent);font:25px 'Instrument Serif',serif;border-radius:50%}
+.front-index{border-block:1px solid var(--at-line);display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 0}
+.front-index>span{font-size:9px;color:var(--at-muted);letter-spacing:.12em}
+.front-index a{color:var(--at-ink);text-decoration:none;font-size:12px}
+.front-index a b{font:9px Sora,sans-serif;color:var(--at-accent);margin-left:14px}
+.front-experience{padding:96px 0}
+.front-section-heading{display:grid;grid-template-columns:1.6fr 1fr;align-items:end;gap:16px 50px;margin-bottom:44px}
+.front-section-heading .edition-label{grid-column:1/-1}
+.front-approach h2,.front-section-heading h2{font-size:clamp(48px,5.5vw,78px);line-height:1.02;margin:0}
+.front-approach h2 em,.front-section-heading h2 em{color:var(--at-accent)}
+.front-section-heading>p:last-child{color:var(--at-muted);font-size:14px;line-height:1.9}
+.feature-number{font-size:9px;letter-spacing:.08em;color:var(--at-accent)}
+.front-approach a{color:var(--at-accent);font-size:11px;text-underline-offset:6px}
+html body.emora-atelier.emora-atelier .front-demo{background:var(--at-paper)!important;display:grid;grid-template-columns:1fr 1.4fr;column-gap:50px;padding:40px;border:1px solid var(--at-line);border-radius:0;margin-top:56px}
+html body.emora-atelier.emora-atelier .front-demo>header h3{font:48px/1.05 'Instrument Serif',serif;margin:14px 0}
+.front-demo header>span{font-size:10px;color:var(--at-muted)}
+.front-demo .cinematic-demo-tabs{display:flex;flex-wrap:wrap;gap:0;grid-column:1;align-self:start;margin-top:25px}
+.front-demo .cinematic-demo-tabs button{cursor:pointer;padding:12px 14px;border:1px solid var(--at-line);background:0 0;color:var(--at-muted);font-size:11px}
+html body.emora-atelier.emora-atelier .front-demo-panels{grid-column:2;grid-row:1/3;padding:28px;background:var(--at-bg)!important;border:0!important}
+.front-demo-panels small{font-size:9px;letter-spacing:.1em;color:var(--at-accent)}
+html body.emora-atelier.emora-atelier .front-demo-panels h4{font:40px/1.1 'Instrument Serif',serif;margin:24px 0}
+.front-demo-panels p{font-size:12px;line-height:1.9;color:var(--at-muted)}
+.front-demo-panels a{display:inline-block;color:var(--at-accent);margin-top:18px;font-size:11px}
+.front-approach{display:grid;grid-template-columns:1fr 1fr;gap:10%;padding:64px 0 88px;border-top:1px solid var(--at-line)}
+.front-approach>div>p:not(.edition-label){font-size:13px;line-height:1.9;color:var(--at-muted);max-width:440px;margin:24px 0}
+.front-approach dl{margin:0}
+.front-approach dl>div{padding:25px 0;border-bottom:1px solid var(--at-line)}
+.front-approach dt{font:30px 'Instrument Serif',serif}
+.front-approach dd{margin:12px 0 0;font-size:12px;line-height:1.9;color:var(--at-muted)}
+.front-closing{padding:52px 6%;background:var(--at-accent);color:var(--at-on-accent);display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:24px}
+.front-closing .edition-label{grid-column:1/-1;color:var(--at-on-accent)}
+html body.emora-atelier .front-closing h2{font-size:clamp(70px,9vw,136px);line-height:.9;color:var(--at-on-accent);margin:0}
+.front-closing>div{display:flex;flex-direction:column;align-items:flex-start;gap:24px}
+.front-closing .front-primary{background:var(--at-paper);color:var(--at-ink)!important}
+.front-closing>div>a:last-child{font-size:11px;color:var(--at-on-accent)}
+.front-footer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:25px;padding:45px 0 28px}
+.front-footer p,.front-footer small{font-size:10px;color:var(--at-muted)}
+.front-footer nav{display:flex;flex-wrap:wrap;gap:18px}
+.front-footer nav a{font-size:10px;color:var(--at-ink)}
+.front-footer small{grid-column:1/-1;border-top:1px solid var(--at-line);padding-top:18px}
+html body.emora-atelier .emora-auth{grid-template-columns:1fr 1fr;background:var(--at-bg);min-height:100svh}
+html body.emora-atelier .auth-doorway-story{padding:40px 10%;background:var(--at-raised);border-right:1px solid var(--at-line);color:var(--at-ink);display:flex;flex-direction:column}
+html body.emora-atelier .auth-doorway-story::after,html body.emora-atelier .auth-doorway-story::before{display:none}
+html body.emora-atelier .auth-doorway-copy{margin-top:60px}
+html body.emora-atelier .auth-doorway-copy h2{font-size:clamp(52px,5.6vw,82px);color:var(--at-ink);line-height:1.02}
+html body.emora-atelier .auth-doorway-copy h2 em{color:var(--at-accent)}
+html body.emora-atelier .auth-doorway-copy>p:last-child{color:var(--at-muted);font-size:13px;max-width:330px}
+html body.emora-atelier .auth-doorway-kicker{color:var(--at-accent)}
+.auth-letter{background:var(--at-paper);padding:28px 32px;margin:40px 0;border:1px solid var(--at-line);border-top:4px solid var(--at-accent);transform:rotate(-2deg);width:min(100%,360px);align-self:center;box-shadow:6px 6px 0 #00000006}
+.auth-letter p{font:29px/1.3 'Instrument Serif',serif;margin:22px 0}
+.auth-signature{display:block;font:italic 33px 'Instrument Serif',serif;text-align:right;color:var(--at-accent)}
+.auth-story-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:auto}
+html body.emora-atelier .auth-doorway-promise{color:var(--at-muted);font-size:10px;padding:0;margin:0}
+html body.emora-atelier .auth-doorway-panel{background:var(--at-bg);padding:60px 10%}
+html body.emora-atelier .auth-doorway-heading h1{font-size:clamp(40px,3.8vw,58px);line-height:1.04}
+html body.emora-atelier .auth-doorway-heading{border-bottom:1px solid var(--at-line);padding-bottom:25px;margin-bottom:28px}
+html body.emora-atelier .auth-doorway-form{width:100%;max-width:420px}
+html body.emora-atelier .doorway-field input{min-height:54px;border-radius:3px!important}
+html body.emora-atelier .doorway-submit{min-height:54px;border-radius:3px!important}
+html body.emora-atelier .workspace-logo{padding-bottom:18px}
+html body.emora-atelier .workspace-logo strong{font-family:'Instrument Serif',serif;font-weight:400;font-size:44px}
+html body.emora-atelier .shared-workspace-rail nav>a{font-size:12px;min-height:38px}
+html body.emora-atelier .workspace-topbar{border-bottom:1px solid var(--at-line);padding-bottom:16px;margin-bottom:28px}
+html body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero,.together-hero,.notification-hero,.page-header){border-bottom:1px solid var(--at-line);padding-top:24px;padding-bottom:28px;margin-bottom:28px}
+html body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero,.together-hero,.notification-hero,.page-header) h1{font-size:clamp(42px,4.7vw,68px);line-height:1.03}
+html body.emora-atelier :is(.workspace-panel,.journal-editor,.sessions-builder,.settings-section,.together-panel,.checkout-card,.library-cards article){border-radius:3px!important;box-shadow:none!important}
+html body.emora-atelier.emora-atelier .atelier-arrival{grid-template-columns:minmax(0,1.6fr) minmax(230px,1fr);border:0;border-radius:0;background:0 0!important}
+html body.emora-atelier .atelier-arrival .workspace-hero-copy{padding:24px 32px 30px 0}
+html body.emora-atelier.emora-atelier .atelier-arrival h1{font-size:clamp(46px,5vw,72px)}
+.today-bookmark{background:var(--at-paper);padding:28px;border:1px solid var(--at-line);border-top:4px solid var(--at-accent)}
+.today-bookmark h2{font-size:40px;line-height:1.06;margin:18px 0 25px}
+.today-bookmark>a{display:flex;align-items:center;gap:14px;padding:19px 0;border-top:1px solid var(--at-line);color:var(--at-ink);text-decoration:none}
+.today-bookmark>a>span{color:var(--at-accent);font-size:10px}
+.today-bookmark strong{font-size:12px;font-weight:500;display:block}
+.today-bookmark small{font-size:10px;display:block;margin-top:6px;color:var(--at-muted)}
+.today-bookmark b{margin-left:auto;font-weight:400;color:var(--at-accent)}
+html body.emora-atelier.emora-atelier .atelier-arrival .workspace-orbit{margin-top:26px;border-block:1px solid var(--at-line);padding:20px 0;justify-content:space-between}
+html body.emora-atelier .dashboard-glance{gap:18px}
+html body.emora-atelier .dashboard-glance>article{border-radius:3px;border-top:3px solid var(--at-line)!important}
+html body.emora-atelier .dashboard-action-dock{gap:0}
+html body.emora-atelier .dashboard-action-dock>*{border-radius:0}
+html body.emora-atelier[data-product-page=journal] .journal-layout{grid-template-columns:minmax(0,1.65fr) minmax(240px,1fr);gap:30px}
+html body.emora-atelier[data-product-page=journal] .journal-editor{border-left:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=journal] #journal-content{font:22px/1.9 'Instrument Serif',serif;background:repeating-linear-gradient(transparent 0,transparent 40px,var(--at-line) 41px,transparent 42px)!important;border:0;border-radius:0!important;padding:8px 0}
+html body.emora-atelier[data-product-page=journal] #journal-title{font:30px 'Instrument Serif',serif;border:0;border-bottom:1px solid var(--at-line);padding-inline:0}
+html body.emora-atelier[data-product-page=goals] .journal-layout{grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr);align-items:start;gap:30px}
+html body.emora-atelier[data-product-page=goals] .goal-editor{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=goals] .personal-card{border-left:3px solid var(--at-accent)!important;box-shadow:none!important}
+html body.emora-atelier[data-product-page=sessions] .sessions-builder{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier .session-choice-grid label>span{border-radius:3px;background:var(--at-bg);color:var(--at-ink);border-color:var(--at-line)}
+html body.emora-atelier .session-choice-grid input:checked+span{background:var(--at-soft);border-color:var(--at-accent);color:var(--at-ink);box-shadow:inset 0 -3px var(--at-accent)}
+html body.emora-atelier .sessions-current{background:var(--at-paper);border:1px solid var(--at-line);border-top:3px solid var(--at-accent);border-radius:3px}
+html body.emora-atelier[data-product-page=insights] :is(.journey-story,.journey-constellation,.insights-moments,.insights-premium-brief,.insights-period-reflection){border-radius:3px!important;border-top:3px solid var(--at-line)!important}
+html body.emora-atelier[data-product-page=community] .community-intro{background:var(--at-paper)!important;border:1px solid var(--at-line);border-left:4px solid var(--at-accent);padding:30px;border-radius:3px}
+html body.emora-atelier[data-product-page=community] :is(.community-composer,.post-card,.community-sidebar>section){background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:3px;box-shadow:none}
+html body.emora-atelier[data-product-page=together] .together-hero{background:0 0}
+html body.emora-atelier[data-product-page=together] .together-invite-panel{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=together] :is(.together-empty-card,.together-friend-card){background:var(--at-bg);border:1px solid var(--at-line);border-radius:3px}
+html body.emora-atelier[data-product-page=notifications] .notification-hero{background:0 0!important;border-radius:0}
+html body.emora-atelier[data-product-page=notifications] .notification-live-stage{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=profile] .settings-section-header{border-bottom:1px solid var(--at-line);padding:22px}
+html body.emora-atelier[data-product-page=profile] .settings-row{border-bottom:1px solid var(--at-line);padding-block:24px}
+html body.emora-atelier[data-product-page=profile] .profile-banner{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=payment] .checkout-card{border-top:4px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=payment] .plan-comparison-grid>article{border-radius:3px!important;border-top:3px solid var(--at-line)}
+html body.emora-atelier[data-product-page=help] .library-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+html body.emora-atelier[data-product-page=help] .help-search{border:1px solid var(--at-line);padding:22px;border-top:3px solid var(--at-accent);background:var(--at-paper)}
+html body.emora-atelier[data-product-page=research] .research-grid{gap:0;border-block:1px solid var(--at-line)}
+html body.emora-atelier[data-product-page=research] .research-grid>article{background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:0;padding:30px}
+html body.emora-atelier .public-information{max-width:1000px;padding-inline:32px}
+html body.emora-atelier .public-information>section{padding:28px 0;border:0!important;border-top:1px solid var(--at-line)!important;border-radius:0!important;background:0 0!important;box-shadow:none!important}
+html body.emora-atelier .public-information h1{max-width:800px;font-size:clamp(44px,6vw,76px);line-height:1.04}
+html body.emora-atelier[data-product-page=chat] .chat-empty-copy{border:0;background:0 0;padding-top:40px}
+html body.emora-atelier[data-product-page=chat] .chat-prompt-chips{gap:12px}
+html body.emora-atelier[data-product-page=chat] .chat-prompt-chips button{border-radius:3px;border-top:3px solid var(--at-accent)!important}
+html body.emora-atelier[data-product-page=chat] .chat-input-wrap{border-radius:12px!important}
+html body.emora-atelier[data-product-page=focus-together] .focus-hero{background:var(--at-paper)!important;border:1px solid var(--at-line);border-top:4px solid var(--at-accent);border-radius:3px}
+html body.emora-atelier[data-product-page=focus-together] .focus-hero-orbit{border:1px solid var(--at-line);background:var(--at-bg);box-shadow:none}
+html body.emora-atelier[data-product-page=focus-together] .focus-hero-orbit i{display:none}
+html body.emora-atelier[data-product-page=your-emora] :is(.emora-orbit-nav,.emora-stage-header){border-radius:0;border-bottom:1px solid var(--at-line)!important}
+html body.emora-atelier[data-product-page=your-emora] .emora-utility-rail button{border-radius:4px;border:1px solid var(--at-line);background:var(--at-paper);color:var(--at-ink);box-shadow:none}
+html body.emora-atelier[data-product-page=your-emora] .emora-wordmark{font:32px 'Instrument Serif',serif}
+html body.emora-atelier[data-product-page=play] .play-world-nav{border-radius:0;border-bottom:1px solid var(--at-line)!important}
+html body.emora-atelier[data-product-page=play] :is(.play-depth,.play-premium-worlds,.play-about,.play-ritual-archive){background:var(--at-bg)!important;color:var(--at-ink)}
+html body.emora-atelier[data-product-page=play] :is(.play-ritual-card,.play-archive-metrics article,.play-premium-card,.play-living-progress,.play-daily-note){background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:3px;color:var(--at-ink);box-shadow:none}
+@media(min-width:1100px){html body.emora-atelier .public-information>section{display:grid;grid-template-columns:300px 1fr;gap:30px}
+html body.emora-atelier .public-information>section h2{margin:0}}@media(max-width:1100px){.front-hero{gap:4%;padding-top:45px}
+.front-nav-links{gap:18px!important}
+.front-footer{grid-template-columns:auto 1fr}
+.front-footer nav{grid-column:1/-1}
+html body.emora-atelier.emora-atelier .atelier-arrival{grid-template-columns:1fr}
+.today-bookmark{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:10px}
+.today-bookmark>.edition-label,.today-bookmark>h2{grid-column:1/-1;margin:0}
+.today-bookmark>h2{font-size:32px}
+.today-bookmark>a{gap:8px}}@media(max-width:760px){.frontpage{padding:0 6%}
+html body.emora-atelier .front-nav{padding:22px 0;gap:12px}
+html body.emora-atelier .front-nav .front-brand{font-size:42px}
+.front-nav .front-theme{margin-left:auto}
+.front-nav .cinematic-menu-button{display:flex;width:42px;height:42px;padding:10px;border:1px solid var(--at-line);background:0 0;flex-direction:column;justify-content:center;gap:6px}
+.front-nav .cinematic-menu-button span{display:block;width:20px;height:1px;background:var(--at-ink)}
+html body.emora-atelier .front-nav-links{display:none}
+html body.emora-atelier .front-nav.menu-open .front-nav-links{display:flex;position:absolute;inset:85px 0 auto;flex-direction:column;align-items:stretch;background:var(--at-paper);padding:22px;border:1px solid var(--at-line);gap:4px!important}
+.front-nav-links a{padding:12px}
+.front-hero{grid-template-columns:1fr;padding:44px 0 32px;gap:35px}
+.front-hero h1{font-size:clamp(62px,12.5vw,92px);margin:23px 0}
+.front-lead{font-size:13px}
+.front-actions{gap:18px}
+.front-primary{font-size:11px;padding:16px 20px}
+.front-index{flex-wrap:wrap;gap:20px}
+.front-index>span{width:100%}
+.front-index a{font-size:10px}
+.front-index a:last-child{width:100%}
+.front-experience{padding:54px 0}
+.front-section-heading{grid-template-columns:1fr;gap:14px;margin-bottom:25px}
+.front-approach h2,.front-section-heading h2{font-size:48px}
+html body.emora-atelier.emora-atelier .front-demo{display:block;padding:22px;margin-top:30px}
+html body.emora-atelier.emora-atelier .front-demo>header h3{font-size:38px}
+.front-demo .cinematic-demo-tabs{margin-block:24px}
+.front-demo .cinematic-demo-tabs button{padding:12px;font-size:10px}
+html body.emora-atelier.emora-atelier .front-demo-panels{padding:22px}
+html body.emora-atelier.emora-atelier .front-demo-panels h4{font-size:32px}
+.front-approach{grid-template-columns:1fr;padding:40px 0 55px;gap:20px}
+.front-closing{grid-template-columns:1fr;padding:35px 24px;gap:28px}
+.front-closing .edition-label{grid-column:1;font-size:8px}
+.front-closing h2{font-size:80px}
+.front-footer{gap:18px}
+.front-footer p{max-width:130px;justify-self:end;line-height:1.7}
+html body.emora-atelier .emora-auth{display:block}
+html body.emora-atelier .auth-doorway-story{padding:24px;border-right:0;border-bottom:1px solid var(--at-line)}
+html body.emora-atelier .auth-doorway-copy{margin-top:30px}
+html body.emora-atelier .auth-doorway-copy h2{font-size:46px}
+.auth-letter{display:none}
+.auth-story-bottom{margin-top:18px}
+html body.emora-atelier .auth-doorway-panel{padding:35px 24px 60px}
+html body.emora-atelier .auth-doorway-heading h1{font-size:42px}
+html body.emora-atelier .atelier-arrival .workspace-hero-copy{padding:20px 0}
+.today-bookmark{display:block;padding:22px}
+.today-bookmark h2{margin:14px 0 20px}
+.today-bookmark>a{padding:15px 0}
+html body.emora-atelier[data-product-page=goals] .journal-layout,html body.emora-atelier[data-product-page=journal] .journal-layout{grid-template-columns:1fr}
+html body.emora-atelier[data-product-page=help] .library-cards{grid-template-columns:1fr}
+html body.emora-atelier :is(.studio-intro,.library-hero,.sessions-hero,.together-hero,.notification-hero,.page-header) h1{font-size:42px}
+html body.emora-atelier .public-information{padding-inline:24px}}html body.emora-atelier .front-theme{width:auto;min-width:82px;padding:0 12px;border-radius:3px;font:10px Sora,sans-serif;white-space:nowrap}
+html body.emora-atelier .front-demo :is(h3,h4){color:var(--at-ink)!important}
+html body.emora-atelier .front-demo :is(p,header>span){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .today-bookmark h2{font-size:38px!important;line-height:1.05!important;letter-spacing:-.03em}
+html body.emora-atelier.emora-atelier .atelier-arrival{min-height:0!important}
+html body.emora-atelier.emora-atelier .atelier-arrival .workspace-hero-copy{min-height:0!important}
+html body.emora-atelier .workspace-rail nav>a i{background:0 0!important;border:0!important;box-shadow:none!important}
+html body.emora-atelier .shared-workspace-rail .workspace-logo>span{display:none}
+html body.emora-atelier .workspace-logo strong::after{content:'.';color:var(--at-accent)}
+html body.emora-atelier .atelier-arrival .orbit-node i{background:var(--at-accent)!important;box-shadow:none!important}
+html body.emora-atelier.emora-atelier :is(.orbit-node strong,.orbit-caption,.orbit-caption span,.sidebar-mini-label){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier :is(.profile-data-map,.workspace-section-nav,.emora-page-wayfinder) :is(a,button){background:var(--at-paper)!important;border-color:var(--at-line)!important;border-radius:3px}
+html body.emora-atelier.emora-atelier :is(.profile-data-map,.workspace-section-nav,.emora-page-wayfinder) :is(span,strong){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier :is(.weekly-source-strip article,.weekly-source-strip>p,#sessions-history-list,#sessions-history-list article){background:var(--at-paper)!important;color:var(--at-ink)}
+html body.emora-atelier.emora-atelier #sessions-history-list>p{padding:18px;border:1px dashed var(--at-line)}
+html body.emora-atelier.emora-atelier :is(.checkout-price-period,.checkout-divider>span,.payment-eyebrow>span,.plan-comparison-grid article>span){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .checkout-consent a{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier .sidebar-plan-access{background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:3px;box-shadow:none}
+html body.emora-atelier.emora-atelier .sidebar-plan-access :is(small,strong,span,i){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .sidebar-plan-mark{background:var(--at-soft)!important;color:var(--at-accent)!important;border:0;border-radius:3px}
+html body.emora-atelier.emora-atelier :is(.workspace-command-trigger>svg,.workspace-command-trigger kbd){color:var(--at-muted)}
+html body.emora-atelier.emora-atelier .studio-intro{display:block;min-height:0;padding:30px 0 24px;max-width:none}
+html body.emora-atelier.emora-atelier .studio-intro h1{margin:18px 0}
+html body.emora-atelier.emora-atelier .studio-intro>p:not(.eyebrow){color:var(--at-muted);font-size:13px;max-width:600px}
+html body.emora-atelier.emora-atelier .studio-stat{margin-top:20px;justify-content:flex-start}
+html body.emora-atelier.emora-atelier .journal-layout{padding:24px 0 48px}
+html body.emora-atelier.emora-atelier .journal-editor{padding:24px}
+html body.emora-atelier.emora-atelier .studio-mode-switcher{margin:20px auto 0;border-radius:4px;background:var(--at-paper);border:1px solid var(--at-line)}
+html body.emora-atelier.emora-atelier .studio-mode-switcher button{border-radius:3px;color:var(--at-muted)}
+html body.emora-atelier.emora-atelier .studio-mode-switcher button[aria-pressed=true]{background:var(--at-soft);color:var(--at-accent)}
+html body.emora-atelier.emora-atelier :is(.community-intro h1 em,.community-intro h1,.community-intro-copy h1 em){color:var(--at-ink)!important;-webkit-text-fill-color:currentColor}
+html body.emora-atelier.emora-atelier .community-intro h1 em{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is(.community-side-card,.community-letter,.community-quiet-card){background:var(--at-paper)!important;border:1px solid var(--at-line);box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.sessions-builder,.weekly-review,.memory-center,.sessions-history){padding:32px;margin-bottom:24px}
+html body.emora-atelier.emora-atelier :is(.sessions-builder,.weekly-review,.memory-center,.sessions-history)>header{margin-bottom:28px;gap:24px}
+html body.emora-atelier.emora-atelier :is(.sessions-builder,.weekly-review,.memory-center,.sessions-history) h2{font-size:38px}
+@media(max-width:760px){html body.emora-atelier.emora-atelier :is(.sessions-builder,.weekly-review,.memory-center,.sessions-history,.journal-editor){padding:20px}}html body.emora-atelier.emora-atelier :is(.community-banner>strong,.guideline-item>span){color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is(.post-index,.post-author>span,.community-pill,.together-safety summary,.together-invite-panel>header>span,.focus-privacy-line>span,#focus-access-kicker,.tc-label){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .together-hero p{color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .together-safety a{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier .notification-hero h1 em{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier .notification-summary>span{background:var(--at-paper);color:var(--at-muted)!important;border-color:var(--at-line)}
+html body.emora-atelier.emora-atelier #notification-status{color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier [data-insight-days]{color:var(--at-ink)!important;background:var(--at-paper)!important;border-color:var(--at-line)}
+html body.emora-atelier.emora-atelier [data-insight-days][aria-pressed=true]{background:var(--at-soft)!important;color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is(.studio-intro,.library-hero,.notification-hero,.together-hero,.sessions-hero,.insights-header,.profile-header) h1{font-family:Sora,sans-serif;font-size:clamp(32px,3.3vw,48px);font-weight:500;line-height:1.17;letter-spacing:-.055em}
+html body.emora-atelier.emora-atelier :is(.studio-intro,.library-hero,.notification-hero,.together-hero,.sessions-hero) h1 em{font-family:'Instrument Serif',serif;font-weight:400;font-size:1.3em;letter-spacing:-.03em}
+html body.emora-atelier.emora-atelier .insights-header{background:0 0!important;border-bottom:1px solid var(--at-line);padding-block:28px}
+html body.emora-atelier.emora-atelier :is(.insights-plan-mark small,.wday-label){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .notification-live-stage{padding:24px;display:block;min-height:0}
+.inbox-letter-heading{display:flex;justify-content:space-between;padding-bottom:20px;border-bottom:1px solid var(--at-line);color:var(--at-accent);font-size:9px;letter-spacing:.12em}
+html body.emora-atelier.emora-atelier .notification-live-note{transform:none;position:relative;inset:auto;width:auto;margin-top:20px;padding:0;border:0!important}
+html body.emora-atelier.emora-atelier .notification-live-note h2{font-size:34px}
+.research-principles{padding:26px;border:1px solid var(--at-line);border-top:3px solid var(--at-accent);background:var(--at-paper)}
+.research-principles p{padding-block:16px;border-bottom:1px solid var(--at-line);font-size:12px;color:var(--at-ink)}
+.research-principles p:last-child{border-bottom:0}
+.research-principles b{font-size:10px;font-weight:400;margin-right:14px;color:var(--at-accent)}
+html body.emora-atelier.emora-atelier .emora-phase-line{background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:3px;backdrop-filter:none;box-shadow:none}
+html body.emora-atelier.emora-atelier .emora-phase-line a{background:0 0}
+html body.emora-atelier.emora-atelier .emora-phase-line :is(span,strong){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier #community-intro-title em{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier :is([data-community-filter],[data-community-principle],.community-pulse>span){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier #community-tab-privacy{color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier .play-world{background:var(--at-bg)!important}
+html body.emora-atelier.emora-atelier .play-world-copy :is(h1,p){color:#fff7ec!important;text-shadow:0 2px 18px #0008}
+html body.emora-atelier.emora-atelier .play-world-copy h1 em{color:#f4b79b!important}
+html body.emora-atelier.emora-atelier :is(.play-interactions,.play-remix-world,.play-voice-keepsake,.play-world-footer){background:var(--at-bg)!important;color:var(--at-ink);border-color:var(--at-line)}
+html body.emora-atelier.emora-atelier :is(.play-world-panel,.play-remix-desk,.play-voice-keepsake,.play-completion-layer){background:var(--at-paper)!important;color:var(--at-ink);border:1px solid var(--at-line);border-radius:3px;box-shadow:none}
+html body.emora-atelier.emora-atelier :is(.play-depth,.play-interactions,.play-remix-world,.play-voice-keepsake,.play-ritual-archive) :is(h2,h3,h4,strong){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier :is(.play-depth,.play-interactions,.play-remix-world,.play-voice-keepsake,.play-ritual-archive) :is(p,small,label,.play-section-index,.play-remix-modes span){color:var(--at-muted)!important}
+html body.emora-atelier.emora-atelier :is(.play-depth,.play-interactions,.play-remix-world,.play-voice-keepsake,.play-ritual-archive) em{color:var(--at-accent)!important}
+html body.emora-atelier.emora-atelier .ritual-fragment{background:var(--at-paper)!important;border:1px solid var(--at-line);border-top:3px solid var(--at-accent);padding:28px;border-radius:3px;box-shadow:none;min-height:240px}
+html body.emora-atelier.emora-atelier .ritual-fragment::after,html body.emora-atelier.emora-atelier .ritual-fragment::before{display:none}
+html body.emora-atelier.emora-atelier .ritual-fragment :is(h4,p,.quest-number){color:var(--at-ink)!important}
+html body.emora-atelier.emora-atelier :is(.ritual-fragment button,.play-memory-form button,.play-space-controls button,.play-remix-desk button,.play-keepsake-controls button){background:var(--at-accent)!important;color:var(--at-on-accent)!important;border:0;border-radius:3px;min-height:44px;padding:12px 18px}
+html body.emora-atelier.emora-atelier .play-world-footer a{color:var(--at-accent)}
+html body.emora-atelier.emora-atelier .emora-stage-header{padding:18px;border:1px solid var(--at-line)!important;border-radius:3px}
+html body.emora-atelier.emora-atelier .emora-orbit-center{background:var(--at-paper);color:var(--at-muted);border:1px solid var(--at-line)}
+html body.emora-atelier.emora-atelier :is(.emora-avatar-loader,.emora-compose-status,.emora-session-state){color:#f4eee2}
+html body.emora-atelier.emora-atelier .emora-avatar-loader{background:#17232d;padding:8px 14px;border-radius:3px}
+html body.emora-atelier.emora-atelier .together-outgoing summary{color:var(--at-muted)!important}
+html body.emora-atelier .front-hero h1{font-size:clamp(60px,6.5vw,98px)}
+.post-author-name{display:block;font-size:14px;color:var(--at-ink)}

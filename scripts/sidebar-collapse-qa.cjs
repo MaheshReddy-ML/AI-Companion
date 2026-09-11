@@ -1,0 +1,19 @@
+const {chromium}=require('playwright'),{AxeBuilder}=require('@axe-core/playwright'),assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true}),context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),page=await context.newPage(),base='http://127.0.0.1:8001',out='tmp/sidebar-refined-qa';fs.mkdirSync(out,{recursive:true});const results=[],errors=[];let token;page.on('pageerror',e=>errors.push(e.message));
+try{
+const response=await context.request.post(base+'/api/auth/register',{data:{name:'Sidebar Review',email:`sidebar-${Date.now()}@example.com`,password:'Sidebar-Test-963!'}});assert(response.ok());const session=await response.json();token=session.token;const headers={Authorization:`Bearer ${token}`};await context.request.patch(base+'/api/product/meeting',{headers,data:{preferredName:'Reviewer',complete:true,step:7,expectedVersion:0}});
+await context.addInitScript(s=>{localStorage.setItem('token',s.token);localStorage.setItem('user',JSON.stringify(s.user));},session);
+for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});for(const route of ['dashboard','journal','goals','profile']){
+await page.goto(base+'/'+route);await page.locator('.workspace-collapse-toggle').waitFor();await page.evaluate(()=>document.fonts.ready);
+for(const collapsed of [false,true]){
+if((await page.locator('.workspace-collapse-toggle').getAttribute('aria-expanded'))===String(collapsed))await page.locator('.workspace-collapse-toggle').click();
+await page.screenshot({path:`${out}/${route}-${theme}-${collapsed?'collapsed':'expanded'}.png`});
+const geometry=await page.evaluate(()=>{const rail=document.querySelector('.shared-workspace-rail').getBoundingClientRect();return{width:rail.width,overflow:document.documentElement.scrollWidth>innerWidth+1,icons:[...document.querySelectorAll('.shared-workspace-rail nav>a i,.shared-workspace-rail nav>button i')].map(i=>{const r=i.getBoundingClientRect();return{left:r.left,right:r.right,center:r.left+r.width/2,inside:r.left>=rail.left&&r.right<=rail.right};})};});assert(!geometry.overflow);if(collapsed){assert.equal(Math.round(geometry.width),80);assert(geometry.icons.every(i=>i.inside&&Math.abs(i.center-40)<2));await page.locator('.shared-workspace-rail nav>a').first().focus();await page.locator('.workspace-rail-tooltip').waitFor({state:'visible'});assert.match(await page.locator('.workspace-rail-tooltip').textContent(),/Overview/);await page.keyboard.press('Escape');assert(await page.locator('.workspace-rail-tooltip').isHidden());}
+const violations=(await new AxeBuilder({page}).include('.shared-workspace-rail').analyze()).violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.html)}));results.push({theme,route,collapsed,geometry,violations});assert.equal(violations.length,0);
+}
+}
+}
+await page.reload();assert.equal(await page.locator('.workspace-collapse-toggle').getAttribute('aria-expanded'),'false');await page.setViewportSize({width:390,height:844});assert(await page.locator('.workspace-collapse-toggle').isHidden());await page.setViewportSize({width:1440,height:800});await page.waitForFunction(()=>document.querySelector('.workspace-collapse-toggle').getAttribute('aria-expanded')==='false');
+await page.locator('.shared-workspace-rail nav>button').scrollIntoViewIfNeeded();await page.locator('.shared-workspace-rail nav>button').focus();assert.match(await page.locator('.workspace-rail-tooltip').textContent(),/Help beside/);await page.screenshot({path:out+'/short-screen-tooltip.png'});
+assert.equal(errors.length,0);
+}finally{const cleanup=token?(await context.request.delete(base+'/api/account',{headers:{Authorization:`Bearer ${token}`}})).status():null;fs.writeFileSync(out+'/results.json',JSON.stringify({results,errors,cleanup},null,2));await browser.close();}console.log('Sidebar checks passed');})().catch(e=>{console.error(e);process.exitCode=1});

@@ -1,0 +1,46 @@
+/* Meet-only viewport, navigation and voice accessibility refinements. */
+.your-emora-body .emora-transcript {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+}
+.your-emora-body .emora-message { flex-shrink: 0; }
+.your-emora-body .emora-listen-orb[aria-pressed="true"] {
+  outline: 2px solid #e8d4b2;
+  outline-offset: 3px;
+}
+.your-emora-body .emora-listen-orb,
+.your-emora-body .emora-send-orb,
+.your-emora-body .emora-interrupt-orb { min-width: 44px; min-height: 44px; }
+@media (max-width: 820px) {
+  body.your-emora-body { padding: 0; height: 100dvh; overflow: hidden; }
+  .your-emora-body .emora-live-stage,
+  .your-emora-body .emora-stage-panel,
+  .your-emora-body .emora-immersive-room,
+  .your-emora-body .your-emora-main {
+    height: var(--meet-viewport-height, 100dvh);
+    min-height: 0;
+  }
+  .your-emora-body .mobile-app-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    height: 64px;
+    padding: 6px;
+    gap: 4px;
+    overflow-x: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .your-emora-body .mobile-app-nav a { flex: 0 0 52px; min-width: 52px; }
+  .your-emora-body .emora-composer-dock { bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .your-emora-body .emora-compose textarea { font-size: 16px; }
+  .your-emora-body .emora-dialogue-layer { bottom: 255px; }
+  .your-emora-body .emora-character-switch { bottom: 190px; }
+  .your-emora-body .emora-utility-rail { bottom: 190px; }
+  .your-emora-body .atmosphere-status { display: none; }
+  .your-emora-body .emora-character-crop { height: 65%; }
+  .your-emora-body[data-meet-keyboard="true"] .mobile-app-nav { display: none; }
+  .your-emora-body[data-meet-keyboard="true"] .emora-composer-dock { bottom: 12px; }
+  .your-emora-body[data-meet-keyboard="true"] .emora-dialogue-layer { bottom: 145px; }
+  .your-emora-body[data-meet-keyboard="true"] .emora-character-switch,
+  .your-emora-body[data-meet-keyboard="true"] .emora-utility-rail { display: none; }
+}

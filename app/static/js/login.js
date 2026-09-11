@@ -1,8 +1,10 @@
+import { initAuthFields, initializeGoogleSignIn } from "./auth-form.js";
 import {
   apiRequest,
   ensureSession,
   initChrome,
   redirect,
+  postAuthPath,
   showStatus,
   storeSession,
 } from "./common.js";
@@ -17,6 +19,14 @@ const googleSlot = document.getElementById("google-login-button");
 const submitButtonLabel = submitButton.innerHTML;
 
 initChrome();
+const validateFields = initAuthFields(form, togglePasswordButton, passwordInput);
+
+const loginParams = new URLSearchParams(window.location.search);
+if (loginParams.get("registered") === "1") {
+  const registeredEmail = loginParams.get("email") || "";
+  if (registeredEmail) identifierInput.value = registeredEmail;
+  showStatus(statusElement, "Account created. Sign in with your new credentials.", "success");
+}
 
 async function consumeCallbackParameters() {
   const params = new URLSearchParams(window.location.search);
@@ -24,7 +34,7 @@ async function consumeCallbackParameters() {
   if (!token) {
     const queryError = params.get("error") || params.get("googleError");
     if (queryError) {
-      showStatus(statusElement, decodeURIComponent(queryError), "error");
+      showStatus(statusElement, queryError, "error");
     }
     return false;
   }
@@ -39,28 +49,31 @@ async function consumeCallbackParameters() {
   });
 
   await ensureSession({ redirectTo: null });
-  redirect("/dashboard");
+  redirect(postAuthPath());
   return true;
 }
 
 async function submitLogin(event) {
   event.preventDefault();
+  if (submitButton.disabled) return;
   showStatus(statusElement, "");
 
   const identifier = identifierInput.value.trim();
   const password = passwordInput.value;
 
-  if (!identifier || !password) {
-    showStatus(statusElement, "Enter username/email and password.");
-    return;
-  }
+  if (!validateFields([
+    [identifierInput, !identifier ? "Enter your email address." : !identifierInput.validity.valid ? "Enter a valid email address." : ""],
+    [passwordInput, !password ? "Enter your password." : ""],
+  ])) return;
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Signing in...";
 
   try {
     const response = await apiRequest("/api/auth/login", {
       method: "POST",
+      signal: AbortSignal.timeout(30000),
       body: {
         email: identifier,
         password,
@@ -68,11 +81,12 @@ async function submitLogin(event) {
     });
     storeSession(response);
     await ensureSession({ redirectTo: null });
-    redirect("/dashboard");
+    redirect(postAuthPath());
   } catch (error) {
-    showStatus(statusElement, error.message || "Login failed.");
+    showStatus(statusElement, (error.name === "TimeoutError" ? "Sign-in took too long. Please try again." : error.message) || "Login failed.");
   } finally {
     submitButton.disabled = false;
+    submitButton.removeAttribute("aria-busy");
     submitButton.innerHTML = submitButtonLabel;
   }
 }
@@ -88,50 +102,22 @@ async function handleGoogleCredential(response) {
   try {
     const payload = await apiRequest("/api/auth/google", {
       method: "POST",
+      signal: AbortSignal.timeout(30000),
       body: {
         token: response.credential,
       },
     });
     storeSession(payload);
     await ensureSession({ redirectTo: null });
-    redirect("/dashboard");
+    redirect(postAuthPath());
   } catch (error) {
     showStatus(statusElement, error.message || "Google login failed.");
   }
 }
 
 function initializeGoogleButton() {
-  const clientId = window.APP_CONFIG?.googleClientId;
-  if (!clientId) {
-    googleSlot.innerHTML = '<p class="muted">Google sign-in is currently unavailable.</p>';
-    return;
-  }
-
-  if (!window.google?.accounts?.id) {
-    googleSlot.innerHTML = '<p class="muted">Google sign-in is temporarily unavailable.</p>';
-    return;
-  }
-
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    callback: handleGoogleCredential,
-  });
-
-  const width = Math.max(220, Math.min(360, Math.round(googleSlot.getBoundingClientRect().width || 280)));
-  window.google.accounts.id.renderButton(googleSlot, {
-    theme: "outline",
-    size: "large",
-    shape: "pill",
-    text: "continue_with",
-    width,
-  });
+  initializeGoogleSignIn(googleSlot, handleGoogleCredential, "continue_with");
 }
-
-togglePasswordButton.addEventListener("click", () => {
-  const nextType = passwordInput.type === "password" ? "text" : "password";
-  passwordInput.type = nextType;
-  togglePasswordButton.textContent = nextType === "password" ? "Show" : "Hide";
-});
 
 form.addEventListener("submit", submitLogin);
 

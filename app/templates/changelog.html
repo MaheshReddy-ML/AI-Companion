@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block body_class %}app-body public-information-page{% endblock %}
+{% block content %}
+<main class="public-information" id="main-content">
+  <a class="workspace-logo" href="/"><img src="/static/images/emora-logo-v2-64.png" alt=""><span>EMORA</span></a>
+  <p class="workspace-kicker">CHANGELOG</p><h1>What changed, without the fog.</h1>
+  <article><time datetime="2026-08-30">30 August 2026</time><h2>Trust and product operations</h2><ul><li><strong>Added:</strong> consented, content-free journey events and resumable first-run state.</li><li><strong>Added:</strong> server-owned feature controls for web grounding, scheduled delivery, and community writes.</li><li><strong>Added:</strong> public Trust Center, live status, robots rules, and public sitemap.</li><li><strong>Privacy:</strong> product analytics remains off until explicitly enabled and expires after 90 days.</li></ul></article>
+  <article><time datetime="2026-08-28">28 August 2026</time><h2>Premium experience completion</h2><ul><li><strong>Added:</strong> guided Sessions, Weekly Review, Memory Center, Research Studio entry, and richer notifications.</li><li><strong>Improved:</strong> shared workspace navigation while preserving immersive Play and Meet Emora layouts.</li></ul></article>
+  <p><a href="/trust">Read the Trust Center</a> · <a href="/status">Check status</a></p>
+</main>
+{% endblock %}

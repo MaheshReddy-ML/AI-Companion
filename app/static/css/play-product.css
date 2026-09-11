@@ -1,0 +1,209 @@
+#play-hub{background:var(--at-bg)}
+#play-hub .play-product-layout{display:grid;grid-template-columns:254px minmax(0,1fr);min-height:100dvh}
+#play-hub .play-product-layout>.workspace-rail{position:sticky;top:0;height:100dvh;width:auto}
+#play-hub .play-studio-main{min-width:0;width:100%;max-width:1450px;margin:0 auto;padding:0 40px 40px;background:var(--at-bg)!important;overflow:visible}
+.play-product-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:82px;padding:18px 0;border-bottom:1px solid var(--at-line)}
+.play-product-topbar a{font-size:12px;color:var(--at-muted);text-decoration:none}
+.play-product-topbar>div{display:flex;align-items:center;gap:20px}
+.play-product-topbar button{min-height:38px;padding:10px 14px;background:var(--at-paper);color:var(--at-muted);border:1px solid var(--at-line);border-radius:4px;font-size:10px;cursor:pointer}
+#play-hub .play-product-hero{position:relative;display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:32px;height:auto;min-height:0;max-height:none;overflow:visible;background:0 0}
+#play-hub .play-product-intro{position:relative;inset:auto;padding:0;width:auto}
+#play-hub .play-product-intro h1{letter-spacing:-.04em;margin:20px 0;color:var(--at-ink);max-width:550px}
+#play-hub .play-product-intro h1 em{color:var(--at-accent)}
+.play-product-intro>p:not(.edition-label){font-size:12px;line-height:1.9;max-width:410px;color:var(--at-muted)}
+.play-product-intro .front-primary{margin-top:18px;padding:14px 18px;min-height:48px}
+.play-product-access{display:flex;align-items:center;gap:10px;font-size:9px;color:var(--at-muted);margin-top:22px}
+.play-product-access>span{font-size:8px;letter-spacing:.1em}
+.play-product-access strong{font-weight:500;padding:5px 8px;border:1px solid var(--at-line);border-radius:3px}
+#play-hub .play-room-preview{position:relative;min-width:0;overflow:hidden;border:1px solid var(--at-line);background:#111923}
+#play-hub .play-room-scene{position:absolute;inset:0;width:100%;height:100%}
+#play-hub .play-room-fallback{opacity:1}
+#play-hub .play-room-vignette{background:linear-gradient(transparent 45%,#071018cc)}
+.play-preview-label{position:absolute;left:20px;top:20px;color:#f4ede1;font-size:8px;letter-spacing:.12em}
+#play-hub .play-garden-state{position:absolute;inset:auto 16px 18px;width:auto;max-width:none;display:flex;align-items:center;gap:10px;padding:15px;background:#16212bed;border:1px solid #68727a;border-radius:4px;color:#f4ede1}
+#play-hub .play-garden-state :is(p,small,b){color:#f4ede1}
+#play-hub .play-garden-state p{font-size:12px;margin:0}
+#play-hub .play-garden-state small{font-size:9px}
+#play-hub .play-garden-state b{margin-left:auto}
+.play-product-tabs{display:flex;gap:0;border-block:1px solid var(--at-line);margin-bottom:35px;overflow-x:auto}
+.play-product-tabs a{display:flex;align-items:center;gap:12px;flex:1;padding:20px 14px;color:var(--at-accent);font-size:9px;text-decoration:none;white-space:nowrap}
+.play-product-tabs a:first-child{padding-left:0}
+.play-product-tabs span{color:var(--at-ink);font-size:12px}
+.play-product-tabs a:hover span{color:var(--at-accent)}
+#play-hub :is(.play-depth,.play-ritual-archive,.play-interactions,.play-remix-world,.play-voice-keepsake){margin:0 0 36px;padding:28px 0;max-width:none;width:100%;background:0 0!important;border:0!important;border-radius:0}
+#play-hub :is(.play-ritual-heading,.play-ritual-archive>header,.play-interaction-intro){display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:end;padding:0 0 24px;margin:0}
+#play-hub :is(.play-ritual-heading,.play-ritual-archive>header,.play-interaction-intro) h2{font:500 25px/1.3 Sora,sans-serif;margin:12px 0 0}
+#play-hub :is(.play-ritual-heading,.play-ritual-archive>header,.play-interaction-intro)>p:last-child{font-size:12px;line-height:1.9;max-width:370px;justify-self:end}
+#play-hub .play-section-index{font-size:9px;letter-spacing:.13em;margin:0}
+#play-hub .play-interaction-intro>.play-section-index{grid-column:1/-1}
+#play-hub .play-interaction-intro h2{margin:0}
+#play-hub .play-living-progress{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;padding:18px 22px;background:var(--at-paper)!important;border:1px solid var(--at-line)}
+#play-hub .play-living-progress :is(span,p){font-size:10px}
+#play-hub .play-living-progress strong{display:block;font-size:12px;margin-top:7px}
+#play-hub .play-progress-track{grid-column:1/-1;background:var(--at-raised);height:3px}
+#play-hub .play-progress-track i{background:var(--at-accent);box-shadow:none}
+#play-hub .play-daily-note{display:flex;gap:16px;justify-content:space-between;border:0!important;background:0 0!important}
+#play-hub .play-daily-note :is(span,p){font-size:9px;margin:0}
+#play-hub .play-ritual-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+#play-hub .ritual-fragment{display:flex;flex-direction:column;gap:16px;min-height:270px;grid-row:auto;grid-column:auto;opacity:1;transform:none}
+#play-hub .ritual-fragment .quest-number{position:static;display:block;font:9px Sora,sans-serif;letter-spacing:.05em}
+#play-hub .ritual-fragment .quest-spark{display:none}
+#play-hub .ritual-fragment .settings-row-label{margin:0}
+#play-hub .ritual-fragment h3{font:500 21px/1.35 Sora,sans-serif;margin:4px 0 12px}
+#play-hub .ritual-fragment p{font:12px/1.8 Sora,sans-serif;margin:0}
+#play-hub .ritual-fragment button{position:static;width:100%;margin-top:auto}
+#play-hub .play-next-unlock{margin-top:20px;border-top:1px solid var(--at-line);padding:18px 0}
+#play-hub .play-next-unlock h3{font-size:28px}
+#play-hub .play-ritual-archive{padding:24px;background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:4px}
+#play-hub .play-archive-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#play-hub .play-archive-metrics article{padding:16px}
+#play-hub .play-archive-metrics strong{font:32px 'Instrument Serif',serif}
+#play-hub .play-archive-metrics small{font-size:8px}
+#play-hub .play-interactions{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;border-top:1px solid var(--at-line)!important}
+#play-hub .play-world-panel{padding:24px;background:var(--at-paper)!important;border:1px solid var(--at-line);overflow:hidden}
+#play-hub .play-panel-heading{gap:12px;padding:0;margin-bottom:18px}
+#play-hub .play-panel-heading>span{display:none}
+#play-hub .play-panel-heading h3{font:500 21px/1.35 Sora,sans-serif;margin:10px 0 0}
+#play-hub .play-panel-heading p{font-size:8px;letter-spacing:.12em}
+#play-hub .play-panel-copy{font-size:12px;line-height:1.8}
+#play-hub .play-memory-form{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+#play-hub .play-memory-form input{padding:12px;min-height:44px;font-size:12px}
+#play-hub .play-memory-list{min-height:80px;margin-top:20px}
+#play-hub .play-memory-list p{font-size:12px}
+#play-hub .play-space-maker{display:flex;flex-direction:column;gap:20px}
+#play-hub .play-space-preview{position:relative;width:100%;min-height:0;flex:0 0 140px;border-radius:3px}
+#play-hub .play-space-preview span{font-size:8px;color:#fff7ec}
+#play-hub .play-space-content{padding:0}
+#play-hub .play-space-controls{display:grid;grid-template-columns:1fr;gap:12px;margin-top:20px}
+#play-hub .play-space-controls label{display:grid;grid-template-columns:80px 1fr;align-items:center;gap:14px}
+#play-hub .play-space-controls :is(span,select){font-size:10px}
+#play-hub .play-space-controls select{width:100%;min-width:0;padding:10px;min-height:40px}
+#play-hub .play-remix-world{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;border-top:1px solid var(--at-line)!important}
+#play-hub .play-remix-copy h2{font:500 28px/1.3 Sora,sans-serif;margin:16px 0}
+#play-hub .play-remix-copy>p:not(.play-section-index){font-size:12px;line-height:1.8;max-width:340px}
+#play-hub .play-remix-modes{display:flex;flex-wrap:wrap;gap:8px}
+#play-hub .play-remix-modes span{padding:6px 8px;border:1px solid var(--at-line);border-radius:3px;font-size:8px}
+#play-hub .play-remix-desk{padding:22px}
+#play-hub .play-remix-desk textarea{width:100%;padding:12px}
+#play-hub .play-remix-desk>div{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px}
+#play-hub .play-remix-desk label{display:grid;gap:6px;flex:1}
+#play-hub .play-remix-desk label span{font-size:9px}
+#play-hub .play-remix-desk select{width:100%;min-width:0;padding:10px;font-size:10px}
+#play-hub .play-voice-keepsake{display:grid;grid-template-columns:1fr 1.2fr;gap:24px;padding:24px;background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:4px}
+#play-hub .play-voice-keepsake h2{font:500 25px/1.3 Sora,sans-serif;margin:16px 0}
+#play-hub .play-voice-keepsake p{font-size:12px;line-height:1.8}
+#play-hub .play-keepsake-controls{display:grid;align-content:center;gap:12px}
+#play-hub .play-keepsake-controls :is(label,select,button){font-size:12px}
+#play-hub .play-keepsake-controls select{min-height:44px;padding:12px;width:100%;min-width:0}
+#play-hub .play-world-footer{width:100%;margin:0;padding:24px 0 0;display:flex;justify-content:space-between;gap:18px;border-top:1px solid var(--at-line)}
+#play-hub .play-world-footer :is(a,span){color:var(--at-muted);font-size:9px}
+#play-hub .play-completion-layer{position:fixed;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:min(480px,calc(100% - 32px));max-height:calc(100dvh - 48px);overflow-y:auto;z-index:100;padding:32px;background:var(--at-paper)!important;box-shadow:0 0 0 100vmax #0009!important}
+@media(max-width:1150px){#play-hub .play-studio-main{padding-inline:24px}
+#play-hub .play-product-hero{gap:24px}
+#play-hub .play-ritual-grid{grid-template-columns:1fr}
+#play-hub .ritual-fragment{min-height:0;display:grid;grid-template-columns:1fr auto;gap:14px}
+#play-hub .ritual-fragment .quest-number{grid-column:1/-1}
+#play-hub .ritual-fragment button{align-self:end}}@media(max-width:900px){#play-hub .play-product-layout{display:block}
+#play-hub .play-product-layout>.workspace-rail{display:none}
+#play-hub .play-studio-main{padding-bottom:110px}}@media(max-width:600px){#play-hub .play-studio-main{padding-inline:20px}
+.play-product-topbar>div{gap:12px}
+.play-product-topbar a{font-size:9px}
+#play-hub .play-product-hero{grid-template-columns:1fr;gap:24px;padding-top:30px}
+#play-hub .play-product-intro h1{font-size:32px}
+#play-hub .play-room-preview{height:160px}
+.play-product-tabs{display:grid;grid-template-columns:1fr 1fr}
+.play-product-tabs a{padding:15px 8px;gap:8px}
+.play-product-tabs a:first-child{padding-left:8px}
+.play-product-tabs span{font-size:10px}
+#play-hub :is(.play-ritual-heading,.play-ritual-archive>header,.play-interaction-intro,.play-interactions,.play-remix-world,.play-voice-keepsake){grid-template-columns:1fr;gap:18px}
+#play-hub :is(.play-ritual-heading,.play-ritual-archive>header,.play-interaction-intro)>p:last-child{justify-self:start}
+#play-hub .play-living-progress{grid-template-columns:1fr}
+#play-hub .play-daily-note{flex-direction:column;gap:8px}
+#play-hub .ritual-fragment{display:flex;padding:20px}
+#play-hub .play-archive-metrics{grid-template-columns:1fr 1fr}
+#play-hub :is(.play-ritual-archive,.play-world-panel,.play-remix-desk,.play-voice-keepsake){padding:20px}
+#play-hub .play-world-footer span{display:none}}#play-hub .play-room-scene{z-index:0;transform:none}
+#play-hub .play-garden-state,#play-hub .play-preview-label{z-index:2}
+#play-hub .play-ritual-grid{grid-template-rows:auto;grid-auto-rows:auto;margin-top:18px;background:0 0;border:0}
+#play-hub .play-milestones{display:flex;justify-content:space-between;gap:24px;margin-top:24px;padding-top:24px;border-color:var(--at-line)}
+#play-hub .play-milestones h3{font:500 18px/1.4 Sora,sans-serif;margin:12px 0}
+#play-hub .play-milestones :is(p,header>span){color:var(--at-muted)!important;font-size:10px}
+#play-hub .play-interaction-intro{grid-column:1/-1;background:0 0}
+#play-hub :is(.play-memory-fragment,.play-space-maker){grid-column:auto;min-height:0}
+#play-hub .play-space-controls{background:0 0}
+#play-hub .play-remix-desk>div,#play-hub .play-space-controls label{background:0 0;padding:0}
+#play-hub .play-remix-desk label>span{color:var(--at-muted)}
+#play-hub :is(.play-living-progress span,.play-daily-note span,.play-next-unlock span){color:var(--at-muted)!important}
+#play-hub .play-milestones #play-milestone-list{flex:1}
+@media(max-width:600px){#play-hub .play-milestones{flex-direction:column}}#play-hub [data-entitlement][data-locked=true]{opacity:1}
+#play-hub :is(.play-archive-metrics,.play-archive-list,.play-keepsake-controls){opacity:1!important;filter:none!important}
+.play-access-note{display:none}
+#play-hub [data-locked=true]>.play-access-note{display:block;font-size:12px;line-height:1.8}
+#play-hub [data-locked=true]>.play-access-note a{color:var(--at-accent)}
+#play-hub .play-ritual-archive[data-locked=true] :is(.play-archive-metrics,.play-archive-list){display:none}
+#play-hub .play-plan-note{font-size:10px;color:var(--at-muted)}
+#play-hub .mobile-app-nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#play-hub .play-milestones>header{min-width:0}
+#play-hub .play-access-note a{text-decoration:underline;text-underline-offset:3px}
+#play-hub .play-remix-world{min-height:0;padding-block:40px;align-items:center}
+#play-hub .play-remix-desk label{background:0 0!important;color:var(--at-muted)}
+#play-hub [data-section-panel][hidden]{display:none!important}
+#play-hub [data-section-panel]{scroll-margin-top:24px}
+#play-hub .play-product-hero{grid-template-columns:1.5fr 1fr;padding:30px 0;gap:36px}
+#play-hub .play-room-preview{isolation:isolate;height:210px;border-radius:8px}
+#play-hub .play-product-intro>p{max-width:520px}
+#play-hub .play-product-access{margin-top:18px}
+.play-hero-links{display:flex;flex-wrap:wrap;gap:22px;margin-top:22px}
+.play-hero-links a{font-size:11px;color:var(--at-accent);text-decoration:underline;text-underline-offset:5px}
+#play-hub .play-product-tabs{display:flex;gap:24px;border-top:0;margin-bottom:26px}
+#play-hub .play-product-tabs a{flex:0 0 auto;border-bottom:3px solid transparent;padding:18px 0}
+#play-hub .play-product-tabs a[aria-current]{border-bottom-color:var(--at-accent)}
+#play-hub .play-product-tabs a[aria-current] span{color:var(--at-accent)}
+#play-hub .play-product-tabs span{font-size:12px}
+#play-hub .play-depth{display:flex;flex-direction:column;padding-top:0}
+#play-hub .play-ritual-heading{order:0}
+#play-hub .play-daily-note{order:1;padding:0;margin:0}
+#play-hub .play-daily-note>span{display:none}
+#play-hub .play-ritual-grid{order:2;gap:18px}
+#play-hub .play-living-progress{order:3;margin:24px 0 0;border-radius:6px}
+#play-hub .play-next-unlock{order:4}
+#play-hub .play-milestones{order:5}
+#play-hub .ritual-fragment{border:1px solid var(--at-line)!important;border-radius:8px;background:var(--at-paper)!important;padding:24px;gap:20px}
+#play-hub .ritual-fragment::after,#play-hub .ritual-fragment::before{display:none!important}
+#play-hub .quest-number{display:flex;align-items:center;justify-content:space-between;text-transform:uppercase;color:var(--at-muted)}
+#play-hub .quest-index{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:var(--at-raised);color:var(--at-accent);font:24px 'Instrument Serif',serif}
+#play-hub .ritual-fragment button{min-height:44px;border-radius:4px;font-size:12px}
+#play-hub .ritual-fragment.state-in_progress{border-color:var(--at-accent)!important}
+#play-hub .ritual-fragment.state-completed button{background:var(--at-raised)!important;color:var(--at-ink)!important;opacity:1}
+#play-hub .play-interactions{padding-top:0;border-top:0!important}
+#play-hub .play-world-panel{border-radius:8px}
+#play-hub .play-memory-form input{border:1px solid var(--at-line);border-radius:4px;background:var(--at-bg)}
+#play-hub .play-space-preview{height:190px;flex-basis:190px}
+#play-hub .play-remix-world{padding-top:8px;border-top:0!important;align-items:start}
+#play-hub .play-remix-desk{background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:8px}
+#play-hub .play-remix-desk textarea{min-height:230px;font:14px/1.8 Sora,sans-serif;background:0 0}
+#play-hub .play-world-footer{margin-top:24px}
+@media(max-width:700px){#play-hub .play-product-hero{grid-template-columns:1fr;gap:20px}
+#play-hub .play-room-preview{height:135px}
+#play-hub .play-product-tabs{gap:22px;overflow-x:auto}
+#play-hub .play-ritual-grid{grid-template-columns:1fr}
+#play-hub .ritual-fragment{min-height:0}
+#play-hub .play-ritual-heading{grid-template-columns:1fr;gap:12px}
+#play-hub .play-garden-state{inset:auto 12px 12px;padding:10px}}
+
+#play-hub #play-daily-note{background:transparent!important}
+#play-hub .play-product-intro h1{font-family:'Sora',sans-serif;font-size:clamp(28px,3vw,44px);font-weight:500;line-height:1.15}
+html body.emora-atelier .mission-dialog{width:min(600px,calc(100% - 28px));max-height:90dvh;padding:28px;border:1px solid var(--at-line);border-radius:18px!important;background:var(--at-paper)!important;color:var(--at-ink)}
+.mission-dialog form>header{display:flex;align-items:center;justify-content:space-between;gap:15px;font:9px Sora,sans-serif;letter-spacing:.1em;color:var(--at-accent)}
+.mission-dialog header button{width:38px;height:38px;border:1px solid var(--at-line);border-radius:50%;background:transparent;color:var(--at-ink);font-size:24px;cursor:pointer}
+.mission-dialog h2{font:44px/1.06 'Instrument Serif',serif;margin:18px 0}
+.mission-dialog p{font:12px/1.8 Sora,sans-serif;color:var(--at-muted)}
+#mission-timer{padding:12px;background:var(--at-soft);color:var(--at-accent);border-radius:7px}
+#mission-prompts{display:grid;gap:16px;margin:20px 0}
+#mission-prompts label{display:grid;gap:8px;font:12px/1.5 Sora,sans-serif;color:var(--at-ink)}
+#mission-prompts textarea{box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--at-line);border-radius:8px;background:var(--at-bg);color:var(--at-ink);font:13px/1.6 Sora,sans-serif;resize:vertical}
+.mission-dialog .mission-privacy{font-size:10px}
+#mission-submit{display:flex;align-items:center;justify-content:space-between;width:100%;padding:16px 20px;background:var(--at-accent);color:var(--at-on-accent);border:0;border-radius:10px;font:500 13px Sora,sans-serif;cursor:pointer}
+.mission-dialog :is(button,textarea):focus-visible{outline:2px solid var(--at-accent);outline-offset:3px}
+#mission-error{color:var(--at-accent)}
+@media(max-width:500px){html body.emora-atelier .mission-dialog{padding:22px}.mission-dialog h2{font-size:36px}}

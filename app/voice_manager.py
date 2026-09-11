@@ -187,7 +187,11 @@ class VoiceManager:
         self._voices: Dict[str, VoiceMeta] = {}
         self._kokoro_pipelines: Dict[str, Any] = {}
         self._qwen_models: Dict[str, Any] = {}
+        self._qwen_backend_kinds: Dict[str, str] = {}
+        self._active_qwen_backend_kind = "mlx"
         self._load_lock = threading.RLock()
+        self._qwen_generation_lock = threading.RLock()
+        self._kokoro_generation_lock = threading.RLock()
         self._scan_models()
 
     def _load_metadata(self) -> List[Dict]:
@@ -278,6 +282,23 @@ class VoiceManager:
                 serialized["fallbackEngine"] = "kokoro"
             voices.append(serialized)
         return voices
+
+    def unload_models(self) -> None:
+        """Drop lazy TTS caches so serverless workers can release memory."""
+        with self._load_lock:
+            self._qwen_models.clear()
+            self._qwen_backend_kinds.clear()
+            self._active_qwen_backend_kind = "mlx"
+            self._kokoro_pipelines.clear()
+        try:
+            from app.inference.hardware import select_hardware_backend
+
+            if select_hardware_backend(settings.emora_backend).backend == "cuda":
+                import torch
+
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
     def find_voice(self, voice_id: str) -> Optional[VoiceMeta]:
         self._scan_models()
@@ -441,13 +462,14 @@ class VoiceManager:
             print(f"VoiceManager: Qwen3 streaming unavailable, using Kokoro fallback. {exc}")
 
         try:
-            pipeline = self._kokoro_pipeline(vm.voice)
-            generator = pipeline(speech_text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
-            for _, _, audio in generator:
-                if cancel_event.is_set():
-                    return
-                yield self._audio_to_pcm(audio)
-            return
+            with self._kokoro_generation_lock:
+                pipeline = self._kokoro_pipeline(vm.voice)
+                generator = pipeline(speech_text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+                for _, _, audio in generator:
+                    if cancel_event.is_set():
+                        return
+                    yield self._audio_to_pcm(audio)
+                return
         except Exception as exc:
             if not self._can_use_macos_say():
                 raise RuntimeError(f"No streaming TTS runtime is available: {exc}") from exc
@@ -461,6 +483,18 @@ class VoiceManager:
                 if not chunk:
                     return
                 yield chunk
+
+    def has_speakable_text(
+        self,
+        text: str,
+        voice_id: Optional[str] = None,
+        companion_id: Optional[str] = None,
+        speech: Optional[Dict[str, Any]] = None,
+        brain: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Preflight the same text preparation as synthesis without loading a model."""
+        profile = self._build_speech_profile(voice_id, companion_id, speech, brain)
+        return bool(self._prepare_speech_text(text, profile))
 
     def _prepare_speech_text(self, text: str, speech_profile: Dict[str, Any]) -> str:
         rendered = sanitize_text_for_tts(self._render_speech_markup(text, speech_profile))
@@ -526,15 +560,16 @@ class VoiceManager:
 
     def _kokoro_pipeline(self, voice_id: str):
         lang_code = self._kokoro_lang_code(voice_id)
-        if lang_code in self._kokoro_pipelines:
-            return self._kokoro_pipelines[lang_code]
-        try:
-            from kokoro import KPipeline
-        except Exception as exc:
-            raise RuntimeError("Kokoro is not installed. Install kokoro>=0.9.4 and soundfile.") from exc
-        pipeline = KPipeline(lang_code=lang_code)
-        self._kokoro_pipelines[lang_code] = pipeline
-        return pipeline
+        with self._load_lock:
+            if lang_code in self._kokoro_pipelines:
+                return self._kokoro_pipelines[lang_code]
+            try:
+                from kokoro import KPipeline
+            except Exception as exc:
+                raise RuntimeError("Kokoro is not installed. Install kokoro>=0.9.4 and soundfile.") from exc
+            pipeline = KPipeline(lang_code=lang_code)
+            self._kokoro_pipelines[lang_code] = pipeline
+            return pipeline
 
     def _generate_with_kokoro(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -544,36 +579,65 @@ class VoiceManager:
         except Exception as exc:
             raise RuntimeError("Kokoro audio writing requires numpy and soundfile.") from exc
 
-        pipeline = self._kokoro_pipeline(vm.voice)
-        audio_parts = []
-        try:
-            generator = pipeline(text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
-            for _, _, audio in generator:
-                audio_parts.append(audio)
-        except Exception as exc:
-            raise RuntimeError(f"Kokoro generation failed: {exc}") from exc
+        with self._kokoro_generation_lock:
+            if out_path.exists() and out_path.stat().st_size > 44:
+                return out_path
+            pipeline = self._kokoro_pipeline(vm.voice)
+            audio_parts = []
+            try:
+                generator = pipeline(text, voice=vm.voice, speed=speech_profile["speed"], split_pattern=r"(?<=[.!?])\s+|\n+")
+                for _, _, audio in generator:
+                    audio_parts.append(audio)
+            except Exception as exc:
+                raise RuntimeError(f"Kokoro generation failed: {exc}") from exc
 
-        if not audio_parts:
-            raise RuntimeError("Kokoro generated no audio.")
-        audio = np.concatenate(audio_parts)
-        sf.write(str(out_path), audio, 24000)
-        if not out_path.exists() or out_path.stat().st_size <= 44:
-            raise RuntimeError("Kokoro generated an empty audio file.")
-        return out_path
+            if not audio_parts:
+                raise RuntimeError("Kokoro generated no audio.")
+            audio = np.concatenate(audio_parts)
+            sf.write(str(out_path), audio, 24000)
+            if not out_path.exists() or out_path.stat().st_size <= 44:
+                raise RuntimeError("Kokoro generated an empty audio file.")
+            return out_path
 
     def _qwen_model(self):
-        model_id = settings.tts_qwen_model
+        # Resolve through the same centralized selector as chat and vision,
+        # while retaining the existing MLX-Audio path byte-for-byte on Macs.
+        from app.inference.hardware import select_hardware_backend
+
+        backend = select_hardware_backend(settings.emora_backend).backend
+        model_id = settings.tts_qwen_model if backend == "mlx" else settings.tts_transformers_model
         with self._load_lock:
             if model_id in self._qwen_models:
+                self._active_qwen_backend_kind = self._qwen_backend_kinds.get(model_id, "mlx")
                 return self._qwen_models[model_id]
-            try:
-                from mlx_audio.tts.utils import load_model
-            except Exception as exc:
-                raise RuntimeError("MLX-Audio is not installed. Install mlx-audio on Apple Silicon.") from exc
-            try:
-                model = load_model(model_id)
-            except Exception as exc:
-                raise RuntimeError(f"Could not load local Qwen3 model '{model_id}': {exc}") from exc
+            if backend == "mlx":
+                try:
+                    from mlx_audio.tts.utils import load_model
+                except Exception as exc:
+                    raise RuntimeError("MLX-Audio is not installed. Install the Apple Silicon requirements.") from exc
+                try:
+                    model = load_model(model_id)
+                except Exception as exc:
+                    raise RuntimeError(f"Could not load local Qwen3 model '{model_id}': {exc}") from exc
+                self._qwen_backend_kinds[model_id] = "mlx"
+            else:
+                try:
+                    import torch
+                    from qwen_tts import Qwen3TTSModel
+                except Exception as exc:
+                    raise RuntimeError("CUDA/CPU Qwen3-TTS requires torch and qwen-tts from the matching requirements file.") from exc
+                if backend == "cuda" and not torch.cuda.is_available():
+                    raise RuntimeError("CUDA Qwen3-TTS was selected but CUDA is unavailable to PyTorch.")
+                device = "cuda:0" if backend == "cuda" else "cpu"
+                dtype = torch.bfloat16 if backend == "cuda" and torch.cuda.is_bf16_supported() else (
+                    torch.float16 if backend == "cuda" else torch.float32
+                )
+                try:
+                    model = Qwen3TTSModel.from_pretrained(model_id, device_map=device, dtype=dtype)
+                except Exception as exc:
+                    raise RuntimeError(f"Could not load {backend.upper()} Qwen3-TTS model '{model_id}': {exc}") from exc
+                self._qwen_backend_kinds[model_id] = "torch"
+            self._active_qwen_backend_kind = self._qwen_backend_kinds[model_id]
             self._qwen_models[model_id] = model
             return model
 
@@ -610,33 +674,42 @@ class VoiceManager:
             import numpy as np
         except Exception as exc:
             raise RuntimeError("Qwen3 audio conversion requires numpy.") from exc
-        model = self._qwen_model()
-        speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
-        kwargs = {
-            "text": text,
-            "speaker": speaker,
-            "language": "English",
-            "instruct": speech_profile["style_instruction"],
-            "stream": True,
-            "streaming_interval": settings.tts_streaming_interval,
-        }
-        try:
-            results = model.generate_custom_voice(**kwargs)
-        except (AttributeError, TypeError) as exc:
-            raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
-        emitted = False
-        try:
-            for result in results:
-                if cancel_event.is_set():
-                    return
-                audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
-                if audio.size:
-                    emitted = True
-                    yield audio
-        except Exception as exc:
-            raise RuntimeError(f"Qwen3 generation failed: {exc}") from exc
-        if not emitted and not cancel_event.is_set():
-            raise RuntimeError("Qwen3 generated no audio.")
+        with self._qwen_generation_lock:
+            model = self._qwen_model()
+            speaker = self._validated_qwen_speaker(model, speech_profile["qwen_speaker"])
+            runtime_kind = self._active_qwen_backend_kind
+            kwargs = {
+                "text": text,
+                "speaker": speaker,
+                "language": "English",
+                "instruct": speech_profile["style_instruction"],
+            }
+            if runtime_kind == "mlx":
+                kwargs.update(stream=True, streaming_interval=settings.tts_streaming_interval)
+            try:
+                results = model.generate_custom_voice(**kwargs)
+            except (AttributeError, TypeError) as exc:
+                raise RuntimeError(f"Installed MLX-Audio does not expose Qwen3 CustomVoice streaming: {exc}") from exc
+            emitted = False
+            try:
+                if runtime_kind == "torch":
+                    waveforms, sample_rate = results
+                    if int(sample_rate) != settings.tts_sample_rate:
+                        raise RuntimeError(
+                            f"Qwen3-TTS returned {sample_rate} Hz audio; configured TTS_SAMPLE_RATE is {settings.tts_sample_rate}."
+                        )
+                    results = [type("AudioResult", (), {"audio": waveform}) for waveform in waveforms]
+                for result in results:
+                    if cancel_event.is_set():
+                        return
+                    audio = np.asarray(result.audio, dtype=np.float32).reshape(-1)
+                    if audio.size:
+                        emitted = True
+                        yield audio
+            except Exception as exc:
+                raise RuntimeError(f"Qwen3 generation failed: {exc}") from exc
+            if not emitted and not cancel_event.is_set():
+                raise RuntimeError("Qwen3 generated no audio.")
 
     def _generate_with_qwen(self, text: str, vm: VoiceMeta, out_path: Path, speech_profile: Dict[str, Any]) -> Path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -645,18 +718,21 @@ class VoiceManager:
             import soundfile as sf
         except Exception as exc:
             raise RuntimeError("Qwen3 audio writing requires numpy and soundfile.") from exc
-        cancelled = threading.Event()
-        parts = [
-            audio
-            for sentence in self._sentence_chunks(text)
-            for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancelled)
-        ]
-        if not parts:
-            raise RuntimeError("Qwen3 generated no audio.")
-        sf.write(str(out_path), np.concatenate(parts), settings.tts_sample_rate)
-        if not out_path.exists() or out_path.stat().st_size <= 44:
-            raise RuntimeError("Qwen3 generated an empty audio file.")
-        return out_path
+        with self._qwen_generation_lock:
+            if out_path.exists() and out_path.stat().st_size > 44:
+                return out_path
+            cancelled = threading.Event()
+            parts = [
+                audio
+                for sentence in self._sentence_chunks(text)
+                for audio in self._iter_qwen_audio(sentence, vm, speech_profile, cancelled)
+            ]
+            if not parts:
+                raise RuntimeError("Qwen3 generated no audio.")
+            sf.write(str(out_path), np.concatenate(parts), settings.tts_sample_rate)
+            if not out_path.exists() or out_path.stat().st_size <= 44:
+                raise RuntimeError("Qwen3 generated no audio.")
+            return out_path
 
     def _audio_to_pcm(self, audio: Any) -> bytes:
         try:

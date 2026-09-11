@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<main class="ui-lab" id="main-content">
+  <header class="ui-lab-hero">
+    <p class="eyebrow">DEVELOPMENT FIXTURES · NO USER DATA</p>
+    <h1>Emora state laboratory</h1>
+    <p>This private development surface makes the shared visual language inspectable. Every scene below is labelled fixture content and never represents live account, model, billing, or service state.</p>
+  </header>
+
+  <section aria-labelledby="lab-presence-title">
+    <header><p>UX04</p><h2 id="lab-presence-title">Presence language</h2></header>
+    <div class="ui-lab-presence-grid">
+      {% for state in ["idle", "listening", "thinking", "searching", "speaking", "saving", "interrupted", "offline", "error"] %}
+      <article data-fixture-presence="{{ state }}">
+        <span aria-hidden="true"></span><strong>{{ state|title }}</strong>
+        <small>Fixture state</small>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section aria-labelledby="lab-states-title">
+    <header><p>UX23</p><h2 id="lab-states-title">Dynamic surface scenes</h2></header>
+    <div class="ui-lab-state-grid">
+      <article data-emora-state="loading" aria-busy="true"><small>LOADING</small><h3>Keeping the final shape steady</h3><p>Three bounded placeholders reserve the space that verified content will use.</p><div class="ui-lab-skeleton" aria-hidden="true"><i></i><i></i><i></i></div></article>
+      <article data-emora-state="empty"><small>EMPTY</small><h3>No saved reflections yet</h3><p>This space begins after you choose to save a reflection.</p><a href="/journal">Write the first reflection</a></article>
+      <article data-emora-state="ready"><small>READY</small><h3>Verified content is available</h3><p>Ready is quiet: the content—not a success effect—becomes the focus.</p><button type="button">Open fixture</button></article>
+      <article data-emora-state="offline"><small>OFFLINE</small><h3>Your draft stays here</h3><p>Network work is paused. Local typing remains available and retry waits for reconnection.</p><button type="button">Review saved draft</button></article>
+      <article data-emora-state="unauthorized"><small>UNAUTHORIZED</small><h3>This action needs a fresh sign-in</h3><p>The current work remains visible while identity is confirmed.</p><a href="/login">Sign in securely</a></article>
+      <article data-emora-state="rate-limited"><small>RATE LIMITED</small><h3>That action needs a short pause</h3><p>No request was duplicated. Try again after the server-provided window.</p><button type="button">Retry when available</button></article>
+      <article data-emora-state="conflict"><small>CONFLICT</small><h3>A newer version exists</h3><p>Compare both versions before choosing what to keep.</p><button type="button">Compare versions</button></article>
+      <article data-emora-state="partial"><small>PARTIAL</small><h3>Conversation loaded; sources did not</h3><p>Unaffected work remains usable and the missing scope is named.</p><button type="button">Retry sources only</button></article>
+      <article data-emora-state="error"><small>FAILED · REF UI-204</small><h3>The save did not finish</h3><p>Your input remains in place. Retry the save or open recovery guidance.</p><div><button type="button">Retry save</button> <a href="/help">Get help</a></div></article>
+      <article data-emora-state="locked"><small>LOCKED</small><h3>Advanced insight, not fabricated</h3><p>The preview explains the capability without inventing account activity.</p><a href="/payment">Compare access</a></article>
+    </div>
+  </section>
+
+  <section aria-labelledby="lab-materials-title">
+    <header><p>UX20–UX24</p><h2 id="lab-materials-title">Hierarchy and materials</h2></header>
+    <div class="ui-lab-materials">
+      {% for material in ["world", "glass", "paper", "quiet", "raised", "selected", "warning", "destructive"] %}<div data-material="{{ material }}"><span>{{ material }}</span></div>{% endfor %}
+    </div>
+    <p class="ui-lab-reading">Reading text stays comfortable while interface labels, metadata, and numbers keep distinct roles. Strong contrast, forced colors, reduced motion, keyboard focus, and text scaling use this same semantic structure.</p>
+  </section>
+</main>
+{% endblock %}

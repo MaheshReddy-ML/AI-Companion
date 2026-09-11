@@ -8,13 +8,22 @@ import {
   getToken,
   getInitials,
   getStoredUser,
+  guardEntitlement,
+  hasStoredEntitlement,
   initChrome,
+  publishEmoraPresence,
   renderUserAvatar,
+  safeExternalUrl,
   showStatus,
 } from "./common.js";
-import { createEmoraAvatarStage } from "./emora-avatar-stage.js?v=20260715-full-body-framing";
+
+import { createMeetVAD } from "./meet-vad.js?v=20260905";
+
+const ENTRY_PARAMS = new URLSearchParams(window.location.search);
+const ENTRY_SESSION_ID = ENTRY_PARAMS.get("session");
 
 const ASSET_VERSION = "20260511-anime-vroid";
+const AVATAR_STAGE_MODULE = "./emora-avatar-stage.js?v=20260911-motion2";
 
 function versionAsset(url) {
   return `${url}?v=${ASSET_VERSION}`;
@@ -117,10 +126,13 @@ const elements = {
   composeForm: document.getElementById("emora-compose-form"),
   messageInput: document.getElementById("emora-message-input"),
   sendButton: document.getElementById("emora-send-button"),
+  interruptButton: document.getElementById("emora-interrupt-button"),
   status: document.getElementById("emora-status"),
   listeningSignal: document.getElementById("emora-listening-signal"),
   visionSignal: document.getElementById("emora-vision-signal"),
   voiceSignal: document.getElementById("emora-voice-signal"),
+  socialPresence: document.getElementById("emora-social-presence"),
+  debugOutput: document.getElementById("emora-debug-output"),
 };
 
 const state = {
@@ -132,7 +144,12 @@ const state = {
   micStream: null,
   recognition: null,
   listening: false,
+  voiceSessionActive: false,
+  awaitingReply: false,
+  recognitionStarting: false,
+  silenceTimer: null,
   thinking: false,
+  searching: false,
   speaking: false,
   speechLoading: false,
   voiceReplies: true,
@@ -143,8 +160,14 @@ const state = {
   audioAnalyser: null,
   audioSource: null,
   audioSamples: null,
+  micAudioContext: null,
+  micAnalyser: null,
+  micSamples: null,
+  micLevelRaf: 0,
+  bargeInSince: 0,
   audioLevelRaf: 0,
   speechAbortController: null,
+  chatAbortController: null,
   streamSources: new Set(),
   streamPlaybackTimer: null,
   streamGeneration: 0,
@@ -152,10 +175,48 @@ const state = {
   lipSyncRestTimer: null,
   silentSpeechTimer: null,
   lipSyncIndex: 0,
+  speechGestureTimers: [],
+  debug: {},
+  companionEmotion: "calm",
 };
+
+function updateDebugTelemetry(values = {}) {
+  if (!elements.debugOutput) return;
+  state.debug = { ...state.debug, ...values };
+  const brain = state.debug.brain || {};
+  const emotion = brain.emotion || {};
+  const behavior = brain.behavior || {};
+  const speech = brain.speech || {};
+  const snapshot = {
+    model: state.debug.model || "waiting",
+    chatRequestMs: state.debug.chatRequestMs ?? null,
+    firstAudioMs: state.debug.firstAudioMs ?? null,
+    emotion: emotion.label || emotion.primary || null,
+    valence: emotion.valence ?? null,
+    arousal: emotion.arousal ?? null,
+    attention: behavior.attentionState || null,
+    gestureIntensity: behavior.gestureIntensity ?? null,
+    eyeContact: behavior.eyeContact ?? null,
+    speechStyle: speech.style || null,
+    speechSpeed: speech.speed ?? null,
+    replyWords: state.debug.replyWords ?? null,
+    modelLoadMs: state.debug.generationStats?.lastModelLoadMs ?? null,
+    modelGenerationMs: state.debug.generationStats?.lastGenerationMs ?? null,
+    modelOutputTokensApprox: state.debug.generationStats?.lastOutputTokensApprox ?? null,
+    render: state.debug.renderStats?.runtime || null,
+    browserHeapBytes: performance.memory?.usedJSHeapSize ?? null,
+  };
+  elements.debugOutput.textContent = JSON.stringify(snapshot, null, 2);
+}
 
 function currentCharacter() {
   return CHARACTERS[state.characterId] || CHARACTERS.Yuna;
+}
+
+function personalizedGreeting(character = currentCharacter()) {
+  const name = displayNameForUser(state.user);
+  const greetingName = name && name !== "Friend" ? `, ${name}` : "";
+  return `Hi${greetingName}, I’m ${character.name}. I’m glad you’re here. How are you feeling as you arrive?`;
 }
 
 function getConversationStorageKey(characterId = state.characterId) {
@@ -210,13 +271,12 @@ function ensureAudioAnalyser() {
 
   try {
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-    state.audioContext = new AudioContextCtor();
+    state.audioContext ||= new AudioContextCtor();
     state.audioAnalyser = state.audioContext.createAnalyser();
     state.audioAnalyser.fftSize = 1024;
     state.audioAnalyser.smoothingTimeConstant = 0.62;
     state.audioSamples = new Uint8Array(state.audioAnalyser.frequencyBinCount);
-    state.audioSource = state.audioContext.createMediaElementSource(audioPlayer);
-    state.audioSource.connect(state.audioAnalyser);
+
     state.audioAnalyser.connect(state.audioContext.destination);
   } catch (error) {
     state.audioAnalyser = null;
@@ -239,7 +299,7 @@ function updateAudioDrivenLipSync(tokens) {
   }
   const average = sum / Math.max(1, Math.min(96, state.audioSamples.length) - 4);
   const level = Math.min(1, Math.pow(average / 110, 1.25));
-  const tokenIndex = Math.floor((audioPlayer.currentTime || 0) * 4.8) % tokens.length;
+  const tokenIndex = Math.floor((state.audioContext?.currentTime || 0) * 4.8) % tokens.length;
   const token = tokens[tokenIndex] || "emora";
 
   state.avatarStage?.setAudioLevel?.(level);
@@ -281,12 +341,110 @@ function startLipSync(text, options = {}) {
   }, 155);
 }
 
+// Each async completion belongs to one turn; abort alone is not a race barrier.
+let turnGeneration = 0;
+let activeClientTurnId = null;
+let activeReplyIndex = null;
+let finishPlayback = null;
+let neuralVAD = null;
+let vadStarting = false;
+let vadGeneration = 0;
+let vadSpeech = false;
+
+function stopSpeechDetector() {
+  vadGeneration += 1;
+  const detector = neuralVAD;
+  neuralVAD = null; vadStarting = false; vadSpeech = false;
+  void detector?.destroy().catch(() => {});
+}
+
+async function startSpeechDetector() {
+  if (neuralVAD || vadStarting || !state.micStream || !state.voiceSessionActive) return;
+  const generation = ++vadGeneration;
+  vadStarting = true;
+  const valid = () => generation === vadGeneration && state.voiceSessionActive;
+  try {
+    const detector = await createMeetVAD({
+      stream: state.micStream, audioContext: state.micAudioContext,
+      onStart: () => {
+        if (!valid()) return;
+        vadSpeech = true;
+        userSpeechUntil = performance.now() + 300;
+        if (state.speaking || state.thinking || state.speechLoading) interruptTurn();
+        state.listening = true;
+        updateSignals();
+      },
+      onEnd: () => { if (valid()) { vadSpeech = false; scheduleEndpoint(); } },
+      onFrame: probability => {
+        if (valid() && probability >= 0.5) userSpeechUntil = performance.now() + 250;
+      },
+    });
+    if (!valid()) { await detector.destroy(); return; }
+    neuralVAD = detector;
+    elements.stage.dataset.voiceDetector = "silero-v5";
+  } catch (error) {
+    if (valid()) {
+      elements.stage.dataset.voiceDetector = "energy-fallback";
+      setStatus("Basic speech detection is active. You can use Stop to interrupt if needed.", "warning");
+    }
+  } finally { if (generation === vadGeneration) vadStarting = false; }
+}
+let pendingFinal = "";
+let pendingInterim = "";
+let recognitionActive = false;
+let endpointTimer = null;
+let micNoiseFloor = 0.008;
+let userSpeechUntil = 0;
+
+function interruptTurn() {
+  turnGeneration += 1;
+  if (activeClientTurnId) {
+    void apiRequest(`/api/chat/turns/${encodeURIComponent(activeClientTurnId)}/cancel`, {
+      method: "POST", auth: true,
+    }).catch(() => {});
+    activeClientTurnId = null;
+  }
+  if (activeReplyIndex !== null && state.messages[activeReplyIndex]?.pending) {
+    state.messages[activeReplyIndex] = { role: "assistant", content: "Response interrupted." };
+    renderMessages();
+  }
+  activeReplyIndex = null;
+  state.chatAbortController?.abort();
+  state.chatAbortController = null;
+  cancelSpeechPlayback();
+  state.awaitingReply = false;
+  state.thinking = false;
+  state.searching = false;
+  state.avatarStage?.setThinking(false);
+  updateSignals();
+}
+
+function scheduleEndpoint() {
+  window.clearTimeout(endpointTimer);
+  if (!pendingFinal.trim() || pendingInterim.trim() || vadSpeech) return;
+  const hesitant = /(?:\b(?:uh|um|erm|and|but|because|so)|\.\.\.)[.!?,\s]*$/i.test(pendingFinal);
+  endpointTimer = window.setTimeout(() => {
+    if (!state.voiceSessionActive || pendingInterim.trim()) return;
+    if (vadSpeech || performance.now() < userSpeechUntil) { scheduleEndpoint(); return; }
+    const text = pendingFinal.trim();
+    pendingFinal = "";
+    if (!text) return;
+    state.listening = false;
+    state.awaitingReply = true;
+    void sendMessage(text);
+  }, hesitant ? 1800 : 850);
+}
+
 function cancelSpeechPlayback() {
+  finishPlayback?.();
+  finishPlayback = null;
   state.streamGeneration += 1;
   state.speechAbortController?.abort?.();
   state.speechAbortController = null;
   window.clearTimeout(state.streamPlaybackTimer);
   state.streamPlaybackTimer = null;
+  state.speechGestureTimers.forEach((timer) => window.clearTimeout(timer));
+  state.speechGestureTimers = [];
   state.streamSources.forEach((source) => {
     try { source.stop(); } catch (_) { /* source may already have ended */ }
   });
@@ -304,6 +462,63 @@ function cancelSpeechPlayback() {
   state.speechLoading = false;
   state.avatarStage?.setSpeaking(false);
   stopLipSync();
+}
+
+function stopMicLevelMonitor() {
+  stopSpeechDetector();
+  window.cancelAnimationFrame(state.micLevelRaf);
+  state.micLevelRaf = 0;
+  state.micAnalyser = null;
+  state.micSamples = null;
+  state.bargeInSince = 0;
+  state.micAudioContext?.close?.().catch(() => {});
+  state.micAudioContext = null;
+}
+
+function monitorMicLevel() {
+  if (!state.micAnalyser || !state.micSamples || !state.micStream) return;
+  if (neuralVAD) { state.micLevelRaf = window.requestAnimationFrame(monitorMicLevel); return; }
+  state.micAnalyser.getByteTimeDomainData(state.micSamples);
+  let sum = 0;
+  for (const sample of state.micSamples) {
+    const centered = (sample - 128) / 128;
+    sum += centered * centered;
+  }
+  const level = Math.sqrt(sum / state.micSamples.length);
+  const busy = state.speaking || state.thinking || state.speechLoading;
+  const threshold = Math.max(busy ? 0.035 : 0.018, micNoiseFloor * (busy ? 4 : 2.8));
+  if (state.voiceSessionActive && level > threshold) {
+    userSpeechUntil = performance.now() + 250;
+    state.bargeInSince ||= performance.now();
+    if (busy && performance.now() - state.bargeInSince > 180) {
+      interruptTurn();
+      state.listening = true;
+      setStatus("Interrupted — listening to you.", "info");
+    }
+  } else {
+    state.bargeInSince = 0;
+    if (!busy) micNoiseFloor = micNoiseFloor * 0.98 + Math.min(level, 0.025) * 0.02;
+  }
+  state.micLevelRaf = window.requestAnimationFrame(monitorMicLevel);
+}
+
+function startMicLevelMonitor() {
+  stopMicLevelMonitor();
+  if (!state.micStream || (!window.AudioContext && !window.webkitAudioContext)) return;
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  state.micAudioContext = new AudioContextCtor();
+  const source = state.micAudioContext.createMediaStreamSource(state.micStream);
+  state.micAnalyser = state.micAudioContext.createAnalyser();
+  state.micAnalyser.fftSize = 1024;
+  state.micSamples = new Uint8Array(state.micAnalyser.fftSize);
+  source.connect(state.micAnalyser);
+  void state.micAudioContext.resume().catch(() => {});
+  monitorMicLevel();
+}
+
+function resumeContinuousListening() {
+  if (!state.voiceSessionActive) return;
+  window.setTimeout(() => { if (state.voiceSessionActive) void startListening({ keepSession: true }); }, 180);
 }
 
 function primeVoicePlayback() {
@@ -340,6 +555,7 @@ function startSilentPerformance(text = "") {
     state.avatarStage?.setSpeaking(false);
     stopLipSync();
     updateSignals();
+    resumeContinuousListening();
   }, estimateSpeechDuration(text));
 }
 
@@ -377,7 +593,8 @@ function renderCharacter() {
   elements.characterCrop.setAttribute("aria-label", `${character.label} selected companion`);
   document.body.dataset.emoraCharacter = character.id;
   setMouthShape("rest");
-  state.avatarStage?.setCharacter(character).catch(() => {
+  state.avatarStage?.setCharacter(character).catch((error) => {
+    console.error("Could not load Emora VRM avatar.", error);
     setStatus("Could not load the 3D character. Check your connection and try again.", "warning");
   });
 
@@ -387,21 +604,50 @@ function renderCharacter() {
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 
-  if (!state.messages.length) {
-    state.messages = [{ role: "assistant", content: character.greeting }];
+}
+
+async function initializeAvatarStage() {
+  if (!elements.characterCrop) return;
+
+  try {
+    // Keep the optional WebGL/VRM dependency out of the critical chat path. If
+    // Three.js, WebGL, or a model fails, typed conversation remains usable.
+    const { createEmoraAvatarStage } = await import(AVATAR_STAGE_MODULE);
+    state.avatarStage = createEmoraAvatarStage(elements.characterCrop, { vrma: true });
+    await state.avatarStage.setCharacter(currentCharacter());
+    updateSignals();
+  } catch (error) {
+    console.error("Meet Emora 3D stage could not start.", error);
+    const loader = elements.characterCrop.querySelector("[data-emora-avatar-loader]");
+    if (loader) {
+      loader.hidden = false;
+      loader.textContent = "Avatar unavailable";
+    }
+    setStatus("The 3D avatar could not start, but text chat is ready.", "warning");
   }
 }
 
 function renderMessages() {
+  if (!state.messages.length) {
+    elements.transcript.innerHTML = `
+      <section class="emora-empty-conversation">
+        <span>Emora is here</span>
+        <p>Talk to me.</p>
+      </section>`;
+    return;
+  }
+
   elements.transcript.innerHTML = state.messages
-    .map(
-      (message) => `
-        <article class="emora-message ${message.role}">
+    .map((message, index) => `
+        <article class="emora-message ${message.role} ${index === state.messages.length - 1 ? "latest" : ""}">
           <span>${escapeHtml(message.role === "assistant" ? currentCharacter().name : displayNameForUser(state.user))}</span>
           <p>${escapeHtml(message.content)}</p>
-        </article>
-      `,
-    )
+          ${message.role === "assistant" && message.webSearch?.sources?.length ? `
+            <details class="emora-web-sources">
+              <summary>⌕ Web sources · ${message.webSearch.sources.length}</summary>
+              ${message.webSearch.sources.map((source) => `<a href="${escapeHtml(safeExternalUrl(source.url))}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title || source.domain || "Source")}</a>`).join("")}
+            </details>` : ""}
+        </article>`)
     .join("");
 
   window.requestAnimationFrame(() => {
@@ -422,16 +668,37 @@ function updateSignals() {
   elements.cameraTile.dataset.active = cameraOn ? "true" : "false";
   elements.cameraPlaceholder.hidden = cameraOn;
   elements.permissionSummary.textContent = cameraOn && micOn ? "Live inputs on" : cameraOn || micOn ? "Partly enabled" : "Ready";
-  elements.listeningSignal.textContent = state.listening ? "Listening" : state.thinking ? "Thinking" : state.speechLoading ? "Voicing" : "Idle";
+  elements.listeningSignal.textContent = state.listening ? "Listening" : state.searching ? "Searching" : state.thinking ? "Thinking" : state.speechLoading ? "Voicing" : "Idle";
   elements.visionSignal.textContent = cameraOn ? "Ready" : "Off";
   elements.voiceSignal.textContent = state.voiceReplies ? currentCharacter().voiceLabel || `Soft ${currentCharacter().voiceGender || "voice"}` : "Off";
   elements.voiceSignal.title = state.voiceName ? `Using ${state.voiceName}` : "";
-  elements.listenButton.textContent = state.listening ? "Stop talking" : "Start talking";
-  elements.listenButton.disabled = state.thinking;
-  elements.sendButton.disabled = state.thinking;
-  elements.messageInput.disabled = state.thinking;
+  const socialState = state.speaking ? "speaking" : state.searching ? "searching" : state.thinking || state.speechLoading ? "thinking" : state.listening ? "listening" : "idle";
+  const socialLabel = state.speaking ? `Present · ${state.companionEmotion}` : state.searching ? "Checking · current sources" : state.thinking || state.speechLoading ? "Reflecting · attentive" : state.listening ? "Listening · attentive" : "Present · calm";
+  if (elements.socialPresence) {
+    elements.socialPresence.dataset.state = socialState;
+    elements.socialPresence.textContent = socialLabel;
+  }
+  const listenLabel = state.voiceSessionActive ? "Stop" : "Talk";
+  const listenLabelElement = elements.listenButton.querySelector("span");
+  if (listenLabelElement) {
+    listenLabelElement.textContent = listenLabel;
+  } else {
+    elements.listenButton.textContent = listenLabel;
+  }
+  elements.listenButton.setAttribute("aria-label", state.voiceSessionActive ? "Stop talking" : "Start talking");
+  elements.listenButton.disabled = false;
+  elements.sendButton.disabled = false;
+  elements.messageInput.disabled = false;
+  elements.listenButton.setAttribute("aria-pressed", String(state.voiceSessionActive));
+  elements.interruptButton.hidden = !state.speaking && !state.speechLoading && !state.thinking;
   elements.stage.dataset.speaking = state.speaking ? "true" : "false";
-  state.avatarStage?.setListening(state.listening);
+  elements.stage.dataset.companionState = state.speaking ? "EMORA_SPEAKING"
+    : state.thinking || state.speechLoading ? "PROCESSING"
+    : pendingFinal || pendingInterim ? "USER_SPEAKING"
+    : state.voiceSessionActive ? "LISTENING" : "IDLE";
+  elements.stage.dataset.companionEmotion = state.companionEmotion;
+  publishEmoraPresence(state.speaking ? "SPEAKING" : state.searching ? "SEARCHING" : state.thinking || state.speechLoading ? "THINKING" : state.listening ? "LISTENING" : "WITH YOU");
+  state.avatarStage?.setListening(state.voiceSessionActive && !state.thinking && !state.speaking && !state.speechLoading);
   state.avatarStage?.setThinking((state.thinking || state.speechLoading) && !state.speaking);
 }
 
@@ -441,6 +708,24 @@ function setStatus(message, tone = "info") {
 
 function stopStream(stream) {
   stream?.getTracks().forEach((track) => track.stop());
+}
+
+function captureCameraCheckIn() {
+  // A single reduced frame is created only at the moment the user sends a
+  // message with their already-enabled camera. It stays in memory and is
+  // handed to the existing local-only API contract; neither pixels nor video
+  // are stored by this page.
+  const video = elements.cameraPreview;
+  if (!state.cameraStream || !video?.videoWidth || !video?.videoHeight) return null;
+  const maxEdge = 384;
+  const scale = Math.min(1, maxEdge / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context) return null;
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.72);
 }
 
 async function requestCamera() {
@@ -480,16 +765,21 @@ async function requestMic() {
   }
 
   if (state.micStream) {
-    stopListening();
+    stopListening({ endSession: true });
     stopStream(state.micStream);
     state.micStream = null;
+    stopMicLevelMonitor();
     setStatus("Microphone stopped.", "info");
     updateSignals();
     return false;
   }
 
   try {
-    state.micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    state.micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      video: false,
+    });
+    startMicLevelMonitor();
     setStatus("Microphone is ready.", "success");
     updateSignals();
     return true;
@@ -506,52 +796,76 @@ function createRecognition() {
   }
 
   const recognition = new SpeechRecognition();
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
-  recognition.lang = "en-US";
+  recognition.lang = document.documentElement.lang || navigator.language || "en-US";
 
   recognition.addEventListener("result", (event) => {
-    let transcript = "";
-    let finalTranscript = "";
-
+    if (!state.voiceSessionActive) return;
+    const finals = [];
+    const interim = [];
     for (let index = event.resultIndex; index < event.results.length; index += 1) {
-      const value = event.results[index][0]?.transcript || "";
-      transcript += value;
-      if (event.results[index].isFinal) {
-        finalTranscript += value;
-      }
+      const value = event.results[index][0]?.transcript?.trim() || "";
+      if (!value) continue;
+      (event.results[index].isFinal ? finals : interim).push(value);
     }
-
-    elements.messageInput.value = transcript.trim();
-    if (finalTranscript.trim()) {
-      stopListening();
-      sendMessage(finalTranscript.trim());
+    // Recognition remains active during playback, retaining the first syllables.
+    // Require local mic evidence during output to reduce synthesized-voice echo.
+    if (state.speaking || state.thinking || state.speechLoading) {
+      if (performance.now() > userSpeechUntil) return;
+      interruptTurn();
     }
+    pendingFinal = [pendingFinal, ...finals].filter(Boolean).join(" ");
+    pendingInterim = interim.join(" ");
+    elements.messageInput.value = [pendingFinal, pendingInterim].filter(Boolean).join(" ");
+    state.listening = true;
+    updateSignals();
+    scheduleEndpoint();
   });
 
-  recognition.addEventListener("error", () => {
+  recognition.addEventListener("error", (event) => {
+    state.recognitionStarting = false;
     state.listening = false;
-    setStatus("Speech capture stopped. You can still type below.", "warning");
+    if (["not-allowed", "service-not-allowed", "audio-capture", "network", "language-not-supported"].includes(event.error)) {
+      state.voiceSessionActive = false;
+      window.clearTimeout(endpointTimer);
+      pendingFinal = "";
+      pendingInterim = "";
+      stopStream(state.micStream);
+      state.micStream = null;
+      stopMicLevelMonitor();
+    }
+    if (event.error === "no-speech" && state.voiceSessionActive && !state.awaitingReply) {
+      setStatus("Still here. Start whenever the words arrive.", "info");
+    } else {
+      setStatus(event.error === "not-allowed" ? "Microphone access was blocked. You can still type below." : "Speech capture paused. You can still type below.", "warning");
+    }
     updateSignals();
   });
 
   recognition.addEventListener("end", () => {
+    recognitionActive = false;
+    state.recognitionStarting = false;
     state.listening = false;
+    // Never promote an unfinished interim result to a final utterance.
+    if (pendingInterim) {
+      pendingInterim = "";
+      setStatus("Speech capture ended before the last words were confirmed. Review the text or speak again.", "warning");
+    } else scheduleEndpoint();
     updateSignals();
+    resumeContinuousListening();
   });
 
   return recognition;
 }
 
-async function startListening() {
-  if (state.thinking) {
-    return;
-  }
-
+async function startListening({ keepSession = false } = {}) {
   if (!SpeechRecognition) {
     setStatus("Speech recognition is not available in this browser. Use typed chat here.", "warning");
     return;
   }
+
+  if (!keepSession) interruptTurn();
 
   if (!state.micStream) {
     const micReady = await requestMic();
@@ -564,26 +878,37 @@ async function startListening() {
     state.recognition = createRecognition();
   }
 
+  if (recognitionActive || state.recognitionStarting) return;
   try {
+    state.voiceSessionActive = true;
+    void startSpeechDetector();
+    state.recognitionStarting = true;
     state.listening = true;
     state.recognition.start();
-    setStatus("Listening...", "info");
+    recognitionActive = true;
+    setStatus("Listening… take your time.", "info");
   } catch {
+    state.recognitionStarting = false;
     state.listening = false;
   } finally {
     updateSignals();
   }
 }
 
-function stopListening() {
-  if (!state.recognition || !state.listening) {
+function stopListening({ endSession = true } = {}) {
+  if (endSession) { state.voiceSessionActive = false; stopSpeechDetector(); }
+  window.clearTimeout(endpointTimer);
+  pendingFinal = "";
+  pendingInterim = "";
+  window.clearTimeout(state.silenceTimer);
+  if (!state.recognition || !recognitionActive) {
     state.listening = false;
     updateSignals();
     return;
   }
 
   state.listening = false;
-  state.recognition.stop();
+  state.recognition.abort();
   updateSignals();
 }
 
@@ -599,7 +924,7 @@ async function performThinkingMoment(brain) {
   const thought = brain?.internalThought || {};
   const duration = Math.max(120, Math.min(2200, Number(thought.thinkingDurationMs || 420)));
   const hesitation = Math.max(0, Math.min(800, Number(thought.hesitationMs || 0)));
-  state.avatarStage?.setBrainBehavior?.(brain);
+  state.avatarStage?.setBrainBehavior?.(brain || {});
   state.avatarStage?.setThinking(true);
   updateSignals();
   await new Promise((resolve) => window.setTimeout(resolve, duration + hesitation));
@@ -630,11 +955,14 @@ async function speakReply(text, brain = null) {
     brain,
     speech: brain?.speech || null,
   };
+  const voiceStartedAt = performance.now();
+  const streamGeneration = state.streamGeneration;
+  let voiceTimeout;
 
   try {
-    const streamGeneration = state.streamGeneration;
     const abortController = new AbortController();
     state.speechAbortController = abortController;
+    voiceTimeout = window.setTimeout(() => abortController.abort(), 90000);
     const response = await fetch("/api/voices/speak", {
       method: "POST",
       headers: {
@@ -645,6 +973,7 @@ async function speakReply(text, brain = null) {
       signal: abortController.signal,
     });
 
+    if (streamGeneration !== state.streamGeneration) return;
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || "Voice generation failed.");
@@ -661,10 +990,14 @@ async function speakReply(text, brain = null) {
       throw new Error("The voice server did not return a PCM stream.");
     }
 
+    const sampleRate = Number(response.headers.get("content-type")?.match(/rate=(\d+)/i)?.[1] || 24000);
+    if (!Number.isFinite(sampleRate) || sampleRate < 8000 || sampleRate > 96000) throw new Error("Invalid voice sample rate.");
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) throw new Error("Web Audio is unavailable in this browser.");
     state.audioContext ||= new AudioContextCtor();
     await state.audioContext.resume();
+    if (streamGeneration !== state.streamGeneration) return;
+    if (state.audioContext.state !== "running") throw new Error("Tap Start talking to enable audio.");
     const reader = response.body.getReader();
     let remainder = new Uint8Array(0);
     let nextStartAt = state.audioContext.currentTime + 0.04;
@@ -672,9 +1005,12 @@ async function speakReply(text, brain = null) {
 
     state.speechLoading = false;
     state.speaking = true;
-    state.avatarStage?.setBrainBehavior?.(brain);
     state.avatarStage?.setSpeaking(true, text);
-    startLipSync(text);
+    // Speaking establishes lip/beat timing first; the validated Brain plan is
+    // then applied last so text heuristics cannot override its emotion/gaze.
+    state.avatarStage?.setBrainBehavior?.(brain || {});
+    state.avatarStage?.playBehaviorTimeline?.(brain?.behavior?.timeline || []);
+    startLipSync(text, { audioDriven: true });
     updateSignals();
     setStatus("Companion voice playing.", "success");
 
@@ -693,21 +1029,27 @@ async function speakReply(text, brain = null) {
       for (let index = 0; index < samples.length; index += 1) {
         samples[index] = view.getInt16(index * 2, true) / 32768;
       }
-      const audioBuffer = state.audioContext.createBuffer(1, samples.length, 24000);
+      const audioBuffer = state.audioContext.createBuffer(1, samples.length, sampleRate);
       audioBuffer.copyToChannel(samples, 0);
       const source = state.audioContext.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(state.audioContext.destination);
+      source.connect(ensureAudioAnalyser() || state.audioContext.destination);
       source.onended = () => state.streamSources.delete(source);
       state.streamSources.add(source);
       nextStartAt = Math.max(nextStartAt, state.audioContext.currentTime + 0.012);
       source.start(nextStartAt);
       nextStartAt += audioBuffer.duration;
+      if (!receivedAudio) {
+        updateDebugTelemetry({ firstAudioMs: Math.round(performance.now() - voiceStartedAt) });
+      }
       receivedAudio = true;
     }
 
-    if (!receivedAudio || streamGeneration !== state.streamGeneration) return;
+    if (streamGeneration !== state.streamGeneration) return;
+    if (!receivedAudio) throw new Error("The voice stream was empty.");
     const finishInMs = Math.max(0, (nextStartAt - state.audioContext.currentTime) * 1000 + 35);
+    await new Promise(resolve => {
+    finishPlayback = resolve;
     state.streamPlaybackTimer = window.setTimeout(() => {
       if (streamGeneration !== state.streamGeneration) return;
       state.streamSources.clear();
@@ -717,33 +1059,77 @@ async function speakReply(text, brain = null) {
       stopLipSync();
       updateSignals();
       setStatus("Companion finished speaking.", "success");
+      state.awaitingReply = false;
+      resumeContinuousListening();
+      finishPlayback = null;
+      resolve();
     }, finishInMs);
+    });
   } catch (error) {
-    if (error?.name === "AbortError") return;
-    state.avatarStage?.setBrainBehavior?.(brain);
-    startSilentPerformance(text);
-    setStatus("Voice is unavailable, so the companion is responding silently.", "warning");
+    if (streamGeneration !== state.streamGeneration) return;
+    cancelSpeechPlayback();
+    updateSignals();
+    console.warn("Meet Emora voice playback failed.", error);
+    setStatus("Voice is unavailable. Your reply is in the transcript; you can keep talking or type.", "warning");
+    state.awaitingReply = false;
+    resumeContinuousListening();
+  } finally {
+    window.clearTimeout(voiceTimeout);
   }
 }
 
-async function requestCompanionReply(content) {
+async function requestCompanionReply(content, signal, clientTurnId, onEvent = () => {}) {
   const character = currentCharacter();
-  return apiRequest("/api/chat", {
+  const cameraFrame = captureCameraCheckIn();
+  const response = await fetch("/api/chat/stream", {
     method: "POST",
-    auth: true,
-    body: {
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({
+      clientTurnId,
       conversationId: state.conversationId || undefined,
       message: content,
       characterId: character.id,
-      characterName: `Your Emora - ${character.name}`,
+      characterName: `Meet Emora - ${character.name}`,
       personaPrompt: buildPersonaPrompt(),
-    },
+      cameraOptIn: Boolean(cameraFrame),
+      cameraFrame: cameraFrame || undefined,
+    }),
+    signal,
   });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(detail.detail || "Could not start the companion response."), { status: response.status });
+  }
+  if (!response.body) throw new Error("Response streaming is unavailable.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      if (buffer.length > 2_000_000) throw new Error("Response stream exceeded its limit.");
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const item = JSON.parse(line);
+        if (signal.aborted) throw new DOMException("Turn interrupted", "AbortError");
+        if (item.event === "error") throw Object.assign(new Error(item.detail), { status: item.status });
+        if (item.event === "complete") return item.response;
+        onEvent(item);
+      }
+      if (done) throw new Error("The response ended unexpectedly. Please try again.");
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 async function sendMessage(messageOverride = "") {
   const content = (messageOverride || elements.messageInput.value).trim();
-  if (!content || state.thinking) {
+  if (!content) {
     return;
   }
 
@@ -751,68 +1137,164 @@ async function sendMessage(messageOverride = "") {
     primeVoicePlayback();
   }
 
+  window.clearTimeout(endpointTimer);
+  pendingFinal = "";
+  pendingInterim = "";
+  state.listening = false;
+  interruptTurn();
+  const generation = turnGeneration;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 90000);
+  const current = () => generation === turnGeneration;
   const character = currentCharacter();
+  const clientTurnId = `turn-${crypto.randomUUID()}`;
+  activeClientTurnId = clientTurnId;
+  const chatStartedAt = performance.now();
   state.thinking = true;
+  state.searching = false;
+  state.chatAbortController = controller;
   elements.messageInput.value = "";
   state.messages.push({ role: "user", content });
-  state.messages.push({ role: "assistant", content: `${character.name} is thinking...` });
+  const replyIndex = state.messages.length;
+  activeReplyIndex = replyIndex;
+  let streamedText = "";
+  let streamedSentences = 0;
+  let speechQueue = Promise.resolve();
+  const onStreamEvent = item => {
+    if (!current() || controller.signal.aborted) return;
+    if (item.event === "turn" && item.conversationId) {
+      state.conversationId = item.conversationId;
+      localStorage.setItem(getConversationStorageKey(), state.conversationId);
+    }
+    if (item.event !== "sentence" || !item.text?.trim()) return;
+    streamedText = [streamedText, item.text.trim()].filter(Boolean).join(" ");
+    streamedSentences += 1;
+    state.messages[replyIndex] = { role: "assistant", content: streamedText, pending: true };
+    renderMessages();
+    speechQueue = speechQueue.then(async () => {
+      if (current() && !controller.signal.aborted) await speakReply(item.text);
+    }).catch(error => {
+      if (current()) setStatus("Voice paused. You can continue reading the reply.", "warning");
+    });
+  };
+  state.messages.push({ role: "assistant", pending: true, content: `${character.name} is thinking...` });
   renderMessages();
   updateSignals();
 
   try {
+    try {
+      const decision = await apiRequest("/api/chat/search-decision", {
+        method: "POST", auth: true, body: { message: content }, signal: controller.signal,
+      });
+      if (!current()) return;
+      state.searching = Boolean(decision?.needsWeb);
+      if (state.searching) {
+        state.messages[replyIndex] = { role: "assistant", pending: true, content: `${character.name} is checking current sources…` };
+        setStatus("⌕ Looking that up…", "info");
+        renderMessages();
+        updateSignals();
+      }
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+    }
+    if (!current()) return;
     let response;
     try {
-      response = await requestCompanionReply(content);
+      response = await requestCompanionReply(content, controller.signal, clientTurnId, onStreamEvent);
     } catch (error) {
+      if (!current()) return;
       if (error.status !== 404 || !state.conversationId) {
         throw error;
       }
       localStorage.removeItem(getConversationStorageKey());
       state.conversationId = "";
-      response = await requestCompanionReply(content);
+      response = await requestCompanionReply(content, controller.signal, clientTurnId, onStreamEvent);
     }
 
+    if (!current()) return;
+    activeClientTurnId = null;
     state.conversationId = response?.conversation?.id || state.conversationId;
     if (state.conversationId) {
       localStorage.setItem(getConversationStorageKey(), state.conversationId);
+      if (ENTRY_SESSION_ID) {
+        await apiRequest(`/api/premium/sessions/${encodeURIComponent(ENTRY_SESSION_ID)}`, { method: "PATCH", auth: true, body: { conversationId: state.conversationId, status: "active" } });
+      }
     }
 
+    if (!current()) return;
     const reply = response?.aiMessage?.message || response?.aiMessage?.content || "I am here with you.";
     const brain = response?.brain || response?.aiMessage?.brain || null;
-    state.messages[state.messages.length - 1] = { role: "assistant", content: reply };
+    state.companionEmotion = brain?.emotion?.label || brain?.emotion?.primary || "calm";
+    updateDebugTelemetry({
+      brain,
+      model: response?.model || "local-mlx",
+      chatRequestMs: Math.round(performance.now() - chatStartedAt),
+      firstAudioMs: null,
+      replyWords: reply.trim() ? reply.trim().split(/\s+/).length : 0,
+      generationStats: response?.generationStats || null,
+      renderStats: state.avatarStage?.getDiagnostics?.() || null,
+    });
+    activeReplyIndex = null;
+    state.messages[replyIndex] = { role: "assistant", content: reply, webSearch: response?.aiMessage?.webSearch || null };
     renderMessages();
     if (brain) {
-      state.avatarStage?.setBrainBehavior?.(brain);
-      await performThinkingMoment(brain);
+      state.avatarStage?.setBrainBehavior?.(brain || {});
+      state.avatarStage?.reactToUser?.(brain?.behavior?.userReaction || []);
+      // Generation already provided thinking time; avoid an added artificial delay.
     }
-    void speakReply(reply, brain);
+    if (!current()) return;
+    if (!streamedSentences) {
+      void speakReply(response?.speechText || reply.replace(/https?:\/\/\S+/gi, "").trim(), brain);
+    } else {
+      // Full reply is authoritative for history. Already queued sentences are
+      // never repeated; final Brain metadata can refine the live facial layer.
+      state.avatarStage?.setBrainBehavior?.(brain || {});
+    }
     if (response?.warning) {
       setStatus(response.warning, "warning");
     } else if (!state.voiceReplies) {
       setStatus("Response ready.", "success");
     }
   } catch (error) {
-    state.messages[state.messages.length - 1] = {
+    if (!current()) return;
+    cancelSpeechPlayback();
+    controller.abort();
+    state.awaitingReply = false;
+    if (error?.name === "AbortError") {
+      state.messages[replyIndex] = { role: "assistant", content: "Response stopped. You can speak or try again." };
+      renderMessages();
+      void apiRequest(`/api/chat/turns/${encodeURIComponent(clientTurnId)}/cancel`, { method: "POST", auth: true }).catch(() => {});
+      activeClientTurnId = null;
+      setStatus("The response timed out or was stopped. Try again when ready.", "warning");
+      return;
+    }
+    state.messages[replyIndex] = {
       role: "assistant",
       content: "I could not reach the companion model right now. Try again in a moment, or continue in the text workspace.",
     };
     renderMessages();
     setStatus(error.message || "Could not send your message.");
   } finally {
+    window.clearTimeout(timeout);
+    if (!current()) return;
     state.thinking = false;
+    state.searching = false;
+    state.chatAbortController = null;
     updateSignals();
-    elements.messageInput.focus();
+    resumeContinuousListening();
+    if (!state.voiceSessionActive) elements.messageInput.focus();
   }
 }
 
 function resetSession() {
-  cancelSpeechPlayback();
+  interruptTurn();
+  stopListening();
   state.conversationId = "";
   localStorage.removeItem(getConversationStorageKey());
-  state.messages = [{ role: "assistant", content: currentCharacter().greeting }];
+  state.messages = [];
   renderMessages();
   updateSignals();
-  setStatus("New Your Emora session started.", "success");
+  setStatus("New Meet Emora session started.", "success");
 }
 
 function switchCharacter(characterId) {
@@ -821,8 +1303,10 @@ function switchCharacter(characterId) {
     return;
   }
 
+  interruptTurn();
+  stopListening();
   state.characterId = nextCharacterId;
-  cancelSpeechPlayback();
+  state.conversationId = "";
   state.messages = [];
   renderCharacter();
   state.voiceName = currentCharacter().voiceGender ? `${currentCharacter().voiceGender} companion` : "Neural voice";
@@ -831,7 +1315,34 @@ function switchCharacter(characterId) {
   setStatus(`${currentCharacter().name} is ready.`, "success");
 }
 
+async function welcomeUser() {
+  const greeting = personalizedGreeting();
+  state.avatarStage?.greet?.("wave");
+  state.avatarStage?.setBrainBehavior?.({
+    behavior: { attentionState: "excited", eyeContact: 0.86, gestureIntensity: 0.32 },
+    emotion: { valence: 0.78, arousal: 0.52, engagement: 0.88 },
+  });
+  state.companionEmotion = "happy";
+  renderMessages();
+  updateSignals();
+
+  // We attempt the actual companion voice on entry. Browsers that require an
+  // explicit media gesture will fall back to the visible welcome and make the
+  // Start talking control available without blocking the room.
+  if (state.voiceReplies) {
+    await speakReply(greeting);
+  }
+}
+
 function bindEvents() {
+  const updateViewport = () => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    document.documentElement.style.setProperty("--meet-viewport-height", `${viewport.height}px`);
+    document.body.dataset.meetKeyboard = String(window.innerHeight - viewport.height > 150);
+  };
+  window.visualViewport?.addEventListener("resize", updateViewport);
+  updateViewport();
   elements.characterSwitch.addEventListener("click", (event) => {
     const button = event.target instanceof Element ? event.target.closest("[data-emora-character]") : null;
     if (button) {
@@ -840,12 +1351,19 @@ function bindEvents() {
   });
 
   elements.cameraButton.addEventListener("click", requestCamera);
-  elements.micButton.addEventListener("click", requestMic);
+  elements.micButton.addEventListener("click", () => { if (guardEntitlement("voice")) requestMic(); });
   elements.newSessionButton.addEventListener("click", resetSession);
+  elements.interruptButton.addEventListener("click", () => {
+    interruptTurn();
+    setStatus("Companion interrupted.", "info");
+    if (state.voiceSessionActive) void startListening({ keepSession: true });
+    else elements.messageInput.focus();
+  });
 
   elements.listenButton.addEventListener("click", () => {
-    if (state.listening) {
-      stopListening();
+    if (!guardEntitlement("voice")) return;
+    if (state.voiceSessionActive) {
+      stopListening({ endSession: true });
       return;
     }
     startListening();
@@ -864,9 +1382,13 @@ function bindEvents() {
   });
 
   window.addEventListener("beforeunload", () => {
-    cancelSpeechPlayback();
+    publishEmoraPresence("LIVE");
+    stopListening();
+    interruptTurn();
+    state.audioContext?.close().catch(() => {});
     stopStream(state.cameraStream);
     stopStream(state.micStream);
+    stopMicLevelMonitor();
   });
 }
 
@@ -878,21 +1400,22 @@ function bindEvents() {
   }
 
   state.user = getStoredUser();
-  try {
-    state.avatarStage = createEmoraAvatarStage(elements.characterCrop);
-  } catch (error) {
-    setStatus("3D rendering is not available in this browser.", "warning");
-  }
+  state.voiceReplies = hasStoredEntitlement("voice");
   state.voiceName = currentCharacter().voiceGender ? `${currentCharacter().voiceGender} companion` : "Neural voice";
   fillUserChrome();
   renderCharacter();
   renderMessages();
   updateSignals();
   bindEvents();
-
+  const sessionPrompt = (ENTRY_PARAMS.get("prompt") || "").slice(0, 2000);
+  if (sessionPrompt) {
+    elements.messageInput.value = sessionPrompt;
+    setStatus("Your Emora Session is ready. Send or speak when you choose.", "info");
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
     elements.cameraButton.disabled = true;
     elements.micButton.disabled = true;
     setStatus(getMediaUnavailableMessage(), "warning");
   }
+  void initializeAvatarStage();
 })();

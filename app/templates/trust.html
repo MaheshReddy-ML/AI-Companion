@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block body_class %}app-body public-information-page{% endblock %}
+{% block content %}
+<main class="public-information" id="main-content">
+  <a class="workspace-logo" href="/"><img src="/static/images/emora-logo-v2-64.png" alt=""><span>EMORA</span></a>
+  <p class="workspace-kicker">TRUST CENTER</p><h1>Clear answers about your space.</h1>
+  <p class="public-lead">Emora is an AI companion, not a therapist, medical service, emergency service, or human relationship.</p>
+  <section><h2>What stays and what leaves</h2><p>Conversations, memories, goals, journals, and account settings are stored in the configured application database so signed-in features can work. The default chat path uses the configured local Qwen model. Web search, Google sign-in, email, and optional cloud providers can send only the data required for the action when they are enabled.</p></section>
+  <section><h2>Your controls</h2><p>You can pause memory and camera input, inspect or delete saved memories, revoke sessions, export account data, clear conversation history, or delete the account. Camera frames are used only for the requested local check-in and are not stored as continuous video.</p></section>
+  <section><h2>Important limits</h2><p>AI responses can be incomplete or wrong. Web citations should be checked at their sources. Checkout remains a request preview until a real billing provider verifies payment server-side. Availability shown on the status page is runtime information, not a promise of uninterrupted service.</p></section>
+  <section><h2>Retention and help</h2><p>Temporary authentication, delivery, notification, billing-request, audio-cache, and chat-turn records follow configured retention limits. Use <a href="/help">Help</a> for controls and <a href="/status">Service Status</a> for availability.</p></section>
+  <p class="public-updated">Effective 30 August 2026 · This page describes the repository implementation and must be updated when providers or data flows change.</p>
+</main>
+{% endblock %}

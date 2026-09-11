@@ -2,7 +2,12 @@ import asyncio
 import threading
 from pathlib import Path
 
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
 import numpy as np
+from bson import ObjectId
 
 from app.routers import voices
 from app.tts_text import PronunciationPreprocessor
@@ -12,6 +17,10 @@ from app.voice_manager import VoiceManager
 class FakeRequest:
     async def is_disconnected(self):
         return False
+
+
+def voice_user(plan="plus"):
+    return {"_id": ObjectId(), "email": "voice@example.com", "subscription": {"plan": plan, "status": "active"}}
 
 
 def test_speak_passes_text_to_tts_queue_as_a_keyword(monkeypatch, tmp_path):
@@ -30,7 +39,7 @@ def test_speak_passes_text_to_tts_queue_as_a_keyword(monkeypatch, tmp_path):
             # A stale or malicious browser voice must not override Yuna's profile.
             voices.SpeakRequest(text="Hello from Emora", character_id="Yuna", voice_id="am_adam"),
             FakeRequest(),
-            {},
+            voice_user(),
         )
     )
 
@@ -49,11 +58,14 @@ def test_streaming_speak_returns_pcm_without_waiting_for_a_wav(monkeypatch):
         yield b"\x00\x00\x01\x00"
 
     monkeypatch.setattr(voices, "stream_pcm", fake_stream_pcm)
+    async def fake_reserve_tts_capacity(**kwargs):
+        return []
+    monkeypatch.setattr(voices, "reserve_tts_capacity", fake_reserve_tts_capacity)
     response = asyncio.run(
         voices.speak(
             voices.SpeakRequest(text="Hello from Emora", character_id="Yuna", voice_id="af_heart", stream=True),
             FakeRequest(),
-            {},
+            voice_user(),
         )
     )
 
@@ -121,3 +133,87 @@ def test_qwen_inference_receives_the_configured_character_speaker(monkeypatch, t
     assert received["speaker"] == "Serena"
     assert received["language"] == "English"
     assert received["stream"] is True
+
+
+def test_torch_qwen_tts_uses_native_batch_result_without_mlx_stream_options(monkeypatch, tmp_path):
+    manager = VoiceManager(models_dir=tmp_path / "models", cache_dir=tmp_path / "cache")
+    received = {}
+
+    class FakeTorchQwenModel:
+        def get_supported_speakers(self):
+            return ["Serena"]
+
+        def generate_custom_voice(self, **kwargs):
+            received.update(kwargs)
+            return [np.zeros(32, dtype=np.float32)], 24000
+
+    def fake_model():
+        manager._active_qwen_backend_kind = "torch"
+        return FakeTorchQwenModel()
+
+    monkeypatch.setattr(manager, "_qwen_model", fake_model)
+    profile = manager._build_speech_profile(None, "Yuna", None, None)
+    chunks = list(manager._iter_qwen_audio("Hello.", manager.find_voice("af_heart"), profile, threading.Event()))
+
+    assert len(chunks) == 1
+    assert "stream" not in received
+    assert received["speaker"] == "Serena"
+
+
+def test_qwen_voice_runtime_serializes_concurrent_users(monkeypatch, tmp_path):
+    manager = VoiceManager(models_dir=tmp_path / "models", cache_dir=tmp_path / "cache")
+    active = 0
+    maximum_active = 0
+    state_lock = threading.Lock()
+
+    class FakeResult:
+        audio = np.zeros(16, dtype=np.float32)
+
+    class FakeQwenModel:
+        def get_supported_speakers(self):
+            return ["Serena"]
+
+        def generate_custom_voice(self, **kwargs):
+            nonlocal active, maximum_active
+            with state_lock:
+                active += 1
+                maximum_active = max(maximum_active, active)
+            try:
+                threading.Event().wait(0.04)
+                yield FakeResult()
+            finally:
+                with state_lock:
+                    active -= 1
+
+    monkeypatch.setattr(manager, "_qwen_model", lambda: FakeQwenModel())
+    profile = manager._build_speech_profile(None, "Yuna", None, None)
+    voice = manager.find_voice("af_heart")
+    workers = [threading.Thread(target=lambda: list(manager._iter_qwen_audio("Hello.", voice, profile, threading.Event()))) for _ in range(3)]
+    for worker in workers: worker.start()
+    for worker in workers: worker.join()
+
+    assert maximum_active == 1
+
+
+@pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("text", ["😌", "```python\nprint('hello')\n```", "https://example.com", "<b></b>"])
+def test_unspeakable_text_returns_http_error_before_stream_or_queue(monkeypatch, stream, text):
+    async def unexpected(**kwargs):
+        pytest.fail("Unspeakable text must not reserve capacity or generate audio")
+    monkeypatch.setattr(voices, "reserve_tts_capacity", unexpected)
+    monkeypatch.setattr(voices, "generate_audio", unexpected)
+    app = FastAPI()
+    @app.post('/speak')
+    async def endpoint(payload: voices.SpeakRequest):
+        return await voices.speak(payload, FakeRequest(), voice_user())
+    with TestClient(app) as client:
+        response = client.post('/speak', json={'text': text, 'stream': stream})
+    assert response.status_code == 422
+    assert response.json()['detail'] == 'No speakable text remains after TTS sanitization.'
+    assert response.headers['content-type'] == 'application/json'
+
+
+def test_speech_preflight_preserves_words_alongside_emoji_and_markup():
+    assert voices.manager.has_speakable_text('Thanks 😌')
+    assert voices.manager.has_speakable_text('<emphasis>Hello</emphasis>')
+    assert voices.manager.has_speakable_text('こんにちは')

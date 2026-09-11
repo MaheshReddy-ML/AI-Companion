@@ -1,0 +1,186 @@
+html body.emora-atelier.chat-product{overflow:hidden}
+html body.emora-atelier.chat-product .chat-route-layout{display:grid!important;grid-template-columns:260px minmax(0,1fr);height:100dvh;min-height:0;background:var(--at-bg)!important;transition:none}
+html body.emora-atelier.chat-product .chat-route-layout>.sidebar{position:relative;inset:auto;display:flex;flex-direction:column;width:auto;min-width:0;height:100dvh;padding:24px 16px 0;overflow:hidden;z-index:35;transform:none;opacity:1;visibility:visible;transition:none}
+html body.emora-atelier.chat-product .chat-route-layout.sidebar-collapsed{grid-template-columns:0 minmax(0,1fr)}
+html body.emora-atelier.chat-product .sidebar-collapsed>.sidebar{visibility:hidden;padding:0;pointer-events:none}
+html body.emora-atelier.chat-product .chat-route-main{width:100%;min-width:0;height:100dvh;min-height:0;padding:0!important;overflow:hidden;margin:0;background:var(--at-bg)!important}
+html body.emora-atelier.chat-product :is(.chat-route,.chat-main){width:100%;height:100%;min-height:0;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:var(--at-bg)!important}
+html body.emora-atelier.chat-product .chat-main{display:grid!important;grid-template-rows:auto minmax(0,1fr) auto;position:relative}
+html body.emora-atelier.chat-product .chat-route-header{position:relative;inset:auto;display:flex;align-items:center;gap:16px;min-height:88px;height:auto;padding:18px 30px;border-bottom:1px solid var(--at-line)!important;background:var(--at-bg)!important;z-index:30;box-shadow:none}
+html body.emora-atelier.chat-product .sidebar-toggle{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;color:var(--at-muted);background:0 0;border:1px solid var(--at-line);border-radius:4px;cursor:pointer}
+html body.emora-atelier.chat-product .sidebar-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}
+html body.emora-atelier.chat-product .chat-companion-info{display:flex;align-items:center;gap:12px;min-width:0;flex:1}
+.chat-letter-mark{display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;border:1px solid var(--at-line);border-radius:50%;font:30px 'Instrument Serif',serif;color:var(--at-accent)}
+html body.emora-atelier.chat-product .chat-companion-info>div{min-width:0}
+html body.emora-atelier.chat-product .companion-name{font:500 15px/1.4 Sora,sans-serif;color:var(--at-ink);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+html body.emora-atelier.chat-product .companion-status{color:var(--at-muted);font-size:10px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html body.emora-atelier.chat-product .chat-header-actions{display:flex;align-items:center;gap:12px;overflow:visible;flex:0 0 auto;padding:0}
+html body.emora-atelier.chat-product .chat-view-switcher{display:flex;background:0 0!important;border:0;gap:4px}
+html body.emora-atelier.chat-product .chat-view-switcher button{background:0 0!important;color:var(--at-muted)!important;padding:10px 14px;min-height:40px;border:1px solid transparent;border-radius:4px;font-size:11px;cursor:pointer}
+html body.emora-atelier.chat-product .chat-view-switcher button[aria-pressed=true]{color:var(--at-ink)!important;background:var(--at-paper)!important;border-color:var(--at-line)}
+.chat-actions-menu{position:relative}
+.chat-actions-menu>summary{display:grid;place-items:center;width:40px;height:40px;list-style:none;border:1px solid var(--at-line);border-radius:4px;color:var(--at-ink);cursor:pointer}
+.chat-actions-menu>summary::-webkit-details-marker{display:none}
+.chat-actions-list{position:absolute;right:0;top:48px;width:230px;padding:8px;background:var(--at-paper);border:1px solid var(--at-line);box-shadow:0 12px 35px #0002;border-radius:6px;z-index:50}
+html body.emora-atelier.chat-product .chat-actions-list .btn{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:44px;padding:10px 12px;font:11px Sora,sans-serif;text-align:left;color:var(--at-ink);background:0 0!important;border:0}
+html body.emora-atelier.chat-product .chat-actions-list .btn:hover{background:var(--at-soft)!important}
+html body.emora-atelier.chat-product .chat-actions-list svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5}
+html body.emora-atelier.chat-product .chat-stage{position:relative;inset:auto;width:100%;min-height:0;max-width:none;height:auto;padding:0;display:grid;place-items:center;overflow:hidden;background:var(--at-bg)!important;border:0;border-radius:0}
+html body.emora-atelier.chat-product .chat-stage::after,html body.emora-atelier.chat-product .chat-stage::before{display:none!important}
+html body.emora-atelier.chat-product .chat-empty-copy{position:relative;inset:auto;z-index:2;transform:none;margin:0;padding:28px 28px 22px!important;width:min(740px,100%);max-height:100%;overflow-y:auto;text-align:left;border:0!important;background:0 0!important}
+html body.emora-atelier.chat-product .chat-empty-copy>span{display:block;border:0;padding:0;font:10px Sora,sans-serif;letter-spacing:.13em;color:var(--at-accent)!important}
+html body.emora-atelier.chat-product .chat-empty-copy>span::after{display:none}
+html body.emora-atelier.chat-product .chat-empty-copy h1{font:400 clamp(46px,5vw,70px)/1 "Instrument Serif",serif;color:var(--at-ink);font:400 clamp(46px,5vw,70px)/1 'Instrument Serif',serif;margin:23px 0;letter-spacing:-.03em;text-shadow:none}
+html body.emora-atelier.chat-product .chat-empty-copy h1 em{color:var(--at-accent);-webkit-text-fill-color:var(--at-accent);background:0 0;font-style:italic}
+html body.emora-atelier.chat-product .chat-empty-copy>p{color:var(--at-muted)!important;font:13px/1.8 Sora,sans-serif;margin:0}
+html body.emora-atelier.chat-product .chat-prompt-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px!important;margin:28px 0 0;width:100%;overflow:visible;padding:0}
+html body.emora-atelier.chat-product .chat-prompt-chips button{display:grid;grid-template-columns:24px 1fr 16px;grid-template-rows:auto auto;align-items:center;column-gap:10px;height:auto;min-height:84px;padding:16px;border:1px solid var(--at-line)!important;border-radius:4px!important;background:var(--at-paper)!important;cursor:pointer;text-align:left;box-shadow:none!important;transform:none;backdrop-filter:none}
+html body.emora-atelier.chat-product .chat-prompt-chips button:hover{border-color:var(--at-accent)!important}
+html body.emora-atelier.chat-product .chat-prompt-chips i{grid-row:1/3;font:10px Sora,sans-serif;color:var(--at-accent)!important;height:auto}
+html body.emora-atelier.chat-product .chat-prompt-chips strong{font:500 12px Sora,sans-serif;color:var(--at-ink)!important;margin:0}
+html body.emora-atelier.chat-product .chat-prompt-chips small{grid-column:2;font:10px/1.5 Sora,sans-serif;color:var(--at-muted);margin-top:6px}
+html body.emora-atelier.chat-product .chat-prompt-chips b{position:static;grid-column:3;grid-row:1/3;border:0;background:0 0;font-weight:400;color:var(--at-muted);width:auto;height:auto}
+html body.emora-atelier.chat-product .messages-list{position:absolute;top:8px;bottom:16px;left:0;right:0;display:flex;flex-direction:column;gap:24px;width:min(800px,calc(100% - 56px));height:auto;min-height:0;max-height:none;margin:0 auto;padding:24px 8px;overflow-y:auto;overflow-x:hidden;scroll-behavior:auto;scrollbar-width:thin;scrollbar-color:var(--at-line) transparent;transform:none;opacity:1;z-index:3}
+html body.emora-atelier.chat-product .messages-list.is-empty{pointer-events:none}
+html body.emora-atelier.chat-product .messages-list>*{flex-shrink:0}
+html body.emora-atelier.chat-product .message-row{display:flex;width:100%;margin:0;opacity:1;animation:none}
+html body.emora-atelier.chat-product .message-row.user{justify-content:flex-end}
+html body.emora-atelier.chat-product .message-row.assistant{justify-content:flex-start}
+html body.emora-atelier.chat-product .messages-list .bubble{max-width:90%;color:var(--at-ink)!important;padding:18px 22px!important;border:0!important;border-radius:6px!important;background:0 0!important;text-align:left;box-shadow:none}
+html body.emora-atelier.chat-product .messages-list .bubble.user{background:var(--at-paper)!important;border:1px solid var(--at-line)!important;border-radius:10px 10px 2px 10px!important}
+html body.emora-atelier.chat-product .messages-list .bubble.assistant{width:100%;padding-left:0!important}
+html body.emora-atelier.chat-product .bubble :is(p,li){font:14px/1.85 Sora,sans-serif!important;color:var(--at-ink)!important;overflow-wrap:anywhere}
+html body.emora-atelier.chat-product .bubble :is(pre,code){font-family:'JetBrains Mono',monospace;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+html body.emora-atelier.chat-product .bubble-role{color:var(--at-accent);font-size:9px;letter-spacing:.06em;margin-bottom:10px}
+html body.emora-atelier.chat-product .bubble-role span{color:var(--at-muted);margin-left:8px}
+html body.emora-atelier.chat-product :is(.message-actions,.bubble-meta){display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;color:var(--at-muted);font-size:9px}
+html body.emora-atelier.chat-product .message-actions>span{width:100%;font-size:9px;color:var(--at-muted)}
+html body.emora-atelier.chat-product .message-actions button{min-height:30px;border:1px solid var(--at-line);background:0 0;color:var(--at-muted);border-radius:4px;padding:6px 9px;cursor:pointer;font-size:9px}
+html body.emora-atelier.chat-product .message-actions button.selected{background:var(--at-soft);color:var(--at-accent)}
+html body.emora-atelier.chat-product :is(.web-source-panel,.memory-use-panel){margin-top:15px;font-size:11px}
+html body.emora-atelier.chat-product :is(.web-source-panel,.memory-use-panel) summary{color:var(--at-accent);cursor:pointer}
+html body.emora-atelier.chat-product .web-source-list{display:grid;gap:6px;margin-top:10px}
+html body.emora-atelier.chat-product .web-source-list article{display:flex;gap:8px}
+html body.emora-atelier.chat-product .web-source-list a{display:flex;flex:1;gap:10px;min-width:0;padding:12px;border:1px solid var(--at-line);background:var(--at-paper);color:var(--at-ink);text-decoration:none;border-radius:4px}
+html body.emora-atelier.chat-product .web-source-list :is(strong,span){font-size:10px;overflow-wrap:anywhere}
+html body.emora-atelier.chat-product .web-source-list button{color:var(--at-accent);background:0 0;border:1px solid var(--at-line);border-radius:4px}
+html body.emora-atelier.chat-product .chat-input-area{position:relative;inset:auto;transform:none;width:min(800px,calc(100% - 56px));margin:0 auto;padding:0 0 22px;z-index:15;background:var(--at-bg)!important}
+html body.emora-atelier.chat-product .chat-input-wrap{display:block;padding:17px 18px 12px;border:1px solid var(--at-line)!important;border-radius:12px!important;background:var(--at-paper)!important;box-shadow:0 4px 12px #00000006!important;min-height:0}
+html body.emora-atelier.chat-product .chat-input-wrap:focus-within{border-color:var(--at-accent)!important}
+html body.emora-atelier.chat-product #message-input{display:block;width:100%;min-height:48px;max-height:min(220px,24dvh);padding:0;margin:0 0 12px;resize:none;outline:0!important;border:0!important;box-shadow:none!important;color:var(--at-ink)!important;background:0 0!important;font:14px/1.7 Sora,sans-serif}
+.chat-compose-controls{display:flex;align-items:center;gap:8px}
+html body.emora-atelier.chat-product .composer-context{position:relative;margin-right:auto}
+html body.emora-atelier.chat-product .add-context-button{display:flex;align-items:center;gap:8px;border:1px solid var(--at-line);background:0 0;color:var(--at-muted);border-radius:5px;min-height:38px;padding:8px 12px;font-size:10px;cursor:pointer}
+html body.emora-atelier.chat-product .add-context-button svg{width:12px;fill:none;stroke:currentColor;stroke-width:1.5}
+.composer-private{font-size:9px;color:var(--at-muted);margin-right:10px}
+html body.emora-atelier.chat-product :is(.file-btn,.stop-btn,.send-btn){display:grid;place-items:center;width:40px;height:40px;min-width:40px;min-height:40px;padding:0;border:1px solid var(--at-line);border-radius:6px;background:0 0;color:var(--at-muted);cursor:pointer}
+html body.emora-atelier.chat-product .send-btn{background:var(--at-accent)!important;color:var(--at-on-accent)!important;border-color:var(--at-accent)}
+html body.emora-atelier.chat-product :is(.file-btn,.send-btn) svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}
+html body.emora-atelier.chat-product .chat-input-hints{display:flex;justify-content:space-between;margin-top:10px;gap:8px}
+html body.emora-atelier.chat-product .hint-chip{background:0 0;color:var(--at-muted);font-size:8px;padding:0;border:0;box-shadow:none}
+html body.emora-atelier.chat-product .hint-chip::before{display:none}
+html body.emora-atelier.chat-product .context-menu{position:absolute;bottom:46px;left:0;width:250px;padding:8px;background:var(--at-paper)!important;border:1px solid var(--at-line);border-radius:6px;box-shadow:0 12px 40px #0002}
+html body.emora-atelier.chat-product .context-menu :is(button,label){display:flex;align-items:center;gap:10px;width:100%;padding:12px;background:0 0;color:var(--at-ink);border:0;cursor:pointer}
+html body.emora-atelier.chat-product .context-menu svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}
+html body.emora-atelier.chat-product .context-menu :is(strong,small){display:block;font-size:11px;text-align:left}
+html body.emora-atelier.chat-product .context-menu small{color:var(--at-muted);font-size:9px;margin-top:5px}
+html body.emora-atelier.chat-product .attachment-row{display:flex;align-items:center;gap:12px;border:1px solid var(--at-line);background:var(--at-paper);color:var(--at-muted);padding:10px;border-radius:4px;margin-bottom:10px;font-size:10px}
+html body.emora-atelier.chat-product .chat-jump-latest{position:absolute;bottom:22px;right:28px;z-index:10;background:var(--at-paper);color:var(--at-accent);border:1px solid var(--at-line);border-radius:20px;padding:10px 14px;font-size:10px;cursor:pointer}
+html body.emora-atelier.chat-product .companion-tools{position:absolute;inset:0 0 0 auto;z-index:20;width:min(400px,100%);max-height:100%;height:auto;overflow-y:auto;background:var(--at-paper)!important;border:0!important;border-left:1px solid var(--at-line)!important;border-radius:0!important;box-shadow:-8px 0 28px #00000008!important;backdrop-filter:none;color:var(--at-ink)}
+html body.emora-atelier.chat-product .companion-tools>header{display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:2;padding:22px;border-bottom:1px solid var(--at-line);background:var(--at-paper)}
+html body.emora-atelier.chat-product .companion-tools header span{color:var(--at-accent);font-size:9px;letter-spacing:.1em}
+html body.emora-atelier.chat-product .companion-tools h2{font:32px/1.1 'Instrument Serif',serif;margin:8px 0 0}
+html body.emora-atelier.chat-product .companion-tools>header button{width:38px;height:38px;flex:0 0 38px;background:var(--at-bg);border:1px solid var(--at-line);color:var(--at-ink);font-size:22px;border-radius:4px}
+html body.emora-atelier.chat-product .companion-tools :is(section,footer){padding:22px;border-bottom:1px solid var(--at-line)}
+html body.emora-atelier.chat-product .companion-tools h3{font:500 12px/1.5 Sora,sans-serif;color:var(--at-ink);margin:0 0 12px}
+html body.emora-atelier.chat-product .companion-tools :is(p,small,.tool-section-heading>span){color:var(--at-muted);font-size:10px;line-height:1.7}
+html body.emora-atelier.chat-product :is(.tool-choice-grid,.tool-mode-list,.companion-environment-grid){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+html body.emora-atelier.chat-product .tool-choice-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+html body.emora-atelier.chat-product :is(.tool-choice-grid button,.tool-mode-list button,.quiet-presence,.companion-tools footer button){min-height:40px;border:1px solid var(--at-line);background:var(--at-bg);color:var(--at-ink);font-size:10px;border-radius:4px;padding:10px;cursor:pointer}
+html body.emora-atelier.chat-product :is([data-companion-mode][aria-pressed=true],.tool-choice-grid .selected){background:var(--at-soft);border-color:var(--at-accent);color:var(--at-accent)}
+html body.emora-atelier.chat-product .quiet-presence{width:100%;margin-top:8px}
+html body.emora-atelier.chat-product .companion-tools select{width:100%;min-height:42px;font-size:11px;padding:10px}
+html body.emora-atelier.chat-product .companion-memory-form{display:flex;gap:8px}
+html body.emora-atelier.chat-product .companion-memory-form input{min-width:0;flex:1;padding:10px;font-size:11px}
+html body.emora-atelier.chat-product .companion-memory-form button{padding:10px;border:1px solid var(--at-line);border-radius:4px;background:var(--at-soft);color:var(--at-accent)}
+html body.emora-atelier.chat-product .companion-memory-list article{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:10px 0;border-top:1px solid var(--at-line)}
+html body.emora-atelier.chat-product .companion-memory-list button{background:0 0;border:0;color:var(--at-accent);font-size:10px}
+html body.emora-atelier.chat-product .environment-choice{position:relative;display:grid;grid-template-columns:30px 1fr;align-items:center;gap:6px 10px;min-height:76px;padding:12px;background:var(--at-bg);border:1px solid var(--at-line);border-radius:4px;color:var(--at-ink);text-align:left;cursor:pointer}
+html body.emora-atelier.chat-product .environment-choice>i{grid-row:1/3;font-style:normal;color:var(--at-accent)}
+html body.emora-atelier.chat-product .environment-choice strong{font-size:10px}
+html body.emora-atelier.chat-product .environment-choice small{font-size:8px}
+html body.emora-atelier.chat-product .environment-choice b{display:none}
+html body.emora-atelier.chat-product .environment-choice[aria-checked=true]{border-color:var(--at-accent);background:var(--at-soft)}
+html body.emora-atelier.chat-product .collection-list>label{display:flex;align-items:center;gap:8px;padding:12px 0;color:var(--at-ink);border-bottom:1px solid var(--at-line)}
+html body.emora-atelier.chat-product .collection-list span{display:grid;flex:1;font-size:11px}
+html body.emora-atelier.chat-product .collection-list button{background:0 0;border:0;color:var(--at-muted);font-size:18px}
+html body.emora-atelier.chat-product .companion-tools footer button{width:100%;color:var(--at-accent)}
+html body.emora-atelier.chat-product #chat-toast{position:absolute;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100% - 32px);z-index:25;background:var(--at-paper);color:var(--at-ink);border:1px solid var(--at-line);padding:14px}
+html body.emora-atelier.chat-product .workspace-presence{display:none}
+html body.emora-atelier.chat-product .sidebar-scroll-region{flex:1;min-height:0;overflow-y:auto;padding-bottom:20px}
+html body.emora-atelier.chat-product .chat-sidebar-quick{display:flex;gap:8px;margin-bottom:18px}
+html body.emora-atelier.chat-product .chat-sidebar-quick a{font-size:10px;min-height:36px;padding:8px 4px}
+html body.emora-atelier.chat-product .workspace-rail-new-chat{display:block;width:100%;margin-bottom:14px;min-height:44px;border-radius:4px!important;cursor:pointer}
+html body.emora-atelier.chat-product .workspace-rail-search{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--at-line);border-radius:4px;background:var(--at-paper)}
+html body.emora-atelier.chat-product .workspace-rail-search input{width:100%;min-width:0;border:0;outline-offset:1px;padding:0;font-size:10px;background:0 0!important}
+html body.emora-atelier.chat-product .workspace-rail-search kbd{display:none}
+html body.emora-atelier.chat-product .workspace-rail-conversations{margin:22px 0}
+html body.emora-atelier.chat-product .workspace-rail-conversations h2{font:9px Sora,sans-serif;letter-spacing:.1em;color:var(--at-muted);margin-bottom:12px}
+html body.emora-atelier.chat-product .conversation-card{border:1px solid transparent;border-radius:4px;background:0 0;box-shadow:none;margin-bottom:7px}
+html body.emora-atelier.chat-product .conversation-card.active{background:var(--at-paper);border-color:var(--at-line)}
+html body.emora-atelier.chat-product .conversation-main{width:100%;padding:12px;color:var(--at-ink);background:0 0;border:0;text-align:left;cursor:pointer}
+html body.emora-atelier.chat-product .conversation-title{font-size:11px;color:var(--at-ink)}
+html body.emora-atelier.chat-product .conversation-meta{font-size:9px;color:var(--at-muted);margin-top:5px}
+html body.emora-atelier.chat-product .conversation-actions{display:flex;gap:10px;padding:0 12px 10px}
+html body.emora-atelier.chat-product .conversation-actions button{border:0;background:0 0;color:var(--at-muted);font-size:9px;cursor:pointer}
+html body.emora-atelier.chat-product .empty-list{padding:12px;font-size:10px;color:var(--at-muted);background:0 0;border:1px dashed var(--at-line)}
+.chat-workspace-directory{border-top:1px solid var(--at-line);padding-top:16px}
+.chat-workspace-directory>summary{font-size:11px;color:var(--at-muted);cursor:pointer;padding:10px}
+html body.emora-atelier.chat-product .companion-secondary-actions{display:none}
+html body.emora-atelier.chat-product .utility-menu-open .companion-secondary-actions{display:grid;position:absolute;bottom:140px;left:16px;right:16px;padding:12px;background:var(--at-paper);border:1px solid var(--at-line);border-radius:6px;z-index:40}
+html body.emora-atelier.chat-product .companion-secondary-actions button{min-height:40px;background:0 0;color:var(--at-ink);border:0;text-align:left}
+html body.emora-atelier.chat-product .sidebar-settings-shortcut{background:0 0;color:var(--at-ink);border:0;cursor:pointer}
+html body.emora-atelier.chat-product .chat-history-close{display:none}
+html body.emora-atelier.chat-product .workspace-command-trigger{width:44px;min-width:44px;height:44px;grid-template-columns:1fr;padding:10px;bottom:16px;right:16px}
+html body.emora-atelier.chat-product .workspace-command-trigger :is(span,kbd){display:none}
+@media(min-width:1150px){html body.emora-atelier.chat-product .chat-stage:has(.companion-tools:not([hidden])) .messages-list{right:400px;width:calc(100% - 440px)}
+html body.emora-atelier.chat-product .chat-stage:has(.companion-tools:not([hidden])) .chat-empty-copy{margin-right:400px;width:calc(100% - 400px)}}@media(max-width:900px){html body.emora-atelier.chat-product .chat-route-layout,html body.emora-atelier.chat-product .chat-route-layout.sidebar-collapsed{grid-template-columns:1fr;height:calc(100dvh - 88px - env(safe-area-inset-bottom))}
+html body.emora-atelier.chat-product .chat-route-main{height:100%}
+html body.emora-atelier.chat-product .chat-route-layout>.sidebar{display:none!important}
+html body.emora-atelier.chat-product .chat-route-layout[data-chat-view=navigate]>.sidebar{display:flex!important;position:fixed!important;inset:0 auto 0 0;width:min(340px,100%);height:100dvh;z-index:100;opacity:1;visibility:visible;pointer-events:auto;padding:22px 16px 0;box-shadow:30px 0 0 100vw #0007}
+html body.emora-atelier.chat-product .chat-history-close{display:flex;justify-content:space-between;width:100%;min-height:44px;padding:12px;border:1px solid var(--at-line);border-radius:4px;color:var(--at-accent);background:var(--at-paper);margin-bottom:15px}
+html body.emora-atelier.chat-product .sidebar-toggle{display:none}
+html body.emora-atelier.chat-product .chat-route-header{padding:14px 18px;min-height:78px;gap:10px}
+html body.emora-atelier.chat-product .chat-view-switcher button{padding:10px}
+html body.emora-atelier.chat-product .chat-input-area{padding-bottom:12px;width:calc(100% - 32px)}
+html body.emora-atelier.chat-product .messages-list{width:calc(100% - 32px)}}@media(max-width:600px){html body.emora-atelier.chat-product .chat-route-header{display:grid;grid-template-columns:1fr auto;padding:12px 16px;gap:10px}
+html body.emora-atelier.chat-product .chat-header-actions{display:contents}
+html body.emora-atelier.chat-product .chat-actions-menu{grid-column:2;grid-row:1}
+html body.emora-atelier.chat-product .chat-view-switcher{grid-column:1/-1;display:flex;width:100%}
+html body.emora-atelier.chat-product .chat-view-switcher button{flex:1;min-height:36px;padding:8px}
+html body.emora-atelier.chat-product .chat-empty-copy{padding:22px 18px!important}
+html body.emora-atelier.chat-product .chat-empty-copy h1{font-size:46px;margin:18px 0}
+html body.emora-atelier.chat-product .chat-prompt-chips{margin-top:22px;grid-template-columns:1fr}
+html body.emora-atelier.chat-product .chat-prompt-chips button{min-height:62px;padding:12px}
+html body.emora-atelier.chat-product .chat-prompt-chips small{margin-top:4px}
+html body.emora-atelier.chat-product .chat-input-wrap{padding:14px 12px 10px}
+html body.emora-atelier.chat-product #message-input{font-size:16px;min-height:42px;margin-bottom:8px}
+html body.emora-atelier.chat-product .composer-private{display:none}
+html body.emora-atelier.chat-product .chat-input-hints{display:none}
+html body.emora-atelier.chat-product .bubble :is(p,li){font-size:13px!important}
+html body.emora-atelier.chat-product .messages-list .bubble{max-width:94%;padding:14px!important}
+html body.emora-atelier.chat-product .companion-tools{width:100%}
+html body.emora-atelier.chat-product .chat-jump-latest{right:12px}}@media(prefers-reduced-motion:reduce){html body.emora-atelier.chat-product *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}html body.emora-atelier.chat-product .chat-route{display:block!important}
+html body.emora-atelier.chat-product .chat-route-header{border-radius:0;margin:0;width:100%}
+html body.emora-atelier.chat-product .chat-empty-copy{max-width:none!important;min-height:0}
+html[data-emora-environment="midnight"] body.chat-product{--chat-environment:#6e819d}
+html[data-emora-environment="dawn"] body.chat-product{--chat-environment:#bb8353}
+html[data-emora-environment="rainy-window"] body.chat-product{--chat-environment:#57819a}
+html[data-emora-environment="quiet-forest"] body.chat-product{--chat-environment:#65846c}
+html[data-emora-environment="deep-ocean"] body.chat-product{--chat-environment:#417e95}
+html[data-emora-environment="observatory"] body.chat-product{--chat-environment:#887ca1}
+html[data-emora-environment="fireplace"] body.chat-product{--chat-environment:#b17754}
+html[data-emora-environment="space"] body.chat-product{--chat-environment:#777cac}
+html[data-emora-environment="aurora"] body.chat-product{--chat-environment:#6e948e}
+html body.emora-atelier.chat-product .chat-route-header{border-top:3px solid var(--chat-environment,var(--at-line))}
+html body.emora-atelier.chat-product .chat-actions-menu,html body.emora-atelier.chat-product .chat-header-actions,html body.emora-atelier.chat-product .chat-view-switcher,html body.emora-atelier.chat-product .chat-view-switcher button{opacity:1!important}

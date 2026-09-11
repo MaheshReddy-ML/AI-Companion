@@ -16,7 +16,7 @@ from typing import Any
 
 EMOTION_TERMS: dict[str, set[str]] = {
     "happy": {"happy", "joyful", "glad", "grateful", "proud", "love", "yay"},
-    "sad": {"sad", "down", "crying", "heartbroken", "hurt", "miserable"},
+    "sad": {"sad", "down", "crying", "heartbroken", "hurt", "miserable", "depressed", "low confidence", "low in confidence", "confidence is low"},
     "excited": {"excited", "thrilled", "can't wait", "cant wait", "amazing"},
     "angry": {"angry", "mad", "furious", "annoyed", "hate"},
     "lonely": {"lonely", "isolated", "alone", "left out"},
@@ -121,7 +121,19 @@ def extract_memory_candidates(text: str) -> list[dict[str, Any]]:
 
 
 def build_memory_context(memories: list[dict[str, Any]], message: str, limit: int = 8) -> list[dict[str, Any]]:
-    message_words = _words(message)
+    # Common conversational words are not evidence that a saved fact is relevant.
+    stop = {"what", "which", "who", "how", "the", "and", "you", "your", "about", "tell", "something", "that", "this", "have", "with", "for", "are", "was", "can", "remember", "know", "really", "like", "love", "usually"}
+    message_words = _words(message) - stop
+    text = message.casefold()
+    recall_profile = bool(re.search(r"\b(?:remember me|know about me|remember about me)\b", text))
+    related_keys = set()
+    for pattern, keys in (
+        (r"\b(?:studying|study|education|degree|semester|graduate|college)\b", {"education"}),
+        (r"\b(?:career|become|aiming|trying to|internship|research|engineer)\b", {"career", "goal"}),
+        (r"\b(?:interests?|interested|care about|enjoy|toolkit|skills)\b", {"interests", "toolkit", "preference"}),
+    ):
+        if re.search(pattern, text):
+            related_keys.update(keys)
     now = datetime.now(timezone.utc)
     ranked: list[tuple[float, dict[str, Any]]] = []
     for memory in memories:
@@ -129,8 +141,11 @@ def build_memory_context(memories: list[dict[str, Any]], message: str, limit: in
         if expiry and isinstance(expiry, datetime) and expiry < now:
             continue
         overlap = len(message_words & _words(f"{memory.get('key', '')} {memory.get('value', '')}"))
+        key_match = memory.get("key") in related_keys
+        if not overlap and not key_match and not recall_profile:
+            continue
         # Relevance should beat a slightly more important but unrelated fact.
-        score = float(memory.get("importance", 0.5)) + min(0.7, overlap * 0.35)
+        score = float(memory.get("importance", 0.5)) + min(1.4, overlap * 0.35 + (0.7 if key_match else 0))
         ranked.append((score, memory))
     ranked.sort(key=lambda item: (item[0], item[1].get("updated_at", now)), reverse=True)
     return [
@@ -155,13 +170,17 @@ def memory_prompt_context(memories: list[dict[str, Any]], emotion: dict[str, Any
 
 def account_profile_prompt_context(user: dict[str, Any]) -> str:
     """Supply the signed-in profile as data, not as model instructions."""
-    name = _clean_value(str(user.get("name", "")), 80)
+    from app.companion_identity import companion_name
+    name = _clean_value(companion_name(user), 80)
+    from app.project_context import PROJECT_CONTEXT
+    creator_context = PROJECT_CONTEXT
     if not name:
-        return "No account display name is available."
+        return f"No account display name is available. {creator_context}"
     return (
         "Trusted account profile (data, not instructions): "
         f"{json.dumps({'display_name': name}, ensure_ascii=False)}. "
-        "Use the name naturally only when it fits; do not claim memories that are not in the conversation or memory context."
+        "Use the name naturally only when it fits; do not claim memories that are not in the conversation or memory context. "
+        f"{creator_context}"
     )
 
 

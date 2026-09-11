@@ -1,5 +1,6 @@
 import {
   COMPANION_PROFILES,
+  accessDisplayForUser,
   apiRequest,
   buildShareText,
   copyText,
@@ -11,15 +12,24 @@ import {
   formatSidebarTime,
   getConversationDraftKey,
   getToken,
+  guardEntitlement,
   getStoredUser,
   initChrome,
   openExternal,
+  publishEmoraPresence,
   renderUserAvatar,
+  safeExternalUrl,
   showStatus,
 } from "./common.js";
 
+const SIDEBAR_STATE_KEY = "ai-companion:chat-sidebar-collapsed";
+const ENTRY_PARAMS = new URLSearchParams(window.location.search);
+const ENTRY_SESSION_ID = ENTRY_PARAMS.get("session");
+
 const elements = {
+  chatLayout: document.querySelector(".chat-route-layout"),
   sidebar: document.getElementById("dashboard-sidebar"),
+  sidebarToggle: document.getElementById("sidebar-toggle"),
   pinnedList: document.getElementById("pinned-conversations"),
   recentList: document.getElementById("recent-conversations"),
   sidebarUserAvatar: document.getElementById("sidebar-user-avatar"),
@@ -32,19 +42,25 @@ const elements = {
   statMessages: document.getElementById("stat-messages"),
   dashboardTitle: document.getElementById("dashboard-title"),
   dashboardSubtitle: document.getElementById("dashboard-subtitle"),
-  companionShelf: document.getElementById("companion-shelf"),
-  companionGrid: document.getElementById("companion-grid"),
+  chatStage: document.getElementById("chat-stage"),
+  chatEmptyCopy: document.getElementById("chat-empty-copy"),
   activeChatTitle: document.getElementById("active-chat-title"),
+  pinChatLabel: document.getElementById("pin-chat-label"),
   activeChatMeta: document.getElementById("active-chat-meta"),
   chatMessages: document.getElementById("chat-messages"),
+  jumpToLatest: document.getElementById("jump-to-latest"),
   chatToast: document.getElementById("chat-toast"),
   messageInput: document.getElementById("message-input"),
   sendButton: document.getElementById("send-button"),
+  micButton: document.getElementById("mic-button"),
+  stopButton: document.getElementById("stop-button"),
   fileInput: document.getElementById("file-input"),
   cameraButton: document.getElementById("camera-button"),
   cameraRow: document.getElementById("camera-row"),
   cameraPreview: document.getElementById("camera-preview"),
   cameraStopButton: document.getElementById("camera-stop-button"),
+  addContextButton: document.getElementById("add-context-button"),
+  contextMenu: document.getElementById("context-menu"),
   attachmentRow: document.getElementById("attachment-row"),
   attachmentName: document.getElementById("attachment-name"),
   clearAttachment: document.getElementById("clear-attachment"),
@@ -54,9 +70,30 @@ const elements = {
   shareChatButton: document.getElementById("share-chat-button"),
   exportChatButton: document.getElementById("export-chat-button"),
   postcardButton: document.getElementById("postcard-button"),
+  companionToolsButton: document.getElementById("companion-tools-button"),
+  companionTools: document.getElementById("companion-tools"),
+  companionToolsClose: document.getElementById("companion-tools-close"),
+  companionArrivalStatus: document.getElementById("companion-arrival-status"),
+  companionEnvironmentGrid: document.getElementById("companion-environment-grid"),
+  companionEnvironmentStatus: document.getElementById("companion-environment-status"),
+  companionAmbience: document.getElementById("companion-ambience"),
+  companionMemoryList: document.getElementById("companion-memory-list"),
+  companionMemoryCount: document.getElementById("companion-memory-count"),
+  companionMemoryForm: document.getElementById("companion-memory-form"),
+  companionMemoryInput: document.getElementById("companion-memory-input"),
+  companionMemoryStatus: document.getElementById("companion-memory-status"),
+  collectionForm: document.getElementById("collection-form"),
+  collectionInput: document.getElementById("collection-input"),
+  collectionList: document.getElementById("collection-list"),
+  companionModeStatus: document.getElementById("companion-mode-status"),
+  messageLimit: document.getElementById("chat-message-limit"),
+  remixJournalButton: document.getElementById("remix-journal-button"),
+  sessionReflectionButton: document.getElementById("session-reflection-button"),
+  sessionReflectionOutput: document.getElementById("session-reflection-output"),
   deleteChatButton: document.getElementById("delete-chat-button"),
   premiumButton: document.getElementById("premium-button"),
   settingsButton: document.getElementById("settings-button"),
+  settingsShortcut: document.querySelector(".sidebar-settings-shortcut"),
   policyButton: document.getElementById("policy-button"),
   settingsModal: document.getElementById("settings-modal"),
   policyModal: document.getElementById("policy-modal"),
@@ -75,12 +112,80 @@ const state = {
   drafts: {},
   selectedFile: null,
   isThinking: false,
+  isSearching: false,
   toastTimerId: null,
   activeModal: null,
   cameraStream: null,
+  listening: false,
+  recognition: null,
+  requestController: null,
+  activeClientTurnId: null,
+  space: { background: "forest", ambience: "none", accessory: "none" },
+  environment: "midnight",
+  availableEnvironments: [],
+  preferences: {},
+  collections: [],
+  pendingCompanionMode: "listen",
+  ambientAudio: null,
+  messageRenderSignature: "",
+  pendingMessageRender: false,
 };
 
+const MODE_LABELS = { listen: "Just listen", think: "Help me think", reflect: "Reflect with me", plan: "Gentle plan", quiet: "Quiet presence", distract: "Distract me", laugh: "Make me laugh", honest: "Be honest", focus: "Help me focus", deep: "Deep Conversation" };
+const ENVIRONMENT_META = {
+  midnight: { label: "Midnight", note: "Quiet indigo", mark: "✦" },
+  dawn: { label: "Dawn", note: "Soft first light", mark: "◐" },
+  "rainy-window": { label: "Rainy window", note: "Blue and reflective", mark: "⋮" },
+  "quiet-forest": { label: "Quiet forest", note: "Grounded green", mark: "⌁" },
+  "deep-ocean": { label: "Deep ocean", note: "Low and spacious", mark: "≈" },
+  observatory: { label: "Observatory", note: "Focused starlight", mark: "⊹" },
+  fireplace: { label: "Fireplace", note: "Warm and close", mark: "◇" },
+  space: { label: "Deep space", note: "Distant violet", mark: "◌" },
+  aurora: { label: "Aurora", note: "Luminous calm", mark: "∿" },
+};
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function stopAmbientAudio() {
+  state.ambientAudio?.source?.stop?.();
+  state.ambientAudio?.context?.close?.().catch(() => {});
+  state.ambientAudio = null;
+}
+
+async function startAmbientAudio(kind) {
+  stopAmbientAudio();
+  if (kind === "none") return;
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) throw new Error("Ambient audio is not supported in this browser.");
+  const context = new AudioContextCtor();
+  const seconds = 4;
+  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  let brown = 0;
+  for (let index = 0; index < data.length; index += 1) {
+    const white = Math.random() * 2 - 1;
+    brown = (brown + 0.018 * white) / 1.018;
+    data[index] = kind === "rain" ? white * .18 : brown * 2.6;
+  }
+  const source = context.createBufferSource();
+  const filter = context.createBiquadFilter();
+  const gain = context.createGain();
+  source.buffer = buffer;
+  source.loop = true;
+  filter.type = kind === "rain" ? "highpass" : "lowpass";
+  filter.frequency.value = kind === "rain" ? 900 : kind === "ocean" ? 420 : kind === "fireplace" ? 680 : 520;
+  gain.gain.value = kind === "night_wind" ? .08 : .11;
+  source.connect(filter).connect(gain).connect(context.destination);
+  source.start();
+  await context.resume();
+  state.ambientAudio = { context, source };
+}
+
 async function startCameraCheckIn() {
+  if (!state.preferences.visualInput) {
+    showToast("Enable Visual emotion input in Profile settings first.", "warning");
+    return;
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
     showToast("Camera access is not available in this browser.", "error");
     return;
@@ -115,29 +220,6 @@ function captureCameraFrame() {
   return canvas.toDataURL("image/jpeg", 0.72);
 }
 
-const QUICK_PROMPTS = [
-  {
-    title: "Plan my day",
-    description: "Turn a messy list into a realistic schedule.",
-    prompt: "Build me a realistic plan for today with priorities, time blocks, and breaks.",
-  },
-  {
-    title: "Break down a feature",
-    description: "Turn an idea into build-ready tasks.",
-    prompt: "Help me break a feature idea into implementation tasks, edge cases, and a delivery order.",
-  },
-  {
-    title: "Summarize priorities",
-    description: "Reduce noise into a short action list.",
-    prompt: "Summarize my priorities for this week in five concise bullets with the highest-leverage actions first.",
-  },
-  {
-    title: "Calm check-in",
-    description: "Reset stress into actionable next steps.",
-    prompt: "Give me a calm mental reset and a practical next-step plan for when I feel overwhelmed.",
-  },
-];
-
 initChrome();
 
 function getDraftStorageKey() {
@@ -157,11 +239,20 @@ function loadDrafts() {
   }
 
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Object.fromEntries(Object.entries(parsed || {}).map(([key, value]) => [key, typeof value === "string" ? { text: value, savedAt: Date.now() } : value]));
   } catch {
     localStorage.removeItem(getDraftStorageKey());
     return {};
   }
+}
+
+function draftText(value) {
+  return typeof value === "string" ? value : value?.text || "";
+}
+
+function draftRecord(text, clientTurnId = null) {
+  return { text, savedAt: Date.now(), ...(clientTurnId ? { clientTurnId } : {}) };
 }
 
 function saveDrafts() {
@@ -235,7 +326,8 @@ function getActiveConversation() {
 
 function setActiveConversation(conversationId) {
   state.activeConversationId = conversationId;
-  const draft = state.drafts[conversationId] || "";
+  renderCollections();
+  const draft = draftText(state.drafts[conversationId]);
   elements.messageInput.value = draft;
   resizeComposer();
   render();
@@ -261,8 +353,12 @@ function removeConversation(conversationId) {
 }
 
 function resizeComposer() {
+  const followLatest = state.followLatest !== false;
   elements.messageInput.style.height = "auto";
   elements.messageInput.style.height = `${Math.min(elements.messageInput.scrollHeight, 220)}px`;
+  if (followLatest && elements.chatMessages) {
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  }
 }
 
 function getInitials(value) {
@@ -292,11 +388,12 @@ function renderSidebarMeta() {
   const userEmail = state.user?.email || "Signed in workspace";
   const conversationCount = state.conversations.length;
   const activeConversation = getActiveConversation();
+  const accessDisplay = accessDisplayForUser(state.user);
 
   elements.sidebarUserName.textContent = userName;
-  elements.sidebarUserEmail.textContent = userEmail;
+  elements.sidebarUserEmail.textContent = accessDisplay.compact;
   renderUserAvatar(elements.sidebarUserAvatar, state.user, userName);
-  elements.sidebarPlanBadge.textContent = "Free Plan";
+  elements.sidebarPlanBadge.textContent = state.user?.access?.isAdmin ? "FULL ACCESS" : `${accessDisplay.planName} Plan`;
   elements.sidebarWorkspaceBadge.textContent =
     activeConversation?.characterName
       ? `${activeConversation.characterName} active`
@@ -345,88 +442,54 @@ function renderConversationLists() {
     : '<p class="empty-list">No conversations yet.</p>';
 }
 
-function renderCompanionGrid() {
-  elements.companionGrid.innerHTML = COMPANION_PROFILES.map(
-    (profile) => `
-      <article class="companion-card panel glass">
-        <div class="companion-card-head">
-          <span class="feature-badge">${escapeHtml(profile.badge)}</span>
-          <span class="companion-card-kicker">Focused mode</span>
-        </div>
-        <h3>${escapeHtml(profile.name)}</h3>
-        <p>${escapeHtml(profile.description)}</p>
-        <button class="button secondary compact btn-icon" type="button" data-start-companion="${profile.id}" aria-label="Open ${escapeHtml(profile.name)}">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-          Open mode
-        </button>
-      </article>
-    `,
-  ).join("");
-}
-
-function renderEmptyState(activeConversation) {
-  const heading = activeConversation
-    ? `Continue ${escapeHtml(activeConversation.title)}`
-    : `How can I help, ${escapeHtml(displayNameForUser(state.user))}?`;
-  const subtitle = activeConversation
-    ? "Use a quick prompt below or write your own message to start this conversation."
-    : "Start with a suggested prompt or open one of the focused companion modes to begin in the cleaner workspace.";
-
-  return `
-    <div class="empty-chat chatgpt-empty-state">
-      <div class="empty-orb-mark">AI</div>
-      <h3>${heading}</h3>
-      <p>${subtitle}</p>
-      <div class="suggestion-grid">
-        ${QUICK_PROMPTS.map(
-          (item, index) => `
-            <button class="suggestion-card" type="button" data-quick-prompt="${index}">
-              <strong>${escapeHtml(item.title)}</strong>
-              <span>${escapeHtml(item.description)}</span>
-            </button>
-          `,
-        ).join("")}
-      </div>
-      <div class="suggestion-companions">
-        ${COMPANION_PROFILES.map(
-          (profile) => `
-            <button class="suggestion-chip" type="button" data-empty-companion="${profile.id}">
-              <span>${escapeHtml(profile.name)}</span>
-              <small>${escapeHtml(profile.badge)}</small>
-            </button>
-          `,
-        ).join("")}
-      </div>
-    </div>
-  `;
-}
-
 function renderChatHeader() {
   const activeConversation = getActiveConversation();
 
   if (!activeConversation) {
-    elements.activeChatTitle.textContent = "New chat";
-    elements.activeChatMeta.textContent = "Pick a prompt, launch a mode, or start typing below.";
+    elements.activeChatTitle.textContent = "Emora";
+    elements.activeChatMeta.textContent = "Present and ready to listen.";
     elements.pinChatButton.disabled = true;
-    elements.pinChatButton.textContent = "Pin";
+    elements.pinChatLabel.textContent = "Pin";
     elements.shareChatButton.disabled = true;
     elements.exportChatButton.disabled = true;
     elements.postcardButton.disabled = true;
     elements.deleteChatButton.disabled = true;
-    elements.companionShelf.hidden = false;
     return;
   }
 
   elements.activeChatTitle.textContent = activeConversation.title;
   elements.activeChatMeta.textContent = `${activeConversation.characterName || "AI Companion"} • ${activeConversation.messages?.length || 0} messages`;
   elements.pinChatButton.disabled = false;
-  const pinSvg = elements.pinChatButton.querySelector("svg")?.outerHTML || "";
-  elements.pinChatButton.innerHTML = `${pinSvg} ${activeConversation.pinned ? "Unpin" : "Pin"}`;
+  elements.pinChatLabel.textContent = activeConversation.pinned ? "Unpin" : "Pin";
   elements.shareChatButton.disabled = false;
   elements.exportChatButton.disabled = false;
   elements.postcardButton.disabled = false;
   elements.deleteChatButton.disabled = false;
-  elements.companionShelf.hidden = Boolean(activeConversation.messages?.length);
+}
+
+function renderWebSources(webSearch) {
+  if (!webSearch?.searched) return "";
+  const sources = Array.isArray(webSearch.sources) ? webSearch.sources : [];
+  if (!sources.length) {
+    return '<div class="web-source-status unavailable">Web check unavailable · no claims were guessed</div>';
+  }
+  return `
+    <details class="web-source-panel">
+      <summary>⌕ Searched the web · ${sources.length} source${sources.length === 1 ? "" : "s"}</summary>
+      <div class="web-source-list">
+        ${sources.map((source) => `
+          <article><a href="${escapeHtml(safeExternalUrl(source.url))}" target="_blank" rel="noopener noreferrer">
+            <strong>${escapeHtml(source.title || source.domain || "Source")}</strong>
+            <span>${escapeHtml(source.domain || "")}</span>
+          </a><button type="button" data-save-source data-source-url="${escapeHtml(safeExternalUrl(source.url, ""))}" data-source-title="${escapeHtml(source.title || source.domain || "Source")}" data-source-domain="${escapeHtml(source.domain || "")}">Save</button></article>`).join("")}
+      </div>
+    </details>`;
+}
+
+function renderMemoryUse(memoryUse) {
+  const items = Array.isArray(memoryUse) ? memoryUse : [];
+  if (!items.length) return "";
+  return `<details class="memory-use-panel"><summary>Response context</summary><div>${items.map((item) => `<article><strong>${escapeHtml(item.value || item.key || "Saved detail")}</strong><p>${escapeHtml(item.why || "Relevant to this response.")}</p></article>`).join("")}<a href="/sessions#memory-center">Review, correct, or forget in Memory Center →</a></div></details>`;
 }
 
 function renderMessages() {
@@ -434,23 +497,48 @@ function renderMessages() {
 
   if (!activeConversation) {
     elements.chatMessages.classList.add("is-empty");
-    elements.chatMessages.innerHTML = renderEmptyState(null);
+    elements.chatMessages.innerHTML = "";
+    elements.chatEmptyCopy.hidden = false;
+    state.messageRenderSignature = "";
     return;
   }
 
   if (!(activeConversation.messages || []).length) {
     elements.chatMessages.classList.add("is-empty");
-    elements.chatMessages.innerHTML = renderEmptyState(activeConversation);
+    elements.chatMessages.innerHTML = "";
+    elements.chatEmptyCopy.hidden = false;
+    state.messageRenderSignature = `${activeConversation.id}|empty`;
     return;
   }
 
   elements.chatMessages.classList.remove("is-empty");
+  elements.chatEmptyCopy.hidden = true;
   const userInitials = getInitials(displayNameForUser(state.user));
   const assistantInitials = getInitials(activeConversation.characterName || "AI Companion");
+  const messages = activeConversation.messages || [];
+  const signature = `${activeConversation.id}|${state.isThinking}|${state.isSearching}|${messages.map((message) => `${message.id || message.clientTurnId}:${message.content}:${message.timestamp || ""}`).join("|")}`;
+  if (signature === state.messageRenderSignature) return;
+  const selection = window.getSelection?.();
+  if (selection && !selection.isCollapsed && elements.chatMessages.contains(selection.anchorNode)) {
+    state.pendingMessageRender = true;
+    return;
+  }
+  const distanceFromBottom = elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop - elements.chatMessages.clientHeight;
+  const previousScrollTop = elements.chatMessages.scrollTop;
+  const stayAtLatest = !state.messageRenderSignature.startsWith(`${activeConversation.id}|`) || distanceFromBottom < 96;
+  state.followLatest = stayAtLatest;
+  state.messageRenderSignature = signature;
+  state.pendingMessageRender = false;
 
-  const messagesMarkup = activeConversation.messages
+  const messagesMarkup = messages
     .map(
-      (message) => `
+      (message, index) => {
+        const day = message.timestamp ? new Date(message.timestamp) : null;
+        const previousDay = index && messages[index - 1].timestamp ? new Date(messages[index - 1].timestamp) : null;
+        const validDay = day && !Number.isNaN(day.getTime());
+        const startsChapter = validDay && (!previousDay || Number.isNaN(previousDay.getTime()) || day.toDateString() !== previousDay.toDateString());
+        const chapter = startsChapter ? `<div class="chat-date-chapter" role="separator"><span>${escapeHtml(new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" }).format(day))}</span></div>` : "";
+        return `${chapter}
         <article
           class="message-row ${message.role === "assistant" ? "assistant" : "user"}"
           data-avatar="${escapeHtml(message.role === "assistant" ? assistantInitials : userInitials)}"
@@ -461,10 +549,13 @@ function renderMessages() {
               <span>${escapeHtml(formatMessageTime(message.timestamp))}</span>
             </div>
             <p>${escapeHtml(message.role === "assistant" ? displayCompanionMessage(message.content) : message.content)}</p>
+            ${message.role === "assistant" ? renderWebSources(message.webSearch) : ""}
+            ${message.role === "assistant" ? renderMemoryUse(message.memoryUse) : ""}
             ${message.attachmentName ? `<button class="attachment-chip" type="button" data-download-attachment="${escapeHtml(message.attachmentId || "")}" ${message.attachmentId ? "" : "disabled"}>${escapeHtml(message.attachmentName)}</button>` : ""}
+            ${message.id ? `<div class="message-actions"><button type="button" data-copy-message="${escapeHtml(message.id)}">Copy</button><button class="message-moment-action" type="button" data-save-moment="${escapeHtml(message.id)}">Keep as a moment</button>${message.role === "assistant" ? `<span>Private feedback · sent to Emora</span><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="helpful">Helpful</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_long">Too long</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="too_generic">Too generic</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="missed_request">Missed request</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="tone_wrong">Tone felt wrong</button><button type="button" data-feedback-message="${escapeHtml(message.id)}" data-feedback-reason="incorrect_or_unsafe">Incorrect or unsafe</button></div>` : ""}` : ""}
           </div>
         </article>
-      `,
+      `; },
     )
     .join("");
 
@@ -472,9 +563,10 @@ function renderMessages() {
     ? `
       <article class="message-row assistant" data-avatar="${escapeHtml(assistantInitials)}">
         <div class="bubble assistant typing-bubble">
-          <div class="typing-dots">
+          <div class="typing-dots" aria-label="${state.isSearching ? "Emora is searching the web" : "Emora is thinking"}">
             <span></span><span></span><span></span>
           </div>
+          ${state.isSearching ? '<div class="web-searching-label">⌕ Checking current sources…</div>' : ""}
         </div>
       </article>
     `
@@ -482,9 +574,17 @@ function renderMessages() {
 
   elements.chatMessages.innerHTML = messagesMarkup + thinkingMarkup;
   window.requestAnimationFrame(() => {
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    if (stayAtLatest) elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    else {
+      elements.chatMessages.scrollTop = previousScrollTop;
+      if (elements.jumpToLatest) elements.jumpToLatest.hidden = false;
+    }
   });
 }
+
+document.addEventListener("selectionchange", () => {
+  if (state.pendingMessageRender && window.getSelection?.().isCollapsed) renderMessages();
+});
 
 function renderAttachment() {
   if (!state.selectedFile) {
@@ -513,30 +613,60 @@ function render() {
   renderMessages();
   renderAttachment();
   renderDashboardSummary();
+  const companionState = state.isSearching ? "searching" : state.isThinking ? "thinking" : state.listening ? "listening" : "idle";
+  elements.chatStage.dataset.companionState = companionState;
+  elements.stopButton.hidden = !state.isThinking;
+  elements.micButton.dataset.active = state.listening ? "true" : "false";
+  const mode = getActiveConversation()?.companionMode || state.pendingCompanionMode;
+  elements.chatStage.dataset.companionMode = mode;
+  document.querySelectorAll("button[data-companion-mode]").forEach((button) => {
+    const selected = button.dataset.companionMode === mode;
+    button.setAttribute("aria-pressed", String(selected));
+    button.classList.toggle("active", selected);
+  });
+  if (elements.companionModeStatus) elements.companionModeStatus.textContent = MODE_LABELS[mode] || MODE_LABELS.listen;
 }
 
-async function fetchConversations() {
+async function fetchConversations({ selectMostRecent = true } = {}) {
   const params = new URLSearchParams({ limit: "50" });
   if (state.conversationSearch.trim()) {
     params.set("search", state.conversationSearch.trim());
   }
   state.conversations = await apiRequest(`/api/chat?${params.toString()}`, { auth: true });
-  if (!state.activeConversationId && state.conversations.length > 0) {
+  const requestedConversation = new URLSearchParams(window.location.search).get("conversation");
+  if (requestedConversation && state.conversations.some((item) => item.id === requestedConversation)) state.activeConversationId = requestedConversation;
+  if (selectMostRecent && !state.activeConversationId && state.conversations.length > 0) {
     state.activeConversationId = getOrderedConversations()[0].id;
   } else if (state.activeConversationId && !state.conversations.some((item) => item.id === state.activeConversationId)) {
     state.activeConversationId = state.conversations[0]?.id || null;
   }
 }
 
+function renderCollections() {
+  if (!elements.collectionList) return;
+  const conversationId = state.activeConversationId;
+  elements.collectionList.innerHTML = state.collections.length ? state.collections.map((item) => `<label><input type="checkbox" data-collection-id="${escapeHtml(item.id)}" ${conversationId && item.conversationIds.includes(conversationId) ? "checked" : ""} ${conversationId ? "" : "disabled"}><span><strong>${escapeHtml(item.name)}</strong><small>${item.conversationIds.length} conversation${item.conversationIds.length === 1 ? "" : "s"}</small></span><button type="button" data-delete-collection="${escapeHtml(item.id)}" aria-label="Delete ${escapeHtml(item.name)}">×</button></label>`).join("") : "<p>Create a collection for conversations you want to revisit together.</p>";
+}
+
+async function loadCollections() {
+  if (!elements.collectionList) return;
+  const response = await apiRequest("/api/workspace/collections", { auth: true });
+  state.collections = response.collections || [];
+  renderCollections();
+}
+
 async function createConversation(payload = {}) {
   const conversation = await apiRequest("/api/chat/conversations", {
     method: "POST",
     auth: true,
-    body: payload,
+    body: { companionMode: state.pendingCompanionMode, ...payload },
   });
 
   replaceConversation(conversation);
   state.activeConversationId = conversation.id;
+  if (new URLSearchParams(window.location.search).get("new") === "1") {
+    window.history.replaceState({}, "", "/chat");
+  }
   render();
   return conversation;
 }
@@ -547,15 +677,13 @@ async function togglePin(conversationId) {
     return;
   }
 
-  const updated = await apiRequest(`/api/chat/conversations/${conversationId}`, {
-    method: "PATCH",
-    auth: true,
-    body: {
-      pinned: !conversation.pinned,
-    },
-  });
-  replaceConversation(updated);
-  render();
+  try {
+    const updated = await apiRequest(`/api/chat/conversations/${conversationId}`, { method: "PATCH", auth: true, body: { pinned: !conversation.pinned, expectedVersion: conversation.version || 1 } });
+    replaceConversation(updated); render();
+  } catch (error) {
+    if (error.status === 409) { window.alert("This conversation changed on another device. Emora will load the current server version before you choose again."); await fetchConversations({ selectMostRecent: false }); render(); return; }
+    throw error;
+  }
 }
 
 async function deleteConversation(conversationId) {
@@ -573,7 +701,7 @@ function persistDraftForActiveConversation() {
   }
   const value = elements.messageInput.value;
   if (value.trim()) {
-    state.drafts[state.activeConversationId] = value;
+    state.drafts[state.activeConversationId] = draftRecord(value);
   } else {
     delete state.drafts[state.activeConversationId];
   }
@@ -594,7 +722,7 @@ async function startCompanion(profileId) {
     starterMessage: profile.greeting,
   });
 
-  state.drafts[conversation.id] = profile.kickoffPrompt;
+  state.drafts[conversation.id] = draftRecord(profile.kickoffPrompt);
   saveDrafts();
   elements.messageInput.value = profile.kickoffPrompt;
   resizeComposer();
@@ -644,6 +772,7 @@ async function shareConversation(conversation) {
 }
 
 async function exportConversation(conversation) {
+  if (!guardEntitlement("conversation_export")) return;
   if (!conversation?.id) {
     showToast("Choose a saved conversation to export.", "error");
     return;
@@ -702,6 +831,7 @@ async function downloadAttachment(attachmentId) {
 }
 
 async function playPostcard(conversation) {
+  if (!guardEntitlement("voice_postcards")) return;
   if (!conversation?.id) throw new Error("Choose a conversation first.");
   const response = await fetch(`/api/play/postcard/${encodeURIComponent(conversation.id)}`, { headers: { Authorization: `Bearer ${getToken()}` } });
   if (!response.ok) throw new Error("A voice postcard is not available for this conversation.");
@@ -710,6 +840,93 @@ async function playPostcard(conversation) {
   audio.addEventListener("ended", () => URL.revokeObjectURL(url), { once: true });
   await audio.play();
   showToast("Playing your companion postcard.", "success");
+}
+
+function setCompanionToolsOpen(open) {
+  if (!elements.companionTools) return;
+  elements.companionTools.hidden = !open;
+  elements.companionToolsButton?.setAttribute("aria-expanded", String(open));
+}
+
+function renderEnvironmentChoices() {
+  if (!elements.companionEnvironmentGrid) return;
+  const available = state.availableEnvironments.length ? state.availableEnvironments : ["midnight", "dawn"];
+  elements.companionEnvironmentGrid.innerHTML = available.map((name) => {
+    const meta = ENVIRONMENT_META[name] || { label: name, note: "Personal atmosphere", mark: "✦" };
+    const selected = name === state.environment;
+    return `<button type="button" class="environment-choice environment-${escapeHtml(name)}" data-companion-environment="${escapeHtml(name)}" role="radio" aria-checked="${selected}" tabindex="${selected ? "0" : "-1"}"><i aria-hidden="true"><span>${meta.mark}</span></i><strong>${escapeHtml(meta.label)}</strong><small>${escapeHtml(meta.note)}</small><b>${selected ? "Selected" : "Choose"}</b></button>`;
+  }).join("");
+  const selectedMeta = ENVIRONMENT_META[state.environment];
+  if (elements.companionEnvironmentStatus) elements.companionEnvironmentStatus.textContent = selectedMeta?.label || "Your space";
+}
+
+async function selectCompanionEnvironment(name) {
+  if (!state.availableEnvironments.includes(name) || name === state.environment) return;
+  const restoreFocus = elements.companionEnvironmentGrid?.contains(document.activeElement);
+  const focusSelectedChoice = () => {
+    if (restoreFocus) requestAnimationFrame(() => elements.companionEnvironmentGrid?.querySelector(`[data-companion-environment="${name}"]`)?.focus());
+  };
+  const previous = state.environment;
+  state.environment = name;
+  document.documentElement.dataset.emoraEnvironment = name;
+  renderEnvironmentChoices();
+  focusSelectedChoice();
+  if (elements.companionEnvironmentStatus) elements.companionEnvironmentStatus.textContent = "Saving…";
+  try {
+    const response = await apiRequest("/api/experiences/space", { method: "PUT", auth: true, body: { environment: name } });
+    state.environment = response.space?.environment || name;
+    document.documentElement.dataset.emoraEnvironment = state.environment;
+    renderEnvironmentChoices();
+    focusSelectedChoice();
+    showToast(`${ENVIRONMENT_META[state.environment]?.label || "Conversation"} atmosphere selected.`, "success");
+  } catch (error) {
+    state.environment = previous;
+    document.documentElement.dataset.emoraEnvironment = previous;
+    renderEnvironmentChoices();
+    if (restoreFocus) requestAnimationFrame(() => elements.companionEnvironmentGrid?.querySelector(`[data-companion-environment="${previous}"]`)?.focus());
+    showToast(error.message || "Could not change the conversation atmosphere.", "error");
+  }
+}
+
+async function loadCompanionTools() {
+  const [memoryData, spaceData, preferenceData, environmentData] = await Promise.all([
+    apiRequest("/api/companion/memories", { auth: true }),
+    apiRequest("/api/play/space", { auth: true }),
+    apiRequest("/api/personal/preferences", { auth: true }),
+    apiRequest("/api/experiences/space", { auth: true }),
+  ]);
+  state.preferences = preferenceData.preferences || {};
+  const memories = memoryData.memories || [];
+  elements.companionMemoryCount.textContent = `${memories.length} held with care`;
+  elements.companionMemoryList.innerHTML = memories.length
+    ? memories.slice(0, 8).map((memory) => `<article><p>${escapeHtml(memory.value)}</p><button type="button" data-edit-memory="${escapeHtml(memory.id)}" data-memory-value="${escapeHtml(memory.value)}">Edit</button><button type="button" data-forget-memory="${escapeHtml(memory.id)}">Forget</button></article>`).join("")
+    : "<p>Nothing saved yet. Emora only keeps explicit, useful details.</p>";
+  state.space = { ...state.space, ...(spaceData.space || {}) };
+  state.environment = environmentData.space?.environment || "midnight";
+  state.availableEnvironments = environmentData.space?.available || ["midnight", "dawn"];
+  document.documentElement.dataset.emoraEnvironment = state.environment;
+  renderEnvironmentChoices();
+  elements.companionAmbience.value = state.space.ambience || "none";
+  const entitlements = new Set(state.user?.access?.entitlements || []);
+  elements.companionAmbience.querySelectorAll("[data-ambient-tier]").forEach((option) => {
+    option.disabled = option.dataset.ambientTier === "plus" ? !entitlements.has("expanded_ambient") : !entitlements.has("ambient_rooms");
+  });
+  elements.chatStage.dataset.ambience = state.space.ambience || "none";
+  if (elements.cameraButton) elements.cameraButton.hidden = !state.preferences.visualInput;
+  if (!state.preferences.visualInput) stopCameraCheckIn();
+  if (elements.companionMemoryInput) elements.companionMemoryInput.disabled = !state.preferences.emotionalMemory;
+  if (elements.companionMemoryForm) elements.companionMemoryForm.querySelector("button").disabled = !state.preferences.emotionalMemory;
+  if (!state.preferences.emotionalMemory && elements.companionMemoryStatus) elements.companionMemoryStatus.textContent = "Memory is paused in Profile settings.";
+}
+
+async function remixConversationToJournal() {
+  if (!guardEntitlement("conversation_remix")) return;
+  const conversation = getActiveConversation();
+  const transcript = (conversation?.messages || []).map((message) => `${message.role === "assistant" ? "Emora" : "Me"}: ${message.content}`).join("\n\n").slice(0, 8000);
+  if (!transcript) throw new Error("Have a conversation first, then bring it into your journal.");
+  const remix = await apiRequest("/api/play/remix", { method: "POST", auth: true, body: { text: transcript, format: "journal" } });
+  sessionStorage.setItem("emora:journal-remix", JSON.stringify({ title: conversation.title || "A conversation worth keeping", content: remix.content || transcript }));
+  window.location.assign("/journal");
 }
 
 async function shareToChannel(conversation, channel) {
@@ -749,9 +966,13 @@ async function handleSend(promptOverride = null) {
 
   const outgoingContent = draft || `Shared file: ${attachmentName}`;
   const cameraFrame = captureCameraFrame();
+  const existingDraft = state.drafts[activeConversation.id];
+  const clientTurnId = existingDraft?.clientTurnId || `turn-${crypto.randomUUID()}`;
+  state.activeClientTurnId = clientTurnId;
   const snapshot = JSON.parse(JSON.stringify(activeConversation));
   const optimisticMessage = {
-    id: `temp-${Date.now()}`,
+    id: clientTurnId,
+    clientTurnId,
     role: "user",
     content: outgoingContent,
     attachmentName,
@@ -771,43 +992,132 @@ async function handleSend(promptOverride = null) {
   resizeComposer();
   state.selectedFile = null;
   state.isThinking = true;
+  state.requestController = new AbortController();
   render();
 
   try {
+    if (selectedFile) publishEmoraPresence("SAVING");
     const attachment = await uploadSelectedAttachment(selectedFile);
+    try {
+      const decision = await apiRequest("/api/chat/search-decision", {
+        method: "POST", auth: true, body: { message: outgoingContent }, signal: state.requestController.signal,
+      });
+      state.isSearching = Boolean(decision?.needsWeb);
+      publishEmoraPresence(state.isSearching ? "SEARCHING" : "THINKING");
+      render();
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      state.isSearching = false;
+    }
     const response = await apiRequest("/api/chat", {
       method: "POST",
       auth: true,
       body: {
+        clientTurnId,
         conversationId: activeConversation.id,
         message: draft,
         attachmentName,
         attachmentId: attachment?.id || null,
         personaPrompt: activeConversation.personaPrompt || null,
         characterName: activeConversation.characterName || null,
+        companionMode: activeConversation.companionMode || state.pendingCompanionMode,
         cameraOptIn: Boolean(cameraFrame),
         cameraFrame,
       },
+      signal: state.requestController.signal,
     });
 
     replaceConversation(response.conversation);
+    publishEmoraPresence("IDLE");
+    if (ENTRY_SESSION_ID && response.conversation?.id) {
+      await apiRequest(`/api/premium/sessions/${encodeURIComponent(ENTRY_SESSION_ID)}`, { method: "PATCH", auth: true, body: { conversationId: response.conversation.id, status: "active" } });
+    }
     if (response.warning) {
       showToast(response.warning, "warning");
     }
   } catch (error) {
+    if (error?.name === "AbortError") {
+      replaceConversation(snapshot);
+      publishEmoraPresence("INTERRUPTED");
+      return;
+    }
     replaceConversation(snapshot);
-    state.drafts[activeConversation.id] = draft;
+    state.drafts[activeConversation.id] = draftRecord(draft, clientTurnId);
     saveDrafts();
     elements.messageInput.value = draft;
     resizeComposer();
     showToast(error.message || "Failed to get a response.", "error");
+    publishEmoraPresence("ERROR");
   } finally {
     state.isThinking = false;
+    state.isSearching = false;
+    state.requestController = null;
+    state.activeClientTurnId = null;
     render();
   }
 }
 
 function bindStaticEvents() {
+  elements.chatMessages?.addEventListener("scroll", () => {
+    const distance = elements.chatMessages.scrollHeight - elements.chatMessages.scrollTop - elements.chatMessages.clientHeight;
+    state.followLatest = distance < 96;
+    if (elements.jumpToLatest) elements.jumpToLatest.hidden = state.followLatest;
+  }, { passive: true });
+  elements.jumpToLatest?.addEventListener("click", () => {
+    state.followLatest = true;
+    elements.chatMessages.scrollTo({ top: elements.chatMessages.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    elements.jumpToLatest.hidden = true;
+    elements.chatMessages.focus({ preventScroll: true });
+  });
+  const closeContextMenu = () => {
+    if (!elements.contextMenu || !elements.addContextButton) return;
+    elements.contextMenu.hidden = true;
+    elements.addContextButton.setAttribute("aria-expanded", "false");
+  };
+
+  const setSidebarCollapsed = (collapsed, { persist = true } = {}) => {
+    elements.chatLayout?.classList.toggle("sidebar-collapsed", collapsed);
+    elements.sidebarToggle?.setAttribute("aria-expanded", String(!collapsed));
+    elements.sidebarToggle?.setAttribute("aria-label", collapsed ? "Open sidebar" : "Collapse sidebar");
+    elements.sidebarToggle?.setAttribute("title", collapsed ? "Open sidebar" : "Collapse sidebar");
+    if (persist) localStorage.setItem(SIDEBAR_STATE_KEY, String(collapsed));
+  };
+
+  setSidebarCollapsed(localStorage.getItem(SIDEBAR_STATE_KEY) === "true", { persist: false });
+  elements.sidebarToggle?.addEventListener("click", () => {
+    setSidebarCollapsed(!elements.chatLayout?.classList.contains("sidebar-collapsed"));
+  });
+
+  elements.addContextButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const willOpen = Boolean(elements.contextMenu?.hidden);
+    if (elements.contextMenu) elements.contextMenu.hidden = !willOpen;
+    elements.addContextButton.setAttribute("aria-expanded", String(willOpen));
+  });
+  elements.contextMenu?.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", closeContextMenu);
+  elements.settingsShortcut?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isOpen = elements.sidebar?.classList.toggle("utility-menu-open") || false;
+    elements.settingsShortcut.setAttribute("aria-expanded", String(isOpen));
+  });
+  document.querySelector(".companion-secondary-actions")?.addEventListener("click", (event) => event.stopPropagation());
+  document.addEventListener("click", () => {
+    elements.sidebar?.classList.remove("utility-menu-open");
+    elements.settingsShortcut?.setAttribute("aria-expanded", "false");
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeContextMenu();
+      elements.sidebar?.classList.remove("utility-menu-open");
+      elements.settingsShortcut?.setAttribute("aria-expanded", "false");
+    }
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      elements.conversationSearch?.focus();
+    }
+  });
+
   elements.messageInput.addEventListener("input", () => {
     persistDraftForActiveConversation();
     resizeComposer();
@@ -830,8 +1140,186 @@ function bindStaticEvents() {
     }
   });
 
+  document.querySelectorAll("[data-chat-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      elements.messageInput.value = button.dataset.chatPrompt || "";
+      persistDraftForActiveConversation();
+      resizeComposer();
+      elements.messageInput.focus();
+    });
+  });
+
+  elements.companionToolsButton?.addEventListener("click", async () => {
+    const open = Boolean(elements.companionTools?.hidden);
+    setCompanionToolsOpen(open);
+    if (open) {
+      try { await loadCompanionTools(); } catch (error) { showToast(error.message || "Could not load companion options.", "error"); }
+    }
+  });
+  elements.companionToolsClose?.addEventListener("click", () => setCompanionToolsOpen(false));
+  document.querySelectorAll("button[data-companion-mode]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const nextMode = button.dataset.companionMode || "listen";
+      if (nextMode === "deep" && !guardEntitlement("deep_conversation")) return;
+      const conversation = getActiveConversation();
+      const previousMode = conversation?.companionMode || state.pendingCompanionMode;
+      state.pendingCompanionMode = nextMode;
+      if (conversation) conversation.companionMode = nextMode;
+      render();
+      try {
+        if (conversation) {
+          const updated = await apiRequest(`/api/chat/conversations/${conversation.id}`, { method: "PATCH", auth: true, body: { companionMode: nextMode, expectedVersion: conversation.version || 1 } });
+          replaceConversation(updated);
+        }
+        showToast(`${MODE_LABELS[nextMode]} mode selected.`, "success");
+      } catch (error) {
+        state.pendingCompanionMode = previousMode;
+        if (conversation) conversation.companionMode = previousMode;
+        showToast(error.message || "Could not change response mode.", "error");
+      }
+      render();
+    });
+  });
+  document.querySelectorAll("[data-arrival-mood]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      document.querySelectorAll("[data-arrival-mood]").forEach((item) => item.classList.toggle("selected", item === button));
+      elements.companionArrivalStatus.textContent = "Saving…";
+      try {
+        await apiRequest("/api/personal/check-ins", { method: "POST", auth: true, body: { mood: button.dataset.arrivalMood } });
+        elements.companionArrivalStatus.textContent = "Saved privately. You can talk, or simply stay here.";
+      } catch (error) {
+        elements.companionArrivalStatus.textContent = error.message || "Could not save this check-in.";
+      }
+    });
+  });
+  elements.companionEnvironmentGrid?.addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-companion-environment]");
+    if (choice) selectCompanionEnvironment(choice.dataset.companionEnvironment);
+  });
+  elements.companionEnvironmentGrid?.addEventListener("keydown", (event) => {
+    const choices = [...elements.companionEnvironmentGrid.querySelectorAll("[data-companion-environment]")];
+    const current = event.target.closest("[data-companion-environment]");
+    const currentIndex = choices.indexOf(current);
+    if (currentIndex < 0 || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? choices.length - 1
+        : (currentIndex + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + choices.length) % choices.length;
+    choices[nextIndex]?.focus();
+    choices[nextIndex]?.click();
+  });
+  elements.companionAmbience?.addEventListener("change", async () => {
+    const previous = state.space.ambience;
+    state.space.ambience = elements.companionAmbience.value;
+    try {
+      await apiRequest("/api/play/space", { method: "PUT", auth: true, body: state.space });
+      elements.chatStage.dataset.ambience = state.space.ambience;
+      await startAmbientAudio(state.space.ambience);
+      showToast(state.space.ambience === "none" ? "Ambient sound stopped." : "Ambient sound is playing locally.", "success");
+    } catch (error) {
+      state.space.ambience = previous;
+      elements.companionAmbience.value = previous;
+      showToast(error.message || "Could not save the room atmosphere.", "error");
+    }
+  });
+  window.addEventListener("pagehide", stopAmbientAudio, { once: true });
+  elements.companionMemoryList?.addEventListener("click", async (event) => {
+    const editButton = event.target.closest("[data-edit-memory]");
+    if (editButton) {
+      const value = window.prompt("Update what Emora remembers:", editButton.dataset.memoryValue || "")?.trim();
+      if (!value || value === editButton.dataset.memoryValue) return;
+      try {
+        await apiRequest(`/api/companion/memories/${editButton.dataset.editMemory}`, { method: "PATCH", auth: true, body: { value } });
+        showToast("Memory updated.", "success");
+        await loadCompanionTools();
+      } catch (error) {
+        showToast(error.message || "Could not update this memory.", "error");
+      }
+      return;
+    }
+    const button = event.target.closest("[data-forget-memory]");
+    if (!button) return;
+    try {
+      await apiRequest(`/api/companion/memories/${button.dataset.forgetMemory}`, { method: "DELETE", auth: true });
+      await loadCompanionTools();
+    } catch (error) {
+      showToast(error.message || "Could not remove this memory.", "error");
+    }
+  });
+  elements.companionMemoryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!guardEntitlement("companion_memory")) return;
+    const value = elements.companionMemoryInput.value.trim();
+    if (!value) return;
+    const button = event.currentTarget.querySelector("button");
+    button.disabled = true;
+    elements.companionMemoryStatus.textContent = "Saving…";
+    try {
+      await apiRequest("/api/companion/memories", { method: "POST", auth: true, body: { value } });
+      elements.companionMemoryInput.value = "";
+      elements.companionMemoryStatus.textContent = "Saved. You can forget it at any time.";
+      await loadCompanionTools();
+    } catch (error) {
+      elements.companionMemoryStatus.textContent = error.message || "Could not save this memory.";
+    } finally {
+      button.disabled = !state.preferences.emotionalMemory;
+    }
+  });
+  elements.remixJournalButton?.addEventListener("click", async () => {
+    try { await remixConversationToJournal(); } catch (error) { showToast(error.message || "Could not create a journal draft.", "error"); }
+  });
+  elements.sessionReflectionButton?.addEventListener("click", async () => {
+    if (!guardEntitlement("session_reflection")) return;
+    const conversation = getActiveConversation();
+    if (!conversation?.id || !(conversation.messages || []).some((message) => message.role === "user")) {
+      showToast("Have a conversation first, then ask Emora to reflect it back.", "warning");
+      return;
+    }
+    elements.sessionReflectionButton.disabled = true;
+    elements.sessionReflectionOutput.textContent = "Reflecting only what was actually said…";
+    try {
+      const result = await apiRequest("/api/companion/reflections", { method: "POST", auth: true, body: { conversationId: conversation.id } });
+      elements.sessionReflectionOutput.textContent = result.reflection;
+    } catch (error) {
+      elements.sessionReflectionOutput.textContent = error.message || "This reflection could not be created right now.";
+    } finally {
+      elements.sessionReflectionButton.disabled = false;
+    }
+  });
+
   elements.sendButton.addEventListener("click", () => handleSend());
+  elements.stopButton.addEventListener("click", async () => {
+    const clientTurnId = state.activeClientTurnId;
+    if (clientTurnId) {
+      try { await apiRequest(`/api/chat/turns/${encodeURIComponent(clientTurnId)}/cancel`, { method: "POST", auth: true }); } catch { /* The local abort remains available if cancellation acknowledgement fails. */ }
+    }
+    state.requestController?.abort();
+    state.isThinking = false;
+    render();
+    showToast("Companion interrupted.", "info");
+  });
+  elements.micButton.addEventListener("click", () => {
+    if (!guardEntitlement("voice")) return;
+    if (!SpeechRecognition) { showToast("Voice input is not supported in this browser.", "warning"); return; }
+    if (!state.recognition) {
+      state.recognition = new SpeechRecognition();
+      state.recognition.interimResults = true;
+      state.recognition.addEventListener("result", (event) => {
+        elements.messageInput.value = Array.from(event.results).map((item) => item[0].transcript).join("").trim();
+        resizeComposer();
+      });
+      state.recognition.addEventListener("end", () => { state.listening = false; render(); });
+      state.recognition.addEventListener("error", () => { state.listening = false; render(); });
+    }
+    if (state.listening) { state.recognition.stop(); return; }
+    state.listening = true;
+    state.recognition.start();
+    render();
+  });
   elements.cameraButton?.addEventListener("click", () => {
+    closeContextMenu();
     if (state.cameraStream) stopCameraCheckIn();
     else startCameraCheckIn();
   });
@@ -839,6 +1327,44 @@ function bindStaticEvents() {
   window.addEventListener("pagehide", stopCameraCheckIn, { once: true });
 
   elements.chatMessages.addEventListener("click", async (event) => {
+    const copyButton = event.target.closest("[data-copy-message]");
+    if (copyButton) {
+      const message = getActiveConversation()?.messages?.find((item) => item.id === copyButton.dataset.copyMessage);
+      if (message) {
+        await copyText(message.content || "");
+        copyButton.textContent = "Copied";
+        window.setTimeout(() => { copyButton.textContent = "Copy"; }, 1200);
+      }
+      return;
+    }
+    const sourceButton = event.target.closest("[data-save-source]");
+    if (sourceButton) {
+      try {
+        await apiRequest("/api/workspace/research-shelf", { method: "POST", auth: true, body: { title: sourceButton.dataset.sourceTitle, url: sourceButton.dataset.sourceUrl, domain: sourceButton.dataset.sourceDomain, note: "", tags: [] } });
+        sourceButton.textContent = "Saved"; sourceButton.disabled = true; showToast("Source saved to your Research shelf.", "success");
+      } catch (error) { showToast(error.message || "Could not save this source.", "error"); }
+      return;
+    }
+    const feedbackButton = event.target.closest("[data-feedback-message]");
+    if (feedbackButton) {
+      const conversation = getActiveConversation();
+      try {
+        await apiRequest("/api/workspace/feedback", { method: "PUT", auth: true, body: { conversationId: conversation.id, messageId: feedbackButton.dataset.feedbackMessage, reason: feedbackButton.dataset.feedbackReason } });
+        feedbackButton.closest(".message-actions").querySelectorAll("[data-feedback-message]").forEach((button) => button.classList.toggle("selected", button === feedbackButton));
+        showToast("Private feedback saved. It will not be posted publicly.", "success");
+      } catch (error) { showToast(error.message || "Could not save feedback.", "error"); }
+      return;
+    }
+    const momentButton = event.target.closest("[data-save-moment]");
+    if (momentButton) {
+      const conversation = getActiveConversation();
+      try {
+        const result = await apiRequest("/api/experiences/moments", { method: "POST", auth: true, body: { conversationId: conversation.id, messageId: momentButton.dataset.saveMoment, category: "memory" } });
+        momentButton.textContent = result.created ? "Moment kept" : "Already kept";
+        momentButton.disabled = true;
+      } catch (error) { showToast(error.message || "Could not keep this moment.", "error"); }
+      return;
+    }
     const button = event.target.closest("[data-download-attachment]");
     if (!button?.dataset.downloadAttachment) return;
     try {
@@ -849,6 +1375,11 @@ function bindStaticEvents() {
   });
 
   elements.fileInput.addEventListener("change", () => {
+    if (!guardEntitlement("extended_chat")) {
+      elements.fileInput.value = "";
+      return;
+    }
+    closeContextMenu();
     state.selectedFile = elements.fileInput.files?.[0] || null;
     renderAttachment();
   });
@@ -857,6 +1388,30 @@ function bindStaticEvents() {
     state.selectedFile = null;
     elements.fileInput.value = "";
     renderAttachment();
+  });
+
+  elements.collectionForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const response = await apiRequest("/api/workspace/collections", { method: "POST", auth: true, body: { name: elements.collectionInput.value } });
+      state.collections.unshift(response.collection); elements.collectionInput.value = ""; renderCollections();
+    } catch (error) { showToast(error.message || "Could not create the collection.", "error"); }
+  });
+  elements.collectionList?.addEventListener("change", async (event) => {
+    const input = event.target.closest("[data-collection-id]");
+    if (!input || !state.activeConversationId) return;
+    try {
+      const response = await apiRequest(`/api/workspace/collections/${input.dataset.collectionId}/conversation`, { method: "PUT", auth: true, body: { conversationId: state.activeConversationId, included: input.checked } });
+      state.collections = state.collections.map((item) => item.id === response.collection.id ? response.collection : item); renderCollections();
+    } catch (error) { input.checked = !input.checked; showToast(error.message || "Could not update the collection.", "error"); }
+  });
+  elements.collectionList?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-delete-collection]");
+    if (!button) return;
+    event.preventDefault(); event.stopPropagation();
+    if (!window.confirm("Delete this collection? Its conversations will be kept.")) return;
+    try { await apiRequest(`/api/workspace/collections/${button.dataset.deleteCollection}`, { method: "DELETE", auth: true }); state.collections = state.collections.filter((item) => item.id !== button.dataset.deleteCollection); renderCollections(); }
+    catch (error) { showToast(error.message || "Could not delete the collection.", "error"); }
   });
 
   elements.newChatButton.addEventListener("click", async () => {
@@ -904,8 +1459,8 @@ function bindStaticEvents() {
     openModal("policy");
   });
 
-  elements.premiumButton.addEventListener("click", () => {
-    openModal("premium");
+  elements.premiumButton?.addEventListener("click", () => {
+    window.location.assign("/payment");
   });
 
   elements.clearDraftsButton.addEventListener("click", () => {
@@ -924,8 +1479,7 @@ function bindStaticEvents() {
   });
 
   elements.premiumRequestButton.addEventListener("click", () => {
-    showToast("Premium access request noted. Wire billing or upgrade handling next.", "info");
-    closeModal("premium");
+    window.location.assign("/payment");
   });
 
   document.querySelectorAll("[data-close-modal]").forEach((button) => {
@@ -948,29 +1502,6 @@ function bindStaticEvents() {
     }
   });
 
-  elements.companionGrid.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-start-companion]");
-    if (!button) {
-      return;
-    }
-    await startCompanion(button.dataset.startCompanion);
-  });
-
-  elements.chatMessages.addEventListener("click", async (event) => {
-    const quickPromptButton = event.target.closest("[data-quick-prompt]");
-    if (quickPromptButton) {
-      const prompt = QUICK_PROMPTS[Number(quickPromptButton.dataset.quickPrompt)]?.prompt;
-      if (prompt) {
-        await handleSend(prompt);
-      }
-      return;
-    }
-
-    const companionButton = event.target.closest("[data-empty-companion]");
-    if (companionButton) {
-      await startCompanion(companionButton.dataset.emptyCompanion);
-    }
-  });
 
   [elements.pinnedList, elements.recentList].forEach((container) => {
     container.addEventListener("click", async (event) => {
@@ -1022,20 +1553,79 @@ function bindStaticEvents() {
   }
 
   state.user = getStoredUser();
+  state.pendingCompanionMode = state.user?.defaultCompanionMode || "listen";
   state.drafts = loadDrafts();
+  const messageCharacters = Number(state.user?.access?.limits?.chatMessageCharacters || 2000);
+  elements.messageInput.maxLength = messageCharacters;
+  if (elements.messageLimit) elements.messageLimit.textContent = `${state.user?.access?.planName || "Free"} messages up to ${messageCharacters.toLocaleString()} characters`;
 
-  renderCompanionGrid();
   bindStaticEvents();
-
-  await fetchConversations();
+  // The core composer must not depend on optional memory, ambience, or
+  // preference endpoints. Render and accept input while those panels load.
   render();
-  await maybeConsumeStarterCharacter();
 
-  if (!state.activeConversationId && state.conversations.length > 0) {
-    state.activeConversationId = getOrderedConversations()[0].id;
+  const entryParams = new URLSearchParams(window.location.search);
+  const requestedMode = entryParams.get("mode");
+  if (requestedMode && Object.hasOwn(MODE_LABELS, requestedMode)) state.pendingCompanionMode = requestedMode;
+  const shouldStartFresh = entryParams.get("new") === "1";
+  const [conversationsResult, toolsResult] = await Promise.allSettled([
+    fetchConversations({ selectMostRecent: !shouldStartFresh }),
+    Promise.all([loadCompanionTools(), loadCollections()]),
+  ]);
+  if (conversationsResult.status === "rejected") {
+    console.error("Could not load saved conversations.", conversationsResult.reason);
+    showToast("Saved conversations could not load, but you can still start a new chat.", "warning");
+  }
+  if (toolsResult.status === "rejected") {
+    console.error("Could not load companion tools.", toolsResult.reason);
   }
 
-  elements.messageInput.value = state.activeConversationId ? state.drafts[state.activeConversationId] || "" : "";
+  try {
+    await maybeConsumeStarterCharacter();
+  } catch (error) {
+    console.error("Could not prepare the selected companion.", error);
+    showToast(error.message || "Could not prepare the selected companion.", "warning");
+  }
+
+  if (!shouldStartFresh && !state.activeConversationId && state.conversations.length > 0) {
+    state.activeConversationId = getOrderedConversations()[0].id;
+  }
+  renderCollections();
+
+  const entryPrompt = (entryParams.get("prompt") || "").slice(0, messageCharacters);
+  let restoredPrompt = "";
+  try {
+    const restored = JSON.parse(sessionStorage.getItem("emora:restore-device-draft") || "null");
+    if (restored?.type === "chat") restoredPrompt = String(restored.text || "").slice(0, messageCharacters);
+    if (restoredPrompt) sessionStorage.removeItem("emora:restore-device-draft");
+  } catch { sessionStorage.removeItem("emora:restore-device-draft"); }
+  elements.messageInput.value = restoredPrompt || entryPrompt || (state.activeConversationId ? draftText(state.drafts[state.activeConversationId]) : "");
   resizeComposer();
   render();
 })();
+
+// Keep the transcript above the actual composer, including attachments and zoom.
+if (elements.chatMessages && document.body.classList.contains("editorial-companion")) {
+  const stage = document.querySelector(".chat-stage");
+  const composer = document.querySelector(".chat-input-area");
+  const header = document.querySelector(".chat-route-header");
+  let layoutFrame;
+  const measureChat = () => {
+    cancelAnimationFrame(layoutFrame);
+    layoutFrame = requestAnimationFrame(() => {
+      if (!stage || !composer) return;
+      const log = elements.chatMessages;
+      const follow = state.followLatest !== false;
+      const bounds = stage.getBoundingClientRect();
+      stage.style.setProperty("--chat-composer-space", `${Math.max(0, bounds.bottom - composer.getBoundingClientRect().top) + 16}px`);
+      stage.style.setProperty("--chat-header-space", `${Math.max(0, (header?.getBoundingClientRect().bottom || bounds.top) - bounds.top) + 8}px`);
+      if (follow) log.scrollTop = log.scrollHeight;
+    });
+  };
+  const observer = new ResizeObserver(measureChat);
+  [stage, composer, header].filter(Boolean).forEach(node => observer.observe(node));
+  window.visualViewport?.addEventListener("resize", measureChat);
+  window.addEventListener("resize", measureChat);
+  document.fonts?.ready.then(measureChat);
+  measureChat();
+}

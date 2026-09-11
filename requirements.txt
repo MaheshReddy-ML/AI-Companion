@@ -1,29 +1,42 @@
+# Emora default development environment: macOS on Apple Silicon.
+#
+# Install with:
+#   python -m pip install -r requirements.txt
+#
+# Linux/NVIDIA and CPU deployments use requirements-cuda.txt and
+# requirements-cpu.txt respectively. Those files deliberately exclude MLX.
+
+# Web application and templates
 fastapi>=0.116,<1.0
 uvicorn[standard]>=0.35,<1.0
-pymongo>=4.11,<5.0
+jinja2>=3.1,<4.0
+aiofiles>=23.2.1
 python-dotenv>=1.1,<2.0
+
+# Database and optional shared rate limiting
+pymongo>=4.11,<5.0
+redis>=5.0,<7.0
+
+# Authentication, account validation, and integrations
 PyJWT>=2.10,<3.0
 bcrypt>=4.0,<6.0
 email-validator>=2.2,<3.0
 google-auth>=2.40,<3.0
 httpx>=0.28,<1.0
-jinja2>=3.1,<4.0
-pytest>=8.2,<9.0
 requests>=2.31
 
-
-# Kokoro TTS pipeline requirements
+# Audio, images, and local speech fallback
 kokoro>=0.9.4
 misaki[en]>=0.9.4
 numpy>=1.26
 soundfile>=0.12.1
-huggingface_hub>=0.17.0
-aiofiles>=23.2.1
-redis>=5.0,<7.0
-# Apple Silicon primary runtime. Kokoro remains an automatic local fallback.
-mlx-audio>=0.3
-# Local Qwen3 text chat on Apple Silicon.
-mlx-lm>=0.25.2
-# Opt-in local camera check-ins on Apple Silicon. Frames are not persisted.
-mlx-vlm>=0.6.0
 pillow>=10.0
+huggingface_hub>=0.27
+
+# Apple Silicon inference: MLX/Metal chat, vision, and Qwen3-TTS
+mlx-lm>=0.25.2
+mlx-vlm>=0.6.0
+mlx-audio>=0.3
+
+# Automated verification
+pytest>=8.2,<9.0

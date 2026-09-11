@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from pymongo import DESCENDING, ReturnDocument
 
 from app.database import parse_object_id, posts_collection, serialize_post, users_collection, utc_now
-from app.models.schemas import PostCreateRequest, PostUpdateRequest
+from app.models.schemas import PostCreateRequest, PostReportRequest, PostUpdateRequest
 
 
 BLOCKED_TERMS = {
@@ -73,9 +73,17 @@ def list_posts(user: dict, page: int = 1, limit: int = 20) -> dict:
     safe_page = max(1, page)
     safe_limit = min(50, max(1, limit))
     query = {
-        "$or": [
-            {"moderation_status": "visible"},
-            {"anonymous_id": anonymous_id},
+        "$and": [
+            {"$or": [
+                {"moderation_status": "visible"},
+                # Posts created before moderation metadata was introduced were
+                # already treated as visible by serialize_post. Include those
+                # legacy documents in the database query as well.
+                {"moderation_status": None},
+                {"anonymous_id": anonymous_id},
+            ]},
+            {"anonymous_id": {"$nin": list(user.get("community_blocked_authors") or [])}},
+            {"_id": {"$nin": [value for value in (parse_object_id(item) for item in (user.get("community_muted_posts") or [])) if value is not None]}},
         ]
     }
     total = posts_collection().count_documents(query)
@@ -96,6 +104,29 @@ def list_posts(user: dict, page: int = 1, limit: int = 20) -> dict:
     }
 
 
+def mute_post(post_id: str, user: dict) -> None:
+    object_id = parse_object_id(post_id)
+    if object_id is None or posts_collection().find_one({"_id": object_id}) is None:
+        raise LookupError("Post not found.")
+    users_collection().update_one({"_id": user["_id"]}, {"$addToSet": {"community_muted_posts": str(object_id)}, "$set": {"updated_at": utc_now()}})
+
+
+def block_post_author(post_id: str, user: dict) -> None:
+    object_id = parse_object_id(post_id)
+    post = posts_collection().find_one({"_id": object_id}) if object_id else None
+    if not post or post.get("anonymous_id") == get_or_create_anonymous_id_for_user(user):
+        raise LookupError("Post not found or belongs to your account.")
+    users_collection().update_one({"_id": user["_id"]}, {"$addToSet": {"community_blocked_authors": post.get("anonymous_id")}, "$set": {"updated_at": utc_now()}})
+
+
+def appeal_post(post_id: str, user: dict) -> None:
+    object_id = parse_object_id(post_id)
+    anonymous_id = get_or_create_anonymous_id_for_user(user)
+    updated = posts_collection().update_one({"_id": object_id, "anonymous_id": anonymous_id, "moderation_status": {"$ne": "visible"}}, {"$set": {"appeal_requested_at": utc_now(), "moderation_status": "appeal_requested"}}) if object_id else None
+    if not updated or not updated.modified_count:
+        raise LookupError("Post is not eligible for appeal.")
+
+
 def like_post(post_id: str, user: dict) -> dict:
     object_id = parse_object_id(post_id)
     if object_id is None:
@@ -104,8 +135,11 @@ def like_post(post_id: str, user: dict) -> dict:
     anonymous_id = get_or_create_anonymous_id_for_user(user)
     query = {
         "_id": object_id,
-        "moderation_status": "visible",
         "liked_by": {"$ne": anonymous_id},
+        "$or": [
+            {"moderation_status": "visible"},
+            {"moderation_status": None},
+        ],
     }
     updated_post = posts_collection().find_one_and_update(
         query,
@@ -116,6 +150,37 @@ def like_post(post_id: str, user: dict) -> dict:
         raise LookupError("Post not found or already related to.")
 
     return serialize_post(updated_post, current_anonymous_id=anonymous_id)
+
+
+def report_post(post_id: str, payload: PostReportRequest, user: dict) -> None:
+    object_id = parse_object_id(post_id)
+    if object_id is None:
+        raise ValueError("Invalid post id.")
+
+    anonymous_id = get_or_create_anonymous_id_for_user(user)
+    query = {
+        "_id": object_id,
+        "anonymous_id": {"$ne": anonymous_id},
+        "reported_by": {"$ne": anonymous_id},
+        "$or": [
+            {"moderation_status": "visible"},
+            {"moderation_status": None},
+        ],
+    }
+    updated_post = posts_collection().find_one_and_update(
+        query,
+        {
+            "$inc": {"report_count": 1},
+            "$addToSet": {
+                "reported_by": anonymous_id,
+                "report_reasons": payload.reason,
+            },
+            "$set": {"last_reported_at": utc_now()},
+        },
+        return_document=ReturnDocument.AFTER,
+    )
+    if updated_post is None:
+        raise LookupError("Post not found, already reported, or owned by current user.")
 
 
 def update_post(post_id: str, payload: PostUpdateRequest, user: dict) -> dict:

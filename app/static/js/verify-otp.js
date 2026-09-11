@@ -9,6 +9,7 @@ const otpInput = document.getElementById("otp-input");
 const statusElement = document.getElementById("otp-status");
 const submitButton = document.getElementById("otp-submit");
 const resendButton = document.getElementById("otp-resend");
+const submitButtonLabel = submitButton.innerHTML;
 
 initChrome();
 
@@ -58,6 +59,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   submitButton.disabled = true;
+  submitButton.setAttribute("aria-busy", "true");
   submitButton.textContent = "Verifying...";
 
   try {
@@ -73,7 +75,8 @@ form.addEventListener("submit", async (event) => {
     showStatus(statusElement, error.message || "Invalid OTP.");
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = "Verify code";
+    submitButton.removeAttribute("aria-busy");
+    submitButton.innerHTML = submitButtonLabel;
   }
 });
 

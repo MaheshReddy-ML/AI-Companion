@@ -10,6 +10,7 @@ from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
 from app.avatar_catalog import resolve_avatar_payload
+from app.access import access_profile
 from app.config import settings
 
 
@@ -21,10 +22,17 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def as_utc(value: datetime) -> datetime:
+    """Return a UTC-aware datetime, including PyMongo's naive UTC values."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def to_iso(value: datetime | None) -> str | None:
     if value is None:
         return None
-    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    return as_utc(value).isoformat().replace("+00:00", "Z")
 
 
 def get_client() -> MongoClient:
@@ -91,6 +99,17 @@ def check_database_connection() -> dict[str, Any]:
     }
 
 
+def ensure_together_indexes() -> None:
+    database = get_database()
+    database["friendships"].create_index([("pair_key", ASCENDING)], unique=True)
+    database["friendships"].create_index([("requester_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+    database["friendships"].create_index([("recipient_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+    database["social_presence"].create_index([("user_id", ASCENDING)], unique=True)
+    database["social_presence"].create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
+    database["social_circles"].create_index([("member_ids", ASCENDING), ("updated_at", DESCENDING)])
+    database["social_circles"].create_index([("owner_id", ASCENDING), ("created_at", DESCENDING)])
+
+
 def ensure_indexes() -> None:
     try:
         users_collection().create_index([("email", ASCENDING)], unique=True)
@@ -107,10 +126,60 @@ def ensure_indexes() -> None:
         memories_collection().create_index([("user_id", ASCENDING), ("category", ASCENDING), ("key", ASCENDING)], unique=True)
         memories_collection().create_index([("expires_at", ASCENDING)], sparse=True)
         get_database()["quests"].create_index([("user_id", ASCENDING), ("date", DESCENDING)])
-        get_database()["focus_rooms"].create_index([("code", ASCENDING)], unique=True)
+        get_database()["play_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        focus_rooms = get_database()["focus_rooms"]
+        focus_rooms.create_index([("code", ASCENDING)], unique=True)
+        existing_ends_index = focus_rooms.index_information().get("ends_at_1", {})
+        if existing_ends_index.get("expireAfterSeconds") is not None:
+            focus_rooms.drop_index("ends_at_1")
+        focus_rooms.create_index([("ends_at", ASCENDING)], name="focus_rooms_ends_at")
+        focus_rooms.create_index([("delete_at", ASCENDING)], name="focus_rooms_delete_at", expireAfterSeconds=0)
+        focus_rooms.create_index([("members", ASCENDING), ("last_activity_at", DESCENDING)])
+        focus_presence = get_database()["focus_room_presence"]
+        focus_presence.create_index(
+            [("room_id", ASCENDING), ("user_id", ASCENDING), ("connection_id", ASCENDING)],
+            unique=True,
+        )
+        focus_presence.create_index([("room_id", ASCENDING), ("last_seen_at", DESCENDING)])
+        focus_presence.create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
         get_database()["user_spaces"].create_index([("user_id", ASCENDING)], unique=True)
         get_database()["journal_entries"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
         get_database()["goals"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["daily_check_ins"].create_index([("user_id", ASCENDING), ("date", DESCENDING)], unique=True)
+        get_database()["user_preferences"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["emora_moments"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["emora_moments"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
+        get_database()["daily_drops"].create_index([("user_id", ASCENDING), ("date", DESCENDING)], unique=True)
+        get_database()["constellation_hidden"].create_index([("user_id", ASCENDING), ("node_id", ASCENDING)], unique=True)
+        get_database()["billing_requests"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["billing_requests"].create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["billing_requests"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("token_hash", ASCENDING)], unique=True)
+        get_database()["auth_sessions"].create_index([("user_id", ASCENDING), ("last_activity_at", DESCENDING)])
+        get_database()["auth_sessions"].create_index([("expires_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["security_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["security_events"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["scheduled_job_leases"].create_index([("lease_until", ASCENDING)])
+        get_database()["check_in_deliveries"].create_index([("schedule_id", ASCENDING), ("date", ASCENDING)], unique=True)
+        get_database()["check_in_deliveries"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["chat_turn_requests"].create_index([("user_id", ASCENDING), ("client_turn_id", ASCENDING)], unique=True)
+        get_database()["chat_turn_requests"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("read_at", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["notifications"].create_index([("user_id", ASCENDING), ("dedupe_key", ASCENDING)], unique=True, sparse=True)
+        get_database()["notifications"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["conversation_collections"].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["response_feedback"].create_index([("user_id", ASCENDING), ("conversation_id", ASCENDING), ("message_id", ASCENDING)], unique=True)
+        get_database()["research_shelf"].create_index([("user_id", ASCENDING), ("url", ASCENDING)], unique=True)
+        get_database()["check_in_schedules"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["emora_sessions"].create_index([("user_id", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["emora_sessions"].create_index([("user_id", ASCENDING), ("status", ASCENDING), ("updated_at", DESCENDING)])
+        get_database()["weekly_reviews"].create_index([("user_id", ASCENDING), ("week_key", ASCENDING)], unique=True)
+        get_database()["product_state"].create_index([("user_id", ASCENDING)], unique=True)
+        get_database()["product_events"].create_index([("user_id", ASCENDING), ("created_at", DESCENDING)])
+        get_database()["product_events"].create_index([("delete_at", ASCENDING)], expireAfterSeconds=0)
+        get_database()["feature_flags"].create_index([("name", ASCENDING)], unique=True)
+        ensure_together_indexes()
     except PyMongoError as exc:
         raise RuntimeError(
             f"MongoDB is not reachable at {settings.mongo_uri}. "
@@ -124,14 +193,29 @@ def parse_object_id(value: str) -> ObjectId | None:
     return ObjectId(value)
 
 
+def close_database() -> None:
+    global _client, _database
+    if _client is not None:
+        _client.close()
+    _client = None
+    _database = None
+
+
 def serialize_user(document: dict[str, Any]) -> dict[str, Any]:
+    from app.companion_identity import default_companion_mode
     payload = {
         "_id": str(document["_id"]),
         "name": document.get("name", ""),
         "email": document.get("email", ""),
         "authProvider": document.get("auth_provider", "local"),
+        "defaultCompanionMode": default_companion_mode(document),
+        "preferredName": (document.get("companion_profile") or {}).get("preferredName", ""),
+        "onboardingRequired": bool(document.get("onboarding_required")) and not (document.get("companion_profile") or {}).get("completed", False),
+        "googlePicture": document.get("google_picture", ""),
+        "createdAt": to_iso(document.get("created_at")),
     }
     payload.update(resolve_avatar_payload(document))
+    payload["access"] = access_profile(document)
     return payload
 
 
@@ -144,6 +228,12 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         "attachmentId": str(document["attachment_id"]) if document.get("attachment_id") else None,
         "timestamp": to_iso(document.get("timestamp")),
     }
+    if document.get("client_turn_id"):
+        payload["clientTurnId"] = document.get("client_turn_id")
+    if document.get("in_reply_to"):
+        payload["inReplyTo"] = document.get("in_reply_to")
+    if document.get("state"):
+        payload["state"] = document.get("state")
     if document.get("brain"):
         payload["brain"] = document.get("brain")
     if document.get("analysis"):
@@ -152,6 +242,10 @@ def serialize_message(document: dict[str, Any]) -> dict[str, Any]:
         payload["behaviorReport"] = document.get("behavior_report")
     if document.get("vision"):
         payload["vision"] = document.get("vision")
+    if document.get("web_search"):
+        payload["webSearch"] = document.get("web_search")
+    if document.get("memory_use"):
+        payload["memoryUse"] = document.get("memory_use")
     return payload
 
 
@@ -163,6 +257,8 @@ def serialize_conversation(document: dict[str, Any]) -> dict[str, Any]:
         "characterId": document.get("character_id"),
         "characterName": document.get("character_name"),
         "personaPrompt": document.get("persona_prompt"),
+        "companionMode": document.get("companion_mode", "listen"),
+        "version": int(document.get("version", 1)),
         "messages": [serialize_message(message) for message in document.get("messages", [])],
         "createdAt": to_iso(document.get("created_at")),
         "updatedAt": to_iso(document.get("updated_at")),
@@ -177,6 +273,6 @@ def serialize_post(document: dict[str, Any], *, current_anonymous_id: str | None
         "updated_at": to_iso(document.get("updated_at")),
         "likes": int(document.get("likes", 0)),
         "liked_by_current_user": bool(current_anonymous_id and current_anonymous_id in document.get("liked_by", [])),
-        "moderation_status": document.get("moderation_status", "visible"),
+        "moderation_status": document.get("moderation_status") or "visible",
         "owned_by_current_user": bool(current_anonymous_id and document.get("anonymous_id") == current_anonymous_id),
     }

@@ -1,0 +1,165 @@
+/* Route-specific safety spacing for the immersive companion room. */
+@media (min-width: 821px) {
+  .your-emora-main .emora-character-switch {
+    top: 232px;
+  }
+}
+
+/* Keep account controls fixed while only the middle of a full-height rail scrolls. */
+.app-layout > .sidebar,
+.dashboard-shell > .sidebar,
+.chat-route-layout > .sidebar {
+  min-height: 0;
+  max-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+}
+
+.sidebar-scroll-region {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar {
+  width: 5px;
+}
+
+.sidebar-scroll-region::-webkit-scrollbar-thumb {
+  background: rgba(222, 226, 219, .2);
+  border-radius: 99px;
+}
+
+.sidebar-footer { flex: 0 0 auto; }
+
+.app-section-layout .sidebar .nav-item-icon { font-size: .65rem !important; }
+.app-section-layout .sidebar .nav-item-icon::after { display: none !important; content: none !important; }
+
+.sidebar-account-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.sidebar-account-actions button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted, rgba(255,255,255,.64));
+  font: 500 10px/1 "Sora", sans-serif;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.sidebar-account-actions button::before { font: 13px/1 "JetBrains Mono", monospace; }
+.sidebar-account-actions [data-theme-toggle]::before { content: "☼"; }
+.sidebar-account-actions [data-theme-toggle][data-theme-state="light"]::before { content: "◐"; }
+.sidebar-account-actions [data-logout]::before { content: "↗"; }
+.sidebar-account-actions button:hover {
+  border-color: var(--teal, #8abdb4);
+  background: var(--nav-hover, rgba(255,255,255,.04));
+  color: var(--text, #fff);
+}
+
+.profile-mobile-account-actions { display: none; }
+
+@media (max-width: 900px) {
+  .profile-mobile-account-actions {
+    display: grid;
+    width: min(100%, 250px);
+    margin: 14px 0 0;
+  }
+}
+
+/* Plan access belongs to the workspace rail, never over page content. */
+.sidebar-plan-access {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 16px;
+  gap: 10px;
+  align-items: center;
+  margin: 22px 10px 4px;
+  padding: 13px 12px;
+  border: 1px solid rgba(168, 144, 224, .2);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(74, 57, 118, .18), rgba(24, 28, 42, .5));
+  color: #d8d4e2;
+  text-decoration: none;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.sidebar-plan-access:hover {
+  border-color: rgba(177, 151, 237, .38);
+  background: linear-gradient(135deg, rgba(84, 64, 134, .25), rgba(28, 32, 48, .62));
+  color: #f0edf5;
+  transform: translateY(-1px);
+}
+
+.sidebar-plan-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(171, 150, 238, .25);
+  border-radius: 9px;
+  background: rgba(116, 91, 190, .13);
+  color: #b9a8f2;
+}
+
+.sidebar-plan-copy { display: grid; min-width: 0; gap: 3px; }
+.sidebar-plan-copy small { color: #8f82bb; font: 7px "JetBrains Mono", monospace; letter-spacing: .13em; }
+.sidebar-plan-copy strong { overflow: hidden; color: inherit; font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-plan-copy > span { overflow: hidden; color: #777f94; font-size: 8px; line-height: 1.4; text-overflow: ellipsis; }
+.sidebar-plan-access > i { color: #8d83b1; font-size: 12px; font-style: normal; }
+body[data-access-paid="true"] .sidebar-plan-access { border-color: rgba(193, 167, 112, .22); background: linear-gradient(135deg, rgba(94, 73, 43, .17), rgba(28, 29, 42, .5)); }
+body[data-access-paid="true"] .sidebar-plan-mark { border-color: rgba(209, 180, 119, .27); background: rgba(145, 112, 55, .12); color: #d7b978; }
+.light .sidebar-plan-access { border-color: rgba(101, 78, 151, .17); background: linear-gradient(135deg, rgba(113, 90, 166, .08), rgba(255,255,255,.64)); color: #3f3a4a; }
+.light .sidebar-plan-copy > span { color: #707783; }
+
+.upgrade-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 0;
+  color: #f5efe5;
+  background: transparent;
+  border: 0;
+}
+
+.upgrade-dialog::backdrop {
+  background: rgba(3, 7, 13, .72);
+  backdrop-filter: blur(8px);
+}
+
+.upgrade-dialog-card {
+  position: relative;
+  padding: 38px;
+  background: radial-gradient(circle at 90% 0%, rgba(144, 117, 216, .18), transparent 45%), linear-gradient(145deg, #171a22, #0e141c);
+  border: 1px solid rgba(226, 198, 151, .35);
+  border-radius: 22px;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, .55);
+}
+
+.upgrade-dialog-kicker { color: #dec18d; font: 10px/1.4 "JetBrains Mono", monospace; letter-spacing: .18em; }
+.upgrade-dialog h2 { margin: 16px 0 10px; font: 400 clamp(2rem, 6vw, 3.1rem)/.98 "Instrument Serif", serif; }
+.upgrade-dialog p { max-width: 42ch; margin: 0; color: #aab2c0; line-height: 1.7; }
+.upgrade-dialog-close { position: absolute; top: 16px; right: 18px; color: #9ca6b6; background: transparent; border: 0; font-size: 24px; cursor: pointer; }
+.upgrade-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; }
+
+@media (max-width: 520px) {
+  .upgrade-dialog-card { padding: 30px 22px 24px; }
+  .upgrade-dialog-actions { align-items: stretch; flex-direction: column-reverse; }
+  .upgrade-dialog-actions .btn { width: 100%; justify-content: center; }
+}

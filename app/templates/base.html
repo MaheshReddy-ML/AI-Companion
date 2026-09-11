@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta
     name="description"
-    content="Emora is an emotionally aware AI companion with secure sign-in, guided conversations, and a research-inspired workspace."
+    content="Emora is an AI companion for conversation, private reflection, and small steps through your day."
   />
   <title>{{ page_title }} | Emora</title>
+  <link rel="icon" type="image/png" sizes="64x64" href="/static/images/emora-logo-v2-64.png?v=20260911-emora-brand" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/static/images/emora-logo-v2-192.png?v=20260911-emora-brand" />
+  <link rel="manifest" href="/static/manifest.webmanifest?v=20260830" />
   <script>
     (function () {
       try {
-        const storedTheme = localStorage.getItem("theme") || "dark";
+        const storedTheme = localStorage.getItem("theme") || "system";
         const resolvedTheme =
           storedTheme === "system"
             ? window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -30,39 +33,113 @@
       }
     })();
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
+  <link rel="stylesheet" href="/static/css/fonts.css" />
   <link rel="stylesheet" href="/static/css/styles.css" />
-  <link rel="stylesheet" href="/static/css/emora.css?v=20260710-design-system" />
-  <link rel="stylesheet" href="/static/css/polish.css" />
-  <link rel="stylesheet" href="/static/css/flagship.css?v=20260710-flagship-v8" />
+  <link rel="stylesheet" href="/static/css/emora.css?v=20260823-web-intelligence-v1" />
+  <link rel="stylesheet" href="/static/css/emora-overrides.css?v=20260823-responsive-light-v2" />
+  <link rel="stylesheet" href="/static/css/polish.css?v=20260911-emora-brand-logo" />
+  <link rel="stylesheet" href="/static/css/flagship.css?v=20260911-emora-brand-logo" />
+  <link rel="stylesheet" href="/static/css/profile-insights.css?v=20260823-responsive-light-v2" />
+  <link rel="stylesheet" href="/static/css/workspace-editorial.css?v=20260824-overview-palette-v1" />
   <script>
     window.APP_CONFIG = {{ { "googleClientId": google_client_id } | tojson }};
   </script>
   {% block head_extra %}{% endblock %}
+  <link rel="stylesheet" href="/static/css/light-theme.css?v=20260824-overview-palette-v1" />
+  <link rel="stylesheet" href="/static/css/workspace-rail-unified.css?v=20260828-notifications-v2" />
+  {% if page_title in ['AI Companion', 'Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Trust Center', 'Service Status', 'Changelog', 'Offline', 'UI State Lab'] %}<link rel="stylesheet" href="/static/css/emora-system.css?v=20260830-foundation-v2" />{% endif %}
+  <link rel="stylesheet" href="/static/css/navigation.css" />
+  <link rel="stylesheet" href="/static/css/atelier.css?v=20260909-product" />
+  <link rel="stylesheet" href="/static/css/workspace-collapse.css?v=20260911-refined" />
+  <link rel="stylesheet" href="/static/css/product-brand.css?v=20260911" />
+  {% block design_extra %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body {% block body_attributes %}{% endblock %} class="emora-atelier {% block body_class %}{% endblock %}{% if page_title in ['AI Companion', 'Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Trust Center', 'Service Status', 'Changelog', 'Offline', 'UI State Lab'] %} emora-system{% endif %}" data-page-title="{{ page_title }}" data-product-page="{{ request.url.path.strip('/') or 'home' }}">
   {% block content %}{% endblock %}
+  {% if page_title != 'Meet Emora' %}
+  <dialog class="upgrade-dialog" id="upgrade-dialog" aria-labelledby="upgrade-dialog-title">
+    <form method="dialog" class="upgrade-dialog-card">
+      <button class="upgrade-dialog-close" value="cancel" aria-label="Dismiss upgrade information">×</button>
+      <span class="upgrade-dialog-kicker" id="upgrade-dialog-plan">EMORA PLUS</span>
+      <h2 id="upgrade-dialog-title">Make Emora more personal</h2>
+      <p id="upgrade-dialog-copy">Unlock the context that makes this capability useful.</p>
+      <div class="upgrade-dialog-actions">
+        <button class="btn btn-ghost" value="cancel">Not now</button>
+        <a class="btn btn-primary" id="upgrade-dialog-link" href="/payment">View plan</a>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
+  {% if page_title in ['Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans'] %}
+  <button class="workspace-command-trigger" id="workspace-command-trigger" type="button" aria-label="Search chats, journal entries, goals, moments, and memories">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+    <span class="workspace-search-trigger-copy"><strong>Search your space</strong><small>Chats, journal, goals and more</small></span>
+    <kbd><span class="workspace-command-modifier">⌘</span>K</kbd>
+  </button>
+  <dialog class="workspace-command-dialog" id="workspace-command-dialog" aria-labelledby="workspace-command-title">
+    <div class="workspace-command-card">
+      <header><div><span>PRIVATE ACCOUNT SEARCH</span><h2 id="workspace-command-title">Search your Emora space</h2></div><button type="button" data-command-close aria-label="Close search">×</button></header>
+      <label class="workspace-command-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input id="workspace-command-input" type="search" autocomplete="off" aria-label="Search chats, journal entries, goals, moments, and memories" placeholder="Search chats, journal entries, goals, moments…"/><kbd>ESC</kbd></label>
+      <div class="workspace-command-status" id="workspace-command-status" role="status" aria-live="polite">Searches only your saved account content. Community posts are never included.</div>
+      <section class="workspace-command-results" id="workspace-command-results" aria-label="Search results"></section>
+      <section class="workspace-command-actions" id="workspace-command-actions" aria-label="Workspace shortcuts">
+        <button type="button" data-command-path="/chat?new=1"><span>＋</span><strong>New chat</strong><small>Start with Emora</small></button>
+        <button type="button" data-command-path="/sessions"><span>✦</span><strong>Emora Session</strong><small>Begin with intention</small></button>
+        <button type="button" data-command-path="/journal"><span>▣</span><strong>Journal</strong><small>Open reflections</small></button>
+        <button type="button" data-command-path="/goals"><span>◎</span><strong>Goals</strong><small>See your path</small></button>
+        <button type="button" data-command-path="/insights"><span>◌</span><strong>Insights</strong><small>Review patterns</small></button>
+        <button type="button" data-command-path="/community"><span>◇</span><strong>Community</strong><small>Enter the commons</small></button>
+        <button type="button" data-command-path="/together"><span>∞</span><strong>Together</strong><small>Friends and circles</small></button>
+        <button type="button" data-command-path="/profile"><span>○</span><strong>Profile</strong><small>Preferences and privacy</small></button>
+        <button type="button" data-command-path="/help"><span>?</span><strong>Help</strong><small>Find guidance</small></button>
+        <button type="button" data-command-action="theme"><span>◐</span><strong>Theme</strong><small>Switch appearance</small></button>
+      </section>
+      <section class="workspace-draft-center"><header><div><span>ON THIS DEVICE</span><h3>Draft recovery</h3></div><button type="button" id="workspace-clear-drafts">Clear all</button></header><p>Unsent drafts stay on this device and expire after 30 days.</p><div id="workspace-draft-list"></div></section>
+    </div>
+  </dialog>
+  <aside class="emora-contextual-concierge" id="emora-contextual-concierge" role="dialog" aria-modal="false" aria-labelledby="emora-contextual-concierge-title" hidden>
+    <header><div><span>HELP · <b data-concierge-route>{{ page_title }}</b></span><h2 id="emora-contextual-concierge-title">Help without losing your place</h2></div><button type="button" data-emora-concierge-close aria-label="Close contextual help">×</button></header>
+    <label><span class="sr-only">Search support topics</span><input type="search" data-emora-concierge-search placeholder="Search help, privacy, status, changes…" /></label>
+    <nav aria-label="Contextual support results">
+      <a href="/help" data-concierge-topic="recovery account chat sessions goals journal billing help"><strong>Help & recovery</strong><small>Steps for this workspace and account</small></a>
+      <a href="/status" data-concierge-topic="status outage incident availability degraded offline"><strong>Current service status</strong><small>Incidents, availability, and recovery</small></a>
+      <a href="/trust" data-concierge-topic="trust privacy security data retention memory export delete"><strong>Trust & privacy facts</strong><small>Storage, controls, retention, and safety</small></a>
+      <a href="/changelog" data-concierge-topic="changes update release fixed known issue"><strong>Recent changes</strong><small>Dated product updates and fixes</small></a>
+    </nav>
+    <p data-concierge-empty hidden>No matching support topic. Open the full Help Center to browse everything.</p>
+  </aside>
+  {% endif %}
+  {% if page_title in ['Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans', 'Emora Play'] %}
+  {% include "_mobile_navigation.html" %}
+  {% else %}
   <nav class="mobile-app-nav" aria-label="Workspace navigation">
     <a class="mobile-app-nav-item {% if page_title == 'Dashboard' %}active{% endif %}" href="/dashboard" aria-label="Dashboard">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h7V4H4v9Zm0 7h7v-5H4v5Zm9 0h7v-9h-7v9Zm0-11h7V4h-7v5Z"/></svg>
       <span>Home</span>
     </a>
-    <a class="mobile-app-nav-item {% if page_title == 'Your Emora' %}active{% endif %}" href="/your-emora" aria-label="Your Emora">
+    <a class="mobile-app-nav-item {% if page_title == 'Meet Emora' %}active{% endif %}" href="/your-emora" aria-label="Meet Emora live">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a6 6 0 0 0-6 6v2.1A4 4 0 0 0 4 13.5V16a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-2.5a4 4 0 0 0-2-3.4V8a6 6 0 0 0-6-6Zm-3 8V8a3 3 0 1 1 6 0v2H9Zm0 5.5a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0Zm3.5 1.8c.8.55 2.2.55 3 0l.8 1.15c-1.25.9-3.35.9-4.6 0l.8-1.15Zm1-1.8a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0Z"/></svg>
-      <span>Emora</span>
+      <span>Meet</span>
     </a>
-    <a class="mobile-app-nav-item {% if page_title == 'Companion' %}active{% endif %}" href="/chat" aria-label="Companion chat">
+    <a class="mobile-app-nav-item {% if page_title == 'Chat with Emora' %}active{% endif %}" href="/chat?new=1" aria-label="Chat with Emora using text">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2h9A3.5 3.5 0 0 1 20 5.5v6A3.5 3.5 0 0 1 16.5 15H11l-5.2 4.1A1.1 1.1 0 0 1 4 18.2V5.5Z"/></svg>
       <span>Chat</span>
+    </a>
+    <a class="mobile-app-nav-item {% if page_title == 'Emora Sessions' %}active{% endif %}" href="/sessions" aria-label="Emora Sessions">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 1.6 4.8 4.9 1.7-4.9 1.7L12 16l-1.6-4.8-4.9-1.7 4.9-1.7L12 3Zm6 12 .8 2.2 2.2.8-2.2.8L18 21l-.8-2.2L15 18l2.2-.8L18 15Z"/></svg>
+      <span>Session</span>
+    </a>
+    <a class="mobile-app-nav-item {% if page_title == 'Emora Play' %}active{% endif %}" href="/play" aria-label="Emora Play">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 1.7 5.1L19 9l-5.3 1.9L12 16l-1.7-5.1L5 9l5.3-1.9L12 2Zm7 13 .9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z"/></svg>
+      <span>Play</span>
     </a>
     <a class="mobile-app-nav-item {% if page_title == 'Insights' %}active{% endif %}" href="/insights" aria-label="Insights">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14v2H5v-2Zm1-2h3V9H6v8Zm5 0h3V3h-3v14Zm5 0h3V6h-3v11Z"/></svg>
       <span>Insights</span>
+    </a>
+    <a class="mobile-app-nav-item {% if page_title == 'Focus Together' %}active{% endif %}" href="/focus-together" aria-label="Focus Together">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Zm1 4v4.45l3.2 1.85-1 1.73L11 12.6V7h2Z"/></svg>
+      <span>Focus</span>
     </a>
     <a class="mobile-app-nav-item {% if page_title == 'Community' %}active{% endif %}" href="/community" aria-label="Community">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11A3.5 3.5 0 1 0 8.5 4a3.5 3.5 0 0 0 0 7Zm7 0A3.5 3.5 0 1 0 15.5 4a3.5 3.5 0 0 0 0 7ZM3 20a5.5 5.5 0 0 1 11 0v1H3v-1Zm9.5 1v-1a7 7 0 0 0-1.3-4.1A5.5 5.5 0 0 1 21 19.4V21h-8.5Z"/></svg>
@@ -73,7 +150,13 @@
       <span>Profile</span>
     </a>
   </nav>
-  <script type="module" src="/static/js/motion.js?v=20260710-flagship"></script>
+  {% endif %}
+  {% if page_title not in ['AI Companion', 'Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Trust Center', 'Service Status', 'Changelog', 'Offline', 'UI State Lab'] %}<script type="module" src="/static/js/motion.js?v=20260710-flagship"></script>{% endif %}
+  <script type="module" src="/static/js/pwa-register.js?v=20260830"></script>
+  {% if page_title in ['AI Companion', 'Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans', 'Login', 'Register', 'Forgot Password', 'Verify OTP', 'Reset Password', 'Trust Center', 'Service Status', 'Changelog', 'Offline', 'UI State Lab'] %}<script type="module" src="/static/js/emora-system.js?v=20260830-foundation-v2"></script>{% endif %}
+  {% if page_title in ['Dashboard', 'Chat with Emora', 'Emora Sessions', 'Insights', 'Community', 'Together', 'Profile', 'Focus Together', 'Journal', 'Goals', 'Help Center', 'Research', 'Notifications', 'Emora Plans'] %}<script type="module" src="/static/js/workspace-tools.js?v=20260828-sessions-v1"></script>{% endif %}
   {% block scripts %}{% endblock %}
+<script type="module" src="/static/js/state-cues.js?v=20260910"></script>
+<script type="module" src="/static/js/workspace-collapse.js?v=20260911-refined"></script>
 </body>
 </html>

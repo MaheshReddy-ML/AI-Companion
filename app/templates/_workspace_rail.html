@@ -1,0 +1,110 @@
+<aside class="workspace-rail shared-workspace-rail sidebar"{% if page_title == 'Chat with Emora' %} id="dashboard-sidebar"{% endif %} aria-label="Emora workspace">
+  <a class="workspace-logo" href="/dashboard" aria-label="Emora dashboard"><span><img src="/static/images/emora-logo-v2-192.png?v=20260911-emora-brand" alt="" aria-hidden="true" /></span><strong>emora</strong></a>
+
+  <div class="workspace-presence" role="status" aria-live="polite" aria-atomic="true">
+    <span class="workspace-presence-light" aria-hidden="true"></span>
+    <span>Emora is <strong data-emora-presence-label>idle</strong></span>
+  </div>
+
+  <div class="workspace-rail-scroll sidebar-scroll-region">
+    {% if page_title == 'Chat with Emora' %}
+    <button class="chat-history-close" type="button" data-chat-history-close>Back to conversation <span>→</span></button>
+    <nav class="chat-sidebar-quick" aria-label="Chat shortcuts"><a href="/dashboard">← Your workspace</a><a href="/your-emora">Voice room ↗</a></nav>
+    {% endif %}
+    {% if page_title != 'Chat with Emora' %}
+    <nav aria-label="Workspace navigation">
+      <p>SPACE</p>
+      <a class="{% if page_title == 'Dashboard' %}active{% endif %}" href="/dashboard"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9"/></svg></i> Overview</a>
+      <a class="{% if page_title == 'Meet Emora' %}active{% endif %}" href="/your-emora" aria-label="Meet Emora in the voice room"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></i> Meet Emora <b data-emora-live-state hidden></b></a>
+      <a class="{% if page_title == 'Chat with Emora' %}active{% endif %}" href="/chat?new=1" aria-label="Chat with Emora using text"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4Z"/></svg></i> Chat with Emora</a>
+      <a class="{% if page_title == 'Emora Sessions' %}active{% endif %}" href="/sessions"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></i> Emora Sessions</a>
+      <a class="{% if page_title == 'Emora Play' %}active{% endif %}" href="/play"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 9-8 9-8-9Z"/></svg></i> Emora Play <b data-play-progress hidden></b></a>
+      <a class="{% if page_title == 'Focus Together' %}active{% endif %}" href="/focus-together"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2"/></svg></i> Focus Together <b aria-label="Premium capability">✦</b></a>
+
+      <p>REFLECT</p>
+      <a class="{% if page_title == 'Insights' %}active{% endif %}" href="/insights"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 10 13l4 3 6-11M14 5h6v6"/></svg></i> Insights</a>
+      <a class="{% if page_title == 'Journal' %}active{% endif %}" href="/journal"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5ZM9 8h6M9 12h6M9 16h4"/></svg></i> Journal</a>
+      <a class="{% if page_title == 'Goals' %}active{% endif %}" href="/goals"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg></i> Gentle Goals</a>
+
+      <p>CONNECT</p>
+      <a class="{% if page_title == 'Together' %}active{% endif %}" href="/together"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12C8 4 2 6 2 12s6 8 10 0 10-6 10 0-6 8-10 0"/></svg></i> Together <b data-together-online hidden></b></a>
+      <a class="{% if page_title == 'Community' %}active{% endif %}" href="/community"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-3a6 6 0 0 1 12 0v3M16 4a4 4 0 0 1 0 8M17 15a5 5 0 0 1 5 5"/></svg></i> Community</a>
+      <a class="{% if page_title == 'Notifications' %}active{% endif %}" href="/notifications"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v5l2 3H4l2-3ZM10 21h4"/></svg></i> Notifications <b data-notification-count hidden></b></a>
+
+      <p>LIBRARY</p>
+      <a class="{% if page_title == 'Research' %}active{% endif %}" href="/research"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l2 2 2-2h7v15h-7l-2 2-2-2H3ZM12 6v15"/></svg></i> Research</a>
+      <a class="{% if page_title == 'Help Center' %}active{% endif %}" href="/help"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8a3 3 0 1 1 5 2l-2 2v2M12 18v1M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20"/></svg></i> Help & safety</a>
+      <button class="workspace-concierge-open" type="button" data-emora-concierge-open><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 10 13l4 3 6-11M14 5h6v6"/></svg></i> Help beside this page</button>
+    </nav>
+    {% endif %}
+
+
+
+    {% if page_title == 'Chat with Emora' %}
+      <button class="workspace-rail-new-chat" id="new-chat-button" type="button"><span aria-hidden="true">＋</span> New session</button>
+      <label class="workspace-rail-search" for="conversation-search">
+        <span aria-hidden="true">⌕</span>
+        <input id="conversation-search" type="search" placeholder="Search conversations" autocomplete="off" />
+        <kbd>⌘ K</kbd>
+      </label>
+      <section class="workspace-rail-conversations" aria-labelledby="workspace-pinned-title">
+        <h2 id="workspace-pinned-title">PINNED</h2><div id="pinned-conversations" class="conversation-list"></div>
+      </section>
+      <section class="workspace-rail-conversations" aria-labelledby="workspace-recent-title">
+        <h2 id="workspace-recent-title">RECENT</h2><div id="recent-conversations" class="conversation-list"></div>
+      </section>
+      <div class="companion-secondary-actions">
+        <div class="sidebar-note"><span id="sidebar-plan-badge" data-session-plan>Free Plan</span><p id="sidebar-workspace-badge">Your conversations</p></div>
+        <button id="settings-button" type="button">Settings</button>
+        <button id="policy-button" type="button">Terms</button>
+      </div>
+    {% endif %}
+    {% if page_title == 'Chat with Emora' %}<details class="chat-workspace-directory"><summary>Explore Emora</summary>    <nav aria-label="Workspace navigation">
+      <p>SPACE</p>
+      <a class="{% if page_title == 'Dashboard' %}active{% endif %}" href="/dashboard"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9"/></svg></i> Overview</a>
+      <a class="{% if page_title == 'Meet Emora' %}active{% endif %}" href="/your-emora" aria-label="Meet Emora in the voice room"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></i> Meet Emora <b data-emora-live-state hidden></b></a>
+      <a class="{% if page_title == 'Chat with Emora' %}active{% endif %}" href="/chat?new=1" aria-label="Chat with Emora using text"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4Z"/></svg></i> Chat with Emora</a>
+      <a class="{% if page_title == 'Emora Sessions' %}active{% endif %}" href="/sessions"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></i> Emora Sessions</a>
+      <a class="{% if page_title == 'Emora Play' %}active{% endif %}" href="/play"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 9-8 9-8-9Z"/></svg></i> Emora Play <b data-play-progress hidden></b></a>
+      <a class="{% if page_title == 'Focus Together' %}active{% endif %}" href="/focus-together"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2"/></svg></i> Focus Together <b aria-label="Premium capability">✦</b></a>
+
+      <p>REFLECT</p>
+      <a class="{% if page_title == 'Insights' %}active{% endif %}" href="/insights"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 10 13l4 3 6-11M14 5h6v6"/></svg></i> Insights</a>
+      <a class="{% if page_title == 'Journal' %}active{% endif %}" href="/journal"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v18H5ZM9 8h6M9 12h6M9 16h4"/></svg></i> Journal</a>
+      <a class="{% if page_title == 'Goals' %}active{% endif %}" href="/goals"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg></i> Gentle Goals</a>
+
+      <p>CONNECT</p>
+      <a class="{% if page_title == 'Together' %}active{% endif %}" href="/together"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12C8 4 2 6 2 12s6 8 10 0 10-6 10 0-6 8-10 0"/></svg></i> Together <b data-together-online hidden></b></a>
+      <a class="{% if page_title == 'Community' %}active{% endif %}" href="/community"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21v-3a6 6 0 0 1 12 0v3M16 4a4 4 0 0 1 0 8M17 15a5 5 0 0 1 5 5"/></svg></i> Community</a>
+      <a class="{% if page_title == 'Notifications' %}active{% endif %}" href="/notifications"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0v5l2 3H4l2-3ZM10 21h4"/></svg></i> Notifications <b data-notification-count hidden></b></a>
+
+      <p>LIBRARY</p>
+      <a class="{% if page_title == 'Research' %}active{% endif %}" href="/research"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h7l2 2 2-2h7v15h-7l-2 2-2-2H3ZM12 6v15"/></svg></i> Research</a>
+      <a class="{% if page_title == 'Help Center' %}active{% endif %}" href="/help"><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8a3 3 0 1 1 5 2l-2 2v2M12 18v1M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20"/></svg></i> Help & safety</a>
+      <button class="workspace-concierge-open" type="button" data-emora-concierge-open><i aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19 10 13l4 3 6-11M14 5h6v6"/></svg></i> Help beside this page</button>
+    </nav></details>{% endif %}
+  </div>
+
+  {% include "_sidebar_plan.html" %}
+
+  <div class="workspace-rail-footer sidebar-footer">
+    {% if page_title == 'Chat with Emora' %}
+      <div class="workspace-person">
+        <div class="workspace-avatar" id="sidebar-user-avatar" data-session-avatar>AI</div>
+        <div><strong id="sidebar-user-name" data-session-user-name>AI Companion</strong><span id="sidebar-user-email" data-session-user-email>Signed in workspace</span></div>
+        <button class="sidebar-settings-shortcut" type="button" aria-label="Open workspace menu" aria-expanded="false" title="Workspace menu">•••</button>
+      </div>
+    {% else %}
+      <a class="workspace-person{% if page_title == 'Profile' %} current{% endif %}" href="/profile" aria-label="Open profile and settings"{% if page_title == 'Profile' %} aria-current="page"{% endif %}>
+        <div class="workspace-avatar" data-session-avatar data-session-user-initial>M</div>
+        <div><strong data-session-user-name>Friend</strong><span data-session-plan>Free plan</span></div>
+        <span aria-hidden="true">⌄</span>
+      </a>
+    {% endif %}
+    <div class="workspace-rail-actions sidebar-account-actions" aria-label="Account controls">
+      <button type="button" data-theme-toggle><span>Theme</span></button>
+      <a href="/profile" aria-label="Settings"><span>Settings</span></a>
+      <button type="button" data-logout><span>Sign out</span></button>
+    </div>
+  </div>
+</aside>

@@ -1,0 +1,1 @@
+Self-hosted Instrument Serif, JetBrains Mono and Sora from Google Fonts, retrieved 2026-09-08. See family OFL licenses. fonts.css preserves the source face weights and styles. No font service is contacted by the application.

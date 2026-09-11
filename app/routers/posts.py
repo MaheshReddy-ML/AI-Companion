@@ -8,12 +8,14 @@ from app.models.schemas import (
     PostCreateResponse,
     PostLikeResponse,
     PostListResponse,
+    PostReportRequest,
     PostUpdateRequest,
     PostUpdateResponse,
 )
 from app.rate_limit import rate_limit
 from app.security import get_current_user
-from app.services.posts import create_post, delete_post, like_post, list_posts, update_post
+from app.services.posts import appeal_post, block_post_author, create_post, delete_post, like_post, list_posts, mute_post, report_post, update_post
+from app.product_operations import feature_enabled
 
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -26,6 +28,8 @@ router = APIRouter(prefix="/posts", tags=["posts"])
     dependencies=[Depends(rate_limit(12, 300, "posts-create"))],
 )
 def create_post_route(payload: PostCreateRequest, current_user: dict = Depends(get_current_user)) -> dict:
+    if not feature_enabled("community_writes"):
+        raise HTTPException(status_code=503, detail="Community posting is temporarily paused. Reading remains available.")
     post = create_post(payload, current_user)
     audit_event("posts.create.success", user_id=current_user["_id"], post_id=post["_id"], status=post["moderation_status"])
     return {
@@ -57,6 +61,53 @@ def like_post_route(post_id: str, current_user: dict = Depends(get_current_user)
         "message": "Post liked successfully.",
         "post": post,
     }
+
+
+@router.post("/{post_id}/report", dependencies=[Depends(rate_limit(12, 300, "posts-report"))])
+def report_post_route(
+    post_id: str,
+    payload: PostReportRequest,
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    try:
+        report_post(post_id, payload, current_user)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    audit_event("posts.report.success", user_id=current_user["_id"], post_id=post_id, reason=payload.reason)
+    return {"message": "Thank you. This reflection was privately sent for review."}
+
+
+@router.post("/{post_id}/mute")
+def mute_post_route(post_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    try:
+        mute_post(post_id, current_user)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    audit_event("posts.mute.success", user_id=current_user["_id"], post_id=post_id)
+    return {"message": "This reflection is now hidden from your feed."}
+
+
+@router.post("/{post_id}/block-author")
+def block_post_author_route(post_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    try:
+        block_post_author(post_id, current_user)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    audit_event("posts.block_author.success", user_id=current_user["_id"], post_id=post_id)
+    return {"message": "This anonymous author is now hidden from your feed."}
+
+
+@router.post("/{post_id}/appeal")
+def appeal_post_route(post_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    try:
+        appeal_post(post_id, current_user)
+    except LookupError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    audit_event("posts.appeal.success", user_id=current_user["_id"], post_id=post_id)
+    return {"message": "Appeal requested. The post remains in review until a moderator responds."}
 
 
 @router.patch("/{post_id}", response_model=PostUpdateResponse, dependencies=[Depends(rate_limit(20, 300, "posts-update"))])

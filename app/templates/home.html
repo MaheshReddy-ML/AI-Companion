@@ -1,76 +1,40 @@
 {% extends "base.html" %}
-
-{% block body_class %}landing-body flagship-landing emora-home-v2{% endblock %}
-
-{% block head_extra %}
-  <link rel="stylesheet" href="/static/css/home-flagship.css?v=20260713-v2" />
-  <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3/lib/three-vrm.module.min.js"}}
-  </script>
-{% endblock %}
-
+{% block body_class %}landing-body emora-frontpage{% endblock %}
+{% block design_extra %}<link rel="stylesheet" href="/static/css/home-flagship.css?v=20260911-product-story">{% endblock %}
 {% block content %}
-<div class="home-shell" data-home-shell>
-  <div class="home-grain" aria-hidden="true"></div>
-  <div class="home-cursor-glow" aria-hidden="true"></div>
+<div class="launch">
+<nav class="launch-nav cinematic-nav" aria-label="Main navigation">
+<a class="launch-brand" href="/" aria-label="Emora home"><img src="/static/images/emora-logo-v2-64.png?v=20260911-emora-brand" width="38" height="38" alt="">emora<span>.</span></a>
+<div class="launch-links" id="launch-navigation"><a href="#how-it-works">The experience</a><a href="#difference">Why Emora</a><a href="#about">Trust</a><a href="/login" data-guest-nav>Sign in</a><a href="/dashboard" data-auth-nav hidden>Your workspace</a><a class="launch-nav-cta" href="/register">Start free <span aria-hidden="true">↗</span></a></div>
+<button class="launch-theme" type="button" data-theme-toggle aria-label="Switch color theme">◐</button><button class="launch-menu" type="button" aria-label="Open navigation" aria-controls="launch-navigation" aria-expanded="false" data-cinematic-menu>☰</button>
+</nav>
+<main id="main-content">
+<section class="launch-hero" aria-labelledby="launch-title">
+<div class="launch-hero-copy"><p class="launch-eyebrow"><span class="launch-dot" aria-hidden="true"></span> A LITTLE MORE PERSONAL. A LOT MORE POSSIBLE.</p><h1 id="launch-title">Big thoughts.<br>Small steps.<br><em>Your Emora.</em></h1><p class="launch-lead">An AI companion that connects the conversation to what comes next. Think it through. Keep what matters. Make a little progress.</p><div class="launch-actions"><a class="launch-cta" href="/register">Meet your Emora <span aria-hidden="true">↗</span></a><a class="launch-tour" href="#product-tour"><span aria-hidden="true">▷</span> Take a look inside</a></div><p class="launch-note">Free to begin · Personal from your first hello</p></div>
+<div class="launch-scene" id="product-tour" aria-label="Interactive product illustration">
+<div class="launch-orbit" aria-hidden="true"><span>YOUR THOUGHTS, CONNECTED</span></div>
+<div class="launch-memory"><span aria-hidden="true">✳</span><div><small>CONTEXT YOU CHOOSE</small><strong>“Think it through with me.”</strong><span>One preference. A more personal reply.</span></div></div>
+<div class="launch-window"><header><span class="launch-brand-small">emora.</span><span>YOUR SPACE TO BEGIN</span><i aria-hidden="true"></i></header><div class="launch-window-content"><p class="launch-preview-label">THE CONVERSATION <span>illustrative preview</span></p><h2>Let’s make room<br>for that idea.</h2><p class="launch-user">I have a big idea. I’m not sure where to start.</p><div class="launch-response"><img src="/static/images/emora-logo-v2-64.png?v=20260911-emora-brand" width="30" height="30" alt="Emora"><p id="arrival-reply" aria-live="polite">You don’t need the whole plan yet. Tell me what matters most about this idea. We can start there.</p></div><div class="arrival-styles" role="group" aria-label="Choose an example conversation style"><button type="button" data-arrival-style="listen" aria-pressed="true">Just listen</button><button type="button" data-arrival-style="think" aria-pressed="false">Think with me</button><button type="button" data-arrival-style="light" aria-pressed="false">Keep it light</button></div><a class="launch-compose" href="/register">Your next thought starts here <span aria-hidden="true">↑</span></a></div></div>
+<div class="launch-next"><span class="launch-next-icon" aria-hidden="true">↗</span><div><small>FROM THOUGHT TO FIRST STEP</small><strong>Give the idea 20 minutes.</strong><span>A gentle goal. Room to begin.</span></div><span class="launch-next-check" aria-hidden="true">◎</span></div>
+<p class="launch-scene-caption"><span>TRY A DIFFERENT CONVERSATION STYLE ↑</span><span data-preview-index aria-hidden="true">01 / 03</span></p>
+</div>
+</section>
+<div class="launch-capabilities"><p>ONE SPACE.<br><strong>MORE WAYS FORWARD.</strong></p><span>✳ <b>Conversation</b></span><span>▤ <b>Reflection</b></span><span>◎ <b>Gentle goals</b></span><span>↗ <b>Research</b></span><a href="/trust">Your context.<br>Your control. ↗</a></div>
+<section class="launch-story" id="difference" data-arrival-reveal><p class="launch-eyebrow">BEYOND THE NEXT REPLY</p><div><h2>A good conversation<br>should lead <em>somewhere.</em></h2><p>Most days don’t fit in a single chat. Neither should your ideas. Emora brings conversation, reflection, and small actions into one personal workspace.</p></div></section>
+<section class="launch-features" id="how-it-works" aria-label="The Emora experience">
+<article class="launch-feature launch-talk" data-arrival-reveal><div class="launch-feature-copy"><p class="launch-eyebrow">01 / THINK OUT LOUD</p><h2>A thinking partner.<br>A listening ear.<br><em>Your call.</em></h2><p>An AI companion for whatever’s on your mind. Choose a conversation style, write a message, or step into the avatar voice room.</p><a href="/register?goal=talk">Find your conversation <span aria-hidden="true">↗</span></a><small>Voice availability depends on your plan.</small></div><div class="launch-room"><img src="/static/images/emora-night-room-v1.webp" alt="An illustrated quiet room with a reading chair and warm evening light" loading="lazy" width="768" height="512"><div class="launch-room-label"><span>MEET EMORA</span><strong>A little space to be yourself.</strong><div class="launch-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><small>Voice room illustration</small></div></div></article>
+<article class="launch-feature launch-reflect" data-arrival-reveal><div class="launch-journal"><div class="launch-paper"><small>YOUR JOURNAL / AN EXAMPLE</small><span class="launch-paper-date">A moment worth keeping</span><h3>It started with<br>a small idea.</h3><p>I don’t need to figure everything out today. One clear next step is enough.</p><div><span>Feeling hopeful</span><span aria-hidden="true">✳</span></div></div><span class="launch-paper-tag">Some thoughts deserve a page.</span></div><div class="launch-feature-copy"><p class="launch-eyebrow">02 / KEEP WHAT MATTERS</p><h2>Less lost in thought.<br><em>More on the page.</em></h2><p>Give an idea a home in your private journal. Reflect on a moment, choose a mood, and come back to your own words when you need them.</p><a href="/register?goal=reflect">Make room for reflection <span aria-hidden="true">↗</span></a></div></article>
+</section>
+      <section class="launch-demo" aria-labelledby="cinematic-demo-title"><header><p class="edition-label">LOOK INSIDE</p><h3 id="cinematic-demo-title">What do you need today?</h3><span>Product examples · your space starts fresh</span></header><div class="cinematic-demo-tabs" role="tablist" aria-label="Demonstrated Emora journeys">
+      <button role="tab" aria-selected="true" aria-controls="demo-talk" id="demo-talk-tab" data-demo-journey="talk">Talk</button><button role="tab" aria-selected="false" aria-controls="demo-reflect" id="demo-reflect-tab" data-demo-journey="reflect">Reflect</button><button role="tab" aria-selected="false" aria-controls="demo-focus" id="demo-focus-tab" data-demo-journey="focus">Focus</button><button role="tab" aria-selected="false" aria-controls="demo-research" id="demo-research-tab" data-demo-journey="research">Research</button></div>
+      <div class="launch-demo-panels"><div id="demo-talk" role="tabpanel" aria-labelledby="demo-talk-tab" data-demo-panel="talk"><small>THE CONVERSATION</small><h4>“Can we think this through together?”</h4><p>Choose your response style and decide when to use memory, web access, or voice. A conversation can start with one sentence.</p><a href="/register?goal=talk">Start a conversation ↗</a></div><div id="demo-reflect" role="tabpanel" aria-labelledby="demo-reflect-tab" data-demo-panel="reflect" hidden><small>YOUR JOURNAL</small><h4>“I want to remember how this felt.”</h4><p>Start with a prompt or a blank page. Give the moment a title, choose a mood, and save it to your private journal.</p><a href="/register?goal=reflect">Start a reflection ↗</a></div><div id="demo-focus" role="tabpanel" aria-labelledby="demo-focus-tab" data-demo-panel="focus" hidden><small>FOCUS TOGETHER</small><h4>“Just this one thing, for now.”</h4><p>Set a timer and invite someone you trust into a shared focus room. Work at your own pace and leave whenever you need.</p><a href="/register?goal=focus">Find your focus ↗</a></div><div id="demo-research" role="tabpanel" aria-labelledby="demo-research-tab" data-demo-panel="research" hidden><small>RESEARCH</small><h4>“Where does that information come from?”</h4><p>When web search is enabled, follow citations to the source. Save useful references and make room to question what you read.</p><a href="/register?goal=research">Explore with Emora ↗</a></div></div></section>
 
-  <nav class="home-nav" aria-label="Main navigation">
-    <a class="home-brand" href="/"><img class="brand-symbol" src="/static/images/logo.svg" alt=""/><span>emora</span></a>
-    <div class="home-nav-links"><a href="#experience">Experience</a><a href="#play">Emora Play</a><a href="#principles">Principles</a></div>
-    <div class="home-nav-actions"><a href="/login" class="home-signin" data-guest-nav>Sign in</a><a href="/dashboard" class="home-signin" data-auth-nav hidden>Workspace</a><a href="/register" class="home-nav-cta" data-guest-nav>Begin your space <span>↗</span></a></div>
-  </nav>
-
-  <main>
-    <section class="home-hero">
-      <div class="hero-grid-lines" aria-hidden="true"></div>
-      <div class="hero-orb hero-orb-one" aria-hidden="true"></div><div class="hero-orb hero-orb-two" aria-hidden="true"></div>
-      <div class="hero-copy" data-home-reveal>
-        <p class="home-eyebrow"><span></span> A private companion space</p>
-        <h1>Life gets loud.<br><em>Come back to yourself.</em></h1>
-        <p class="home-lede">Emora makes a calm, beautiful place for the thoughts, rituals, and next small steps that are yours alone.</p>
-        <div class="home-hero-actions"><a class="home-primary" href="/register">Create your space <b>→</b></a><a class="home-secondary" href="#experience">See how it feels <b>↓</b></a></div>
-        <div class="home-trust"><div class="trust-avatars"><i>J</i><i>K</i><i>S</i><i>+</i></div><p>Made for quiet moments,<br>not endless scrolling.</p><span class="trust-line"></span><span class="trust-stat"><b>Private</b> by design</span></div>
-      </div>
-
-      <div class="hero-stage-wrap" data-home-reveal>
-        <div class="stage-floating-label label-welcome"><i>✦</i> Your companion is here</div>
-        <div class="stage-floating-label label-live"><span></span> Present with you</div>
-        <div class="hero-stage" id="landing-world" data-atmosphere-scene aria-label="A live Emora companion preview">
-          <div class="atmosphere-sky" aria-hidden="true"><div class="atmosphere-orb"></div><div class="atmosphere-cloud atmosphere-cloud-one"></div><div class="atmosphere-cloud atmosphere-cloud-two"></div><div class="atmosphere-stars"></div><div class="atmosphere-rain"></div><div class="atmosphere-mist"></div><div class="atmosphere-horizon atmosphere-horizon-back"></div><div class="atmosphere-horizon atmosphere-horizon-front"></div></div>
-          <div class="stage-grid" aria-hidden="true"></div><div class="stage-rings ring-a" aria-hidden="true"></div><div class="stage-rings ring-b" aria-hidden="true"></div>
-          <div class="stage-fireflies" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="landing-vrm-stage" id="landing-vrm-stage"><div class="landing-vrm-loading"><div class="landing-vrm-mark"><span></span><span></span><span></span></div><strong>Emora is arriving</strong><small>Preparing your companion space</small></div><div class="landing-vrm-loader" data-emora-avatar-loader>Preparing Emora</div></div>
-          <div class="stage-weather atmosphere-status" aria-live="polite"><span class="atmosphere-status-icon" data-atmosphere-icon>◌</span><span><strong data-atmosphere-title>A scene for your time</strong><small data-atmosphere-detail>Local atmosphere</small></span><button class="atmosphere-location-button" data-atmosphere-location type="button">Use location</button></div>
-          <div class="stage-feeling"><p>Today’s feeling</p><strong>Steady, with<br>room to grow</strong><span></span></div>
-          <div class="stage-ritual"><i>✦</i><span><small>Today</small><strong>One small ritual</strong></span><b>Done</b></div>
-        </div>
-        <p class="hero-stage-caption"><i></i> A living space that changes with your time and weather</p>
-      </div>
-    </section>
-
-    <section class="home-marquee" aria-label="Emora features"><div><span>Reflect with clarity</span><i>✦</i><span>Build gentle momentum</span><i>✦</i><span>Keep what matters close</span><i>✦</i><span>Reflect with clarity</span><i>✦</i></div></section>
-
-    <section class="home-intro" id="experience" data-home-reveal><p class="home-eyebrow">NOT ANOTHER CHAT WINDOW</p><div><h2>A companion experience<br>for <em>returning to yourself.</em></h2><p>Every part of Emora is designed to hold a thought, make a hard day more navigable, or help you take one small next step.</p></div></section>
-
-    <section class="home-capabilities">
-      <article class="capability-card capability-reflect" data-home-reveal><span class="capability-index">01</span><div class="capability-art"><i class="art-orbit"></i><b>◌</b></div><p class="capability-label">A GENTLE START</p><h3>Arrive as you are.</h3><p>Start with a sentence, a voice note, or no agenda at all. Emora meets you where you are.</p><a href="/your-emora">Enter companion room <span>→</span></a></article>
-      <article class="capability-card capability-focus" data-home-reveal><span class="capability-index">02</span><div class="capability-art"><i class="art-spark"></i><b>✦</b></div><p class="capability-label">YOUR OWN RHYTHM</p><h3>Turn intention into motion.</h3><p>Use tiny rituals, focus rooms, and gentle goals to create momentum without pressure.</p><a href="/play">Explore Emora Play <span>→</span></a></article>
-      <article class="capability-card capability-memory" data-home-reveal><span class="capability-index">03</span><div class="capability-art"><i class="art-wave"></i><b>⌁</b></div><p class="capability-label">A THREAD TO RETURN TO</p><h3>Keep what matters.</h3><p>Notice patterns and return to conversations that still have something to teach you.</p><a href="/insights">View your insights <span>→</span></a></article>
-    </section>
-
-    <section class="home-play" id="play" data-home-reveal><div class="play-copy"><p class="home-eyebrow">EMORA PLAY</p><h2>The part of your day<br>you might <em>look forward to.</em></h2><p>Private quests, a garden that grows with your rituals, and focus rooms that make progress feel personal—not performed.</p><a class="home-primary" href="/play">Step into Play <b>→</b></a><div class="play-mini-proof"><span>✦</span> Small rituals, real momentum</div></div><div class="play-garden" aria-label="A living animated garden"><div class="garden-sun"></div><div class="garden-cloud cloud-one"></div><div class="garden-cloud cloud-two"></div><div class="garden-pollen"><i></i><i></i><i></i><i></i><i></i></div><div class="garden-hill hill-back"></div><div class="garden-hill hill-front"></div><div class="garden-plant garden-plant-left"></div><div class="garden-plant garden-plant-middle"></div><div class="garden-plant garden-plant-right"></div><div class="garden-ritual-card"><span>✦</span><div><small>RITUAL COMPLETE</small><strong>Watered your garden</strong></div><b>+10</b></div></div></section>
-
-    <section class="home-principles" id="principles"><div class="principles-copy" data-home-reveal><p class="home-eyebrow">THE EMORA PROMISE</p><h2>Warm by design.<br><em>Clear in its boundaries.</em></h2><p>Emora is a private companion space—not a replacement for professional care, meaningful relationships, or the wider world.</p></div><div class="principles-list" data-home-reveal><article><span>01</span><div><h3>Your space stays yours</h3><p>Control your memories, exports, history, and account from one place.</p></div><i>↗</i></article><article><span>02</span><div><h3>Support, never substitution</h3><p>Emora makes room for qualified care, real people, and the wider world.</p></div><i>↗</i></article><article><span>03</span><div><h3>Small is meaningful</h3><p>Built around gentle returns, not streaks that punish you.</p></div><i>↗</i></article></div></section>
-
-    <section class="home-close" data-home-reveal><div class="close-orb close-orb-a"></div><div class="close-orb close-orb-b"></div><p class="home-eyebrow">MAKE A LITTLE ROOM</p><h2>Your next quiet moment<br>can start <em>here.</em></h2><a class="home-primary" href="/register">Create your Emora space <b>→</b></a></section>
-  </main>
-
-  <footer class="home-footer"><a class="home-brand" href="/"><img class="brand-symbol" src="/static/images/logo.svg" alt=""/><span>emora</span></a><p>Built for reflection, not replacement.</p><div><a href="/research">Research & safety</a><a href="/help">Help center</a><a href="/login">Sign in</a></div></footer>
+<section class="launch-meeting" data-arrival-reveal><div><p class="launch-eyebrow">PERSONAL FROM DAY ONE</p><h2>Not just an account.<br><em>An introduction.</em></h2><p>Your first meeting helps Emora understand how you want to be supported. The details are yours to change.</p><a class="launch-cta" href="/register">Make it your Emora <span aria-hidden="true">↗</span></a></div><ol><li><span>01</span><div><h3>Start with you.</h3><p>Your preferred name. Your conversation style. What you’re here for.</p></div></li><li><span>02</span><div><h3>Choose what stays.</h3><p>Share an optional first memory. Review, correct, or remove it later.</p></div></li><li><span>03</span><div><h3>Find your next step.</h3><p>Talk, reflect, explore, or set a gentle goal. Continue at your own pace.</p></div></li></ol></section>
+<section class="launch-trust" id="about" data-arrival-reveal><header><p class="launch-eyebrow">TRUST IS A PRODUCT FEATURE</p><h2>Closer to you.<br><em>Still in your hands.</em></h2><a href="/trust">Explore trust &amp; privacy ↗</a></header><div><article><span aria-hidden="true">✳</span><h3>Memory with controls.</h3><p>Review what Emora remembers. Correct it, remove it, or pause memory.</p></article><article><span aria-hidden="true">↗</span><h3>Your data. Your decisions.</h3><p>Export your account data, clear conversations, or delete your account.</p></article><article><span aria-hidden="true">◎</span><h3>Clear about being AI.</h3><p>Everyday conversation and reflection. Not therapy, diagnosis, or emergency care.</p></article></div></section>
+<section class="launch-faq" data-arrival-reveal><header><p class="launch-eyebrow">BEFORE YOUR FIRST HELLO</p><h2>A little clarity.</h2></header><div><details><summary>Can I start for free?<span aria-hidden="true">+</span></summary><p>Yes. Begin with text conversations, a private journal, gentle goals, basic insights, and memory controls. Voice and expanded capabilities depend on your plan. <a href="/payment">Compare plans and checkout availability.</a></p></details><details><summary>What makes Emora personal?<span aria-hidden="true">+</span></summary><p>Your first meeting collects your preferred name, conversation style, support preferences, and focus areas. These saved choices inform Emora’s conversation context. You can edit them later.</p></details><details><summary>Do I have to share a memory?<span aria-hidden="true">+</span></summary><p>No. Sharing a first memory is optional. You choose what to save and can review or remove it in your workspace.</p></details></div></section>
+<section class="launch-closing" data-arrival-reveal><div class="launch-closing-mark" aria-hidden="true"></div><p class="launch-eyebrow">YOUR NEXT CHAPTER, ONE CONVERSATION AWAY</p><h2>Come as you are.<br><em>See where it goes.</em></h2><a class="launch-cta" href="/register">Meet your Emora <span aria-hidden="true">↗</span></a><p>Free to begin. Yours to personalize.</p></section>
+</main>
+<footer class="launch-footer"><a class="launch-brand" href="/" aria-label="Emora home"><img src="/static/images/emora-logo-v2-64.png?v=20260911-emora-brand" width="38" height="38" alt="">emora<span>.</span></a><p>Personal AI. A more human experience.</p><nav aria-label="Footer navigation"><a href="/help">Help</a><a href="/trust">Trust</a><a href="/payment">Plans</a><a href="/status">Status</a><a href="/changelog">What’s new</a></nav><small>© 2026 Emora</small></footer>
 </div>
 {% endblock %}
-
-{% block scripts %}
-  <script type="module" src="/static/js/atmosphere.js?v=20260713"></script>
-  <script type="module" src="/static/js/home.js?v=20260713-v2"></script>
-  <script type="module" src="/static/js/home-avatar.js?v=20260710"></script>
-{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/home.js?v=20260911-product-story"></script>{% endblock %}

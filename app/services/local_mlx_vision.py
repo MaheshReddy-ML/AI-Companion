@@ -93,6 +93,11 @@ class LocalMLXVisionProvider:
             raise VisionAnalysisError(f"Local vision analysis failed: {exc}") from exc
         return parse_visual_report(str(raw or ""))
 
+    def unload_models(self) -> None:
+        with self._load_lock:
+            self._runtime = None
+            self._model_id = None
+
 
 def parse_visual_report(raw: str) -> dict[str, Any]:
     text = re.sub(r"^\s*<think>.*?</think>\s*", "", raw, flags=re.DOTALL).strip()

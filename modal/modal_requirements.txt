@@ -1,0 +1,4 @@
+modal
+uvicorn
+fastapi
+# Add any model runtime deps here, e.g. torch, transformers, sentence-transformers

@@ -1,0 +1,39 @@
+/* Explicit desktop rail geometry, independent of expanded workspace styles. */
+@media(min-width:901px){
+html body .collapsible-workspace{display:grid!important;grid-template-columns:254px minmax(0,1fr)!important;transition:grid-template-columns .26s cubic-bezier(.22,1,.36,1)}
+html body .collapsible-workspace.rail-collapsed{grid-template-columns:80px minmax(0,1fr)!important}
+html body .collapsible-workspace>.shared-workspace-rail{position:sticky!important;top:0!important;align-self:start;display:flex;flex-direction:column;height:100dvh!important;width:100%!important;min-width:0;padding:66px 14px 14px!important;overflow:hidden!important;box-sizing:border-box}
+html body .collapsible-workspace>main{margin-left:0!important;width:100%!important;min-width:0;box-sizing:border-box}
+.workspace-collapse-toggle{position:absolute;top:16px;right:18px;width:42px;height:36px;border:1px solid var(--at-line);border-radius:10px;background:var(--at-paper);color:var(--at-muted);cursor:pointer;display:grid;place-items:center}
+.workspace-collapse-toggle:hover{color:var(--at-accent);border-color:var(--at-accent)}
+.workspace-collapse-toggle svg{width:20px;fill:none;stroke:currentColor;stroke-width:1.5;transition:transform .26s}
+.rail-collapsed .workspace-collapse-toggle svg{transform:rotate(180deg)}
+.collapsible-workspace .workspace-link-label{display:block;white-space:nowrap;min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis}
+html body .collapsible-workspace .workspace-rail-scroll{flex:1 1 auto;min-height:0;overscroll-behavior:contain}
+html body .rail-collapsed>.shared-workspace-rail{padding:66px 12px 12px!important}
+html body .rail-collapsed .workspace-logo{height:44px;min-height:44px;width:100%;margin:0 0 18px;justify-content:center;padding:0!important;border:0}
+html body .rail-collapsed .workspace-logo>*{display:none!important}
+html body .rail-collapsed .workspace-logo::after{content:'e.';font:36px/1 'Instrument Serif',serif;color:var(--at-ink);letter-spacing:-.06em}
+html body .rail-collapsed .workspace-rail-scroll{margin:0!important;padding:0!important;width:56px;scrollbar-width:none}
+html body .rail-collapsed .workspace-rail-scroll::-webkit-scrollbar{display:none}
+html body .rail-collapsed .shared-workspace-rail nav{width:56px;display:flex;flex-direction:column;gap:5px;padding:0!important;margin:0!important}
+html body .rail-collapsed .shared-workspace-rail nav>:is(a,button){position:relative;display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 44px;width:48px!important;min-width:48px!important;max-width:48px;height:44px!important;min-height:44px!important;padding:0!important;margin:0 4px!important;gap:0!important;border:0!important;border-radius:12px!important;font-size:0!important;transform:none!important;background:transparent;box-sizing:border-box;box-shadow:none}
+html body .rail-collapsed .shared-workspace-rail nav>:is(a,button)>i{display:grid!important;place-items:center;flex:0 0 20px!important;width:20px!important;height:20px!important;margin:0!important;padding:0!important}
+html body .rail-collapsed .shared-workspace-rail nav>:is(a,button) svg{display:block;width:20px;height:20px}
+html body .rail-collapsed .shared-workspace-rail nav>a.active{background:var(--at-soft)!important;box-shadow:none!important}
+html body .rail-collapsed .shared-workspace-rail nav>a.active i{color:var(--at-accent)!important}
+html body .rail-collapsed .shared-workspace-rail nav>a.active::before{content:'';position:absolute;left:-4px;width:3px;height:16px;border-radius:3px;background:var(--at-accent)}
+html body .rail-collapsed .shared-workspace-rail nav>:is(a,button):hover{background:var(--at-paper)!important}
+html body .rail-collapsed :is(.workspace-link-label,.workspace-presence,.workspace-rail-scroll nav>p,.workspace-rail-scroll nav>a b,.sidebar-plan-access,.sidebar-account-panel,.sidebar-account-actions){display:none!important}
+html body .rail-collapsed .workspace-rail-footer{width:56px;margin-top:12px;padding-top:12px;border-top:1px solid var(--at-line)}
+html body .rail-collapsed .workspace-person,html body .rail-collapsed .sidebar-account-trigger{display:flex;align-items:center;justify-content:center;width:48px!important;min-width:0;height:48px;margin:0 4px;padding:0!important;gap:0;border:1px solid var(--at-line);border-radius:14px}
+html body .rail-collapsed :is(.workspace-person,.sidebar-account-trigger)>:not([data-session-avatar]){display:none!important}
+html body .rail-collapsed [data-session-avatar]{flex:0 0 30px;width:30px;height:30px;margin:0;border-radius:50%;overflow:hidden}
+html body .collapsible-workspace :is(a,button):focus-visible{outline:2px solid var(--at-accent);outline-offset:2px}
+}
+.workspace-rail-tooltip{position:fixed;z-index:1000;max-width:230px;padding:10px 14px;border:1px solid var(--at-line);border-radius:9px;background:var(--at-paper);color:var(--at-ink);box-shadow:0 6px 20px #0002;font:12px/1.4 Sora,sans-serif;pointer-events:none}
+@media(max-width:900px){.workspace-collapse-toggle,.workspace-rail-tooltip{display:none}}
+@media(prefers-reduced-motion:reduce){html body .collapsible-workspace,.workspace-collapse-toggle svg{transition:none}}
+body[data-emora-motion=reduced] :is(.collapsible-workspace,.workspace-collapse-toggle svg){transition:none!important}
+
+@media(min-width:901px){html body .collapsible-workspace .shared-workspace-rail nav b{background:var(--at-soft)!important;color:var(--at-accent)!important}html body .rail-collapsed .shared-workspace-rail nav>button>i{color:var(--at-muted)!important;background:none!important;border:0!important;box-shadow:none!important}}

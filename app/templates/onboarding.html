@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block body_class %}meeting-page{% endblock %}
+{% block head_extra %}
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js","@pixiv/three-vrm-animation":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@3.5.5/lib/three-vrm-animation.module.min.js"}}</script>
+{% endblock %}
+{% block design_extra %}<link rel="stylesheet" href="/static/css/onboarding.css?v=20260910">{% endblock %}
+{% block content %}
+<main class="first-meeting">
+  <header class="meeting-header"><a href="/" class="meeting-wordmark" aria-label="Emora home"><img class="emora-product-mark" src="/static/images/emora-logo-v2-64.png?v=20260911-emora-brand" width="40" height="40" alt="" aria-hidden="true">emora.</a><span>OUR FIRST CONVERSATION</span><button type="button" data-theme-toggle>Theme</button></header>
+  <div class="meeting-layout">
+    <aside class="meeting-companion" aria-label="Emora is here with you">
+      <div class="meeting-avatar" id="meeting-avatar"><div class="meeting-avatar-fallback"><span>e.</span><p>Emora is here.</p></div><span data-emora-avatar-loader class="sr-only"></span></div>
+      <div class="meeting-introduction"><span class="meeting-presence-dot"></span><p id="meeting-reaction" aria-live="polite">A little hello. A beginning.</p></div>
+      <p class="meeting-boundary">A few things about you. Always yours to change.</p>
+    </aside>
+    <section class="meeting-conversation" aria-label="Meet your Emora">
+      <div class="meeting-progress"><span id="meeting-step-label">Getting ready</span><progress id="meeting-progress" max="8" value="1" aria-label="Meeting progress"></progress></div>
+      <form id="meeting-form" novalidate>
+        <div id="meeting-content"><h1>One moment. I’m getting ready.</h1></div>
+        <p id="meeting-error" role="alert" hidden></p>
+        <div class="meeting-controls"><button id="meeting-back" type="button" hidden>← Back</button><button id="meeting-skip" type="button" hidden>Skip for now</button><button id="meeting-next" type="submit" disabled>Continue →</button></div>
+      </form>
+      <p class="meeting-save-note">Your progress is saved as you continue. Take your time.</p>
+    </section>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}<script type="module" src="/static/js/onboarding.js?v=20260910"></script>{% endblock %}

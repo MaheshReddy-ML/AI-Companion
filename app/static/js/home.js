@@ -1,52 +1,54 @@
-import { STORAGE_KEYS, getToken, initChrome, redirect } from "./common.js";
+import { initChrome } from "./common.js";
 
 initChrome();
 
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const heroStage = document.getElementById("landing-world");
-const cursorGlow = document.querySelector(".home-cursor-glow");
+const menuButton = document.querySelector("[data-cinematic-menu]");
+const nav = document.querySelector(".cinematic-nav");
 
-function resetStageDepth() {
-  heroStage?.style.removeProperty("--stage-x");
-  heroStage?.style.removeProperty("--stage-y");
-}
+menuButton?.addEventListener("click", () => {
+  const open = nav?.classList.toggle("menu-open") ?? false;
+  menuButton.setAttribute("aria-expanded", String(open));
+});
 
-if (!reduceMotion && heroStage) {
-  heroStage.addEventListener("pointermove", (event) => {
-    const bounds = heroStage.getBoundingClientRect();
-    const x = (event.clientX - bounds.left) / bounds.width - 0.5;
-    const y = (event.clientY - bounds.top) / bounds.height - 0.5;
-    heroStage.style.setProperty("--stage-x", `${y * -3 + 1}deg`);
-    heroStage.style.setProperty("--stage-y", `${x * 5 - 3}deg`);
-  });
-  heroStage.addEventListener("pointerleave", resetStageDepth);
-}
-
-if (!reduceMotion && cursorGlow && window.matchMedia("(pointer: fine)").matches) {
-  window.addEventListener("pointermove", (event) => {
-    cursorGlow.style.left = `${event.clientX}px`;
-    cursorGlow.style.top = `${event.clientY}px`;
-    cursorGlow.style.opacity = "1";
-  }, { passive: true });
-  document.addEventListener("mouseleave", () => { cursorGlow.style.opacity = "0"; });
-}
-
-if (!reduceMotion) {
-  const revealTargets = document.querySelectorAll("[data-home-reveal]");
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (entry.isIntersecting) {
-        entry.target.dataset.homeReveal = "visible";
-        revealObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.14 });
-  revealTargets.forEach((target) => revealObserver.observe(target));
-}
-
-document.querySelectorAll("[data-character-launch]").forEach((button) => {
-  button.addEventListener("click", () => {
-    localStorage.setItem(STORAGE_KEYS.starterCharacter, button.dataset.characterLaunch);
-    redirect(getToken() ? "/dashboard" : "/login");
+nav?.querySelectorAll("a").forEach((link) => {
+  link.addEventListener("click", () => {
+    nav.classList.remove("menu-open");
+    menuButton?.setAttribute("aria-expanded", "false");
   });
 });
+
+document.querySelectorAll("[data-cinematic-reveal]").forEach((section) => section.classList.add("is-visible"));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && nav?.classList.contains("menu-open")) {
+    nav.classList.remove("menu-open");
+    menuButton.setAttribute("aria-expanded", "false");
+    menuButton.focus();
+  }
+});
+
+// Deliberately local examples: nothing entered or selected here is stored.
+const arrivalReplies = {
+  listen: "You don’t need the whole plan yet. Tell me what matters most about this idea. We can start there.",
+  think: "Let’s take one step at a time. Who is this idea for, and what is the smallest version you could try?",
+  light: "Big idea, tiny first step. Even the grandest plans can begin on a napkin. Tea break brainstorm?",
+};
+document.querySelectorAll('[data-arrival-style]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('[data-arrival-style]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    const reply=document.getElementById('arrival-reply');reply.textContent=arrivalReplies[button.dataset.arrivalStyle];
+    document.querySelector('[data-preview-index]').textContent=`0${Object.keys(arrivalReplies).indexOf(button.dataset.arrivalStyle)+1} / 03`;
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches) reply.animate([{opacity:.35,transform:'translateY(5px)'},{opacity:1,transform:'none'}],{duration:280,easing:'ease-out'});
+  });
+});
+
+// Content is visible without JavaScript; reveal only offscreen sections once.
+const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)');
+if(!reducedMotion.matches && 'IntersectionObserver' in window){
+  const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.replace('arrival-reveal-pending','arrival-reveal-shown');observer.unobserve(entry.target);}});},{rootMargin:'0px 0px -30px 0px',threshold:.05});
+  document.querySelectorAll('[data-arrival-reveal]').forEach(section=>{if(section.getBoundingClientRect().top>innerHeight){section.classList.add('arrival-reveal-pending');observer.observe(section);}});
+  const showAll=()=>{document.querySelectorAll('.arrival-reveal-pending').forEach(section=>section.classList.replace('arrival-reveal-pending','arrival-reveal-shown'));observer.disconnect();};
+  reducedMotion.addEventListener('change',showAll,{once:true});
+  document.addEventListener('focusin',event=>{const section=event.target.closest('.arrival-reveal-pending');if(section){section.classList.replace('arrival-reveal-pending','arrival-reveal-shown');observer.unobserve(section);}});
+  window.addEventListener('beforeprint',showAll);
+}

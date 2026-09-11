@@ -5,6 +5,101 @@ export const STORAGE_KEYS = {
   starterCharacter: "ai-companion:starter-character",
 };
 
+const EMORA_PRESENCE_KEY = "emora:live-presence";
+const EMORA_LIVE_STATES = new Set(["LIVE", "IDLE", "LISTENING", "THINKING", "SEARCHING", "SPEAKING", "SAVING", "INTERRUPTED", "WITH YOU", "OFFLINE", "ERROR"]);
+let navigationStateStarted = false;
+let lastPublishedPresence = "";
+let presenceChannel = null;
+let togetherPresenceStarted = false;
+let togetherPresenceTimer = 0;
+
+function renderEmoraPresenceState(state) {
+  const normalized = EMORA_LIVE_STATES.has(state) ? state : "OFFLINE";
+  document.querySelectorAll("[data-emora-live-state]").forEach((element) => {
+    element.textContent = normalized;
+    element.dataset.state = normalized.toLowerCase().replaceAll(" ", "-");
+    element.hidden = false;
+  });
+  window.dispatchEvent(new CustomEvent("emora:presence", { detail: { state: normalized } }));
+}
+
+export function publishEmoraPresence(state) {
+  if (!EMORA_LIVE_STATES.has(state) || state === lastPublishedPresence) return;
+  lastPublishedPresence = state;
+  const payload = { state, at: Date.now() };
+  try { localStorage.setItem(EMORA_PRESENCE_KEY, JSON.stringify(payload)); } catch (_) { /* private storage may be unavailable */ }
+  presenceChannel?.postMessage?.(payload);
+  renderEmoraPresenceState(state);
+}
+
+function renderPlayNavigationProgress(progress = {}) {
+  document.querySelectorAll("[data-play-progress]").forEach((element) => {
+    const milestone = progress.indicator === "milestone";
+    const ready = Number(progress.ready || 0);
+    element.textContent = milestone ? "✦" : ready ? String(ready) : "";
+    element.hidden = !milestone && !ready;
+    element.dataset.kind = milestone ? "milestone" : "ready";
+    element.setAttribute("aria-label", milestone ? "A real Emora Play milestone was reached" : `${ready} Emora Play experience${ready === 1 ? "" : "s"} ready`);
+  });
+}
+
+function initDynamicNavigation() {
+  if (navigationStateStarted || !getToken()) return;
+  navigationStateStarted = true;
+  try {
+    const saved = JSON.parse(localStorage.getItem(EMORA_PRESENCE_KEY) || "null");
+    if (saved?.state && Date.now() - Number(saved.at || 0) < 15000) renderEmoraPresenceState(saved.state);
+  } catch (_) { /* use live health result below */ }
+  if ("BroadcastChannel" in window) {
+    presenceChannel = new BroadcastChannel("emora-presence");
+    presenceChannel.addEventListener("message", (event) => {
+      if (event.data?.state) renderEmoraPresenceState(event.data.state);
+    });
+  }
+  window.addEventListener("storage", (event) => {
+    if (event.key !== EMORA_PRESENCE_KEY || !event.newValue) return;
+    try { renderEmoraPresenceState(JSON.parse(event.newValue).state); } catch (_) { /* ignore malformed local state */ }
+  });
+  fetch("/health", { cache: "no-store" })
+    .then((response) => {
+      try {
+        const current = JSON.parse(localStorage.getItem(EMORA_PRESENCE_KEY) || "null");
+        if (current?.state && Date.now() - Number(current.at || 0) < 15000 && current.state !== "LIVE") {
+          renderEmoraPresenceState(current.state);
+          return;
+        }
+      } catch (_) { /* fall through to service health */ }
+      renderEmoraPresenceState(response.ok ? "LIVE" : "OFFLINE");
+    })
+    .catch(() => renderEmoraPresenceState("OFFLINE"));
+  apiRequest("/api/play/progress", { auth: true, cache: "no-store" })
+    .then(renderPlayNavigationProgress)
+    .catch(() => renderPlayNavigationProgress({}));
+}
+
+function initTogetherPresence() {
+  if (togetherPresenceStarted || !getToken() || !document.body.classList.contains("emora-system")) return;
+  togetherPresenceStarted = true;
+  const heartbeat = async () => {
+    if (document.hidden) return;
+    const stored = localStorage.getItem("emora:together-presence") || "online";
+    const visibility = ["online", "away", "hidden"].includes(stored) ? stored : "online";
+    try {
+      const response = await apiRequest("/api/together/presence", { method: "POST", auth: true, body: { visibility }, cache: "no-store" });
+      const count = Number(response.onlineFriends || 0);
+      document.querySelectorAll("[data-together-online]").forEach((badge) => {
+        badge.textContent = count ? String(count) : "";
+        badge.hidden = count === 0;
+        badge.setAttribute("aria-label", `${count} friend${count === 1 ? "" : "s"} online`);
+      });
+    } catch (_) { /* presence expires server-side if the workspace disconnects */ }
+  };
+  heartbeat();
+  togetherPresenceTimer = window.setInterval(heartbeat, 30000);
+  window.addEventListener("pagehide", () => window.clearInterval(togetherPresenceTimer), { once: true });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); });
+}
+
 export const COMPANION_PROFILES = [
   {
     id: "grok-companion",
@@ -40,6 +135,51 @@ export const COMPANION_PROFILES = [
       "Builder Buddy online. Share your feature goal and stack, and I will break it into build-ready tasks.",
   },
 ];
+
+const ENTITLEMENT_EXPLANATIONS = {
+  voice: { plan: "Plus", title: "Talk when typing is not enough", copy: "Plus adds voice conversations while keeping your saved space and privacy controls unchanged." },
+  companion_memory: { plan: "Plus", title: "Let Emora hold the context you choose", copy: "Plus expands continuity across conversations. You can inspect, edit, pause, or forget every saved detail." },
+  extended_chat: { plan: "Plus", title: "Bring more context into the conversation", copy: "Plus supports longer messages and private file context for conversations that need more room." },
+  conversation_export: { plan: "Plus", title: "Keep a copy of meaningful conversations", copy: "Plus lets you export a conversation as text or JSON without changing the original." },
+  look_back: { plan: "Plus", title: "Return to moments worth revisiting", copy: "Plus uses your real conversation history to surface gentle Look Back reflections." },
+  personalization: { plan: "Plus", title: "Choose how Emora meets you", copy: "Plus adds explicit response-style controls. Emora follows what you choose and never guesses sensitive traits." },
+  weekly_story: { plan: "Plus", title: "See your real week take shape", copy: "Plus turns your actual conversations, goals, moments, and journals into a private weekly reflection." },
+  memory_center: { plan: "Plus", title: "See why Emora remembers", copy: "Plus lets you review sources, use, expiry, corrections, and possible contradictions for private memories." },
+  weekly_review: { plan: "Plus", title: "Close the week in your own words", copy: "Plus gathers real activity into a review that is saved only after you confirm it." },
+  conversation_remix: { plan: "Pro", title: "Turn a conversation into something useful", copy: "Pro can transform an existing conversation into a real journal draft, plan, or other supported format." },
+  ambient_rooms: { plan: "Pro", title: "Shape a calmer conversation space", copy: "Pro saves ambient room choices to your account for a more immersive Companion experience." },
+  focus_rooms: { plan: "Pro", title: "Hold a quiet focus room together", copy: "Pro adds private invite-only focus rooms with a chosen duration and no public feed." },
+  advanced_insights: { plan: "Pro", title: "See the bigger picture", copy: "Pro adds deeper patterns built only from your actual activity, check-ins, goals, and conversations." },
+  adaptive_companion: { plan: "Pro", title: "Let Emora understand the bigger picture", copy: "With your permission, Pro can use active goals and your latest check-in when they are relevant. Journal entries remain private." },
+  personal_constellation: { plan: "Pro", title: "Explore what is beginning to connect", copy: "Pro opens the full Personal Constellation built only from goals, memories, and moments you created." },
+  deep_sessions: { plan: "Pro", title: "Make room for a deeper session", copy: "Pro adds longer-context guided sessions with a private intention, environment, and confirmed closing reflection." },
+  research_studio: { plan: "Pro", title: "Ask for evidence, not just an answer", copy: "Pro opens explicit source-aware research with dates, citations, conflicting-source notes, and Research Shelf saving." },
+  voice_postcards: { plan: "Complete", title: "Keep a conversation in voice", copy: "Complete can create a private voice postcard from a conversation you choose." },
+};
+
+function showUpgradeExplanation(entitlement) {
+  const dialog = document.getElementById("upgrade-dialog");
+  if (!dialog) return false;
+  const detail = ENTITLEMENT_EXPLANATIONS[entitlement] || {
+    plan: "a higher plan",
+    title: "Unlock more with Emora",
+    copy: "See which Emora plan includes this capability and what changes when you upgrade.",
+  };
+  const plan = document.getElementById("upgrade-dialog-plan");
+  const title = document.getElementById("upgrade-dialog-title");
+  const copy = document.getElementById("upgrade-dialog-copy");
+  const link = document.getElementById("upgrade-dialog-link");
+  if (plan) plan.textContent = `INCLUDED WITH ${detail.plan.toUpperCase()}`;
+  if (title) title.textContent = detail.title;
+  if (copy) copy.textContent = detail.copy;
+  if (link) {
+    link.textContent = `View ${detail.plan}`;
+    link.href = `/payment?feature=${encodeURIComponent(entitlement)}`;
+  }
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  return true;
+}
 
 let systemThemeListenerBound = false;
 
@@ -98,6 +238,7 @@ export function displayNameForUser(user) {
     return "Friend";
   }
 
+  if (user.preferredName) return user.preferredName;
   if (user.name) {
     return user.name;
   }
@@ -150,6 +291,26 @@ export function renderUserAvatar(element, user, fallbackLabel = null) {
   }
 
   element.textContent = getInitials(label);
+}
+
+export function accessDisplayForUser(user = getStoredUser()) {
+  const access = user?.access || {};
+  if (access.isAdmin || access.plan === "admin") {
+    return {
+      kicker: "PLATFORM ADMIN",
+      label: "Full platform access",
+      compact: "Admin · Full access",
+      planName: "Administrator",
+    };
+  }
+  const planName = access.planName || "Free";
+  const paid = Boolean(user && access.plan && access.plan !== "free");
+  return {
+    kicker: paid ? "YOUR EMORA SPACE" : "EMORA PLANS",
+    label: user ? (paid ? `${planName} access` : "View plans") : "View access",
+    compact: `${planName} plan`,
+    planName,
+  };
 }
 
 export function redirect(path) {
@@ -208,6 +369,7 @@ function updateThemeButtons() {
 export function syncChrome() {
   const user = getStoredUser();
   const name = displayNameForUser(user);
+  const email = user?.email || "Signed in workspace";
 
   document.querySelectorAll("[data-guest-nav]").forEach((element) => {
     element.hidden = Boolean(user);
@@ -225,11 +387,112 @@ export function syncChrome() {
     element.hidden = !user;
     element.textContent = user ? name : "";
   });
+
+  const access = user?.access || { plan: "free", planName: "Free", entitlements: [] };
+  const plan = access.isAdmin ? "admin" : access.plan || "free";
+  const isPaid = Boolean(user && plan !== "free");
+  const accessDisplay = accessDisplayForUser(user);
+  document.querySelectorAll("[data-session-user-name]").forEach((element) => {
+    element.textContent = name;
+  });
+  document.querySelectorAll("[data-session-user-email]").forEach((element) => {
+    element.textContent = email;
+  });
+  document.querySelectorAll("[data-session-plan]").forEach((element) => {
+    element.textContent = accessDisplay.compact;
+  });
+  document.querySelectorAll("[data-session-user-initial]:not([data-session-avatar])").forEach((element) => {
+    element.textContent = getInitials(name);
+  });
+  document.querySelectorAll("[data-session-avatar]").forEach((element) => {
+    renderUserAvatar(element, user, name);
+  });
+  document.body.dataset.accessPlan = plan;
+  document.body.dataset.accessPaid = String(isPaid);
+  document.querySelectorAll("[data-sidebar-plan-access]").forEach((element) => {
+    element.setAttribute("aria-label", access.isAdmin ? "Open administrator access controls" : isPaid ? `Manage ${access.planName} access` : "View Emora Pro plans");
+    if (access.isAdmin) element.href = "/payment#billing-admin";
+  });
+  document.querySelectorAll("[data-sidebar-plan-kicker]").forEach((element) => {
+    element.textContent = access.isAdmin ? "PLATFORM ADMIN" : isPaid ? `${accessDisplay.planName.toUpperCase()} SPACE` : "EMORA PRO";
+  });
+  document.querySelectorAll("[data-sidebar-plan-label]").forEach((element) => {
+    element.textContent = access.isAdmin ? "Full platform access" : isPaid ? `${accessDisplay.planName} access` : "Unlock deeper insights";
+  });
+  document.querySelectorAll("[data-sidebar-plan-note]").forEach((element) => {
+    element.textContent = access.isAdmin || access.entitlements?.includes("advanced_insights")
+      ? "Your behavior summary is active."
+      : "Behavior summaries and deeper patterns.";
+  });
+  document.querySelectorAll("[data-entitlement]").forEach((element) => {
+    const allowed = Boolean(access.isAdmin || access.entitlements?.includes(element.dataset.entitlement));
+    element.dataset.locked = String(!allowed);
+    element.setAttribute("aria-disabled", String(!allowed));
+    if (!allowed) element.title = `${element.dataset.planLabel || "A higher Emora plan"} is required`;
+    if (element.dataset.entitlementBound !== "true") {
+      element.dataset.entitlementBound = "true";
+      const guard = (event) => {
+        if (element.dataset.locked !== "true") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!showUpgradeExplanation(element.dataset.entitlement)) {
+          window.location.assign(`/payment?feature=${encodeURIComponent(element.dataset.entitlement)}`);
+        }
+      };
+      element.addEventListener("click", guard, true);
+      element.addEventListener("submit", guard, true);
+      element.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") guard(event);
+      }, true);
+    }
+  });
+}
+
+export function hasStoredEntitlement(entitlement) {
+  const access = getStoredUser()?.access;
+  return Boolean(access?.isAdmin || access?.entitlements?.includes(entitlement));
+}
+
+export function guardEntitlement(entitlement) {
+  if (hasStoredEntitlement(entitlement)) return true;
+  if (!showUpgradeExplanation(entitlement)) {
+    window.location.assign(`/payment?feature=${encodeURIComponent(entitlement)}`);
+  }
+  return false;
+}
+
+export async function refreshNotificationBadge() {
+  const badges = document.querySelectorAll("[data-notification-count]");
+  if (!badges.length || !getToken()) return 0;
+  try {
+    const response = await apiRequest("/api/workspace/notifications?unreadOnly=true&limit=1", { auth: true, cache: "no-store" });
+    const count = Number(response.unreadCount || 0);
+    badges.forEach((badge) => {
+      badge.textContent = count > 99 ? "99+" : String(count);
+      badge.hidden = count === 0;
+      badge.setAttribute("aria-label", `${count} unread notification${count === 1 ? "" : "s"}`);
+    });
+    return count;
+  } catch {
+    badges.forEach((badge) => { badge.hidden = true; });
+    return 0;
+  }
 }
 
 export function initChrome() {
   applyTheme();
   syncChrome();
+  initDynamicNavigation();
+  refreshNotificationBadge();
+  initTogetherPresence();
+
+  const upgradeDialog = document.getElementById("upgrade-dialog");
+  if (upgradeDialog && upgradeDialog.dataset.bound !== "true") {
+    upgradeDialog.dataset.bound = "true";
+    upgradeDialog.addEventListener("click", (event) => {
+      if (event.target === upgradeDialog) upgradeDialog.close?.();
+    });
+  }
 
   document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
     if (button.dataset.themeBound === "true") {
@@ -261,11 +524,12 @@ function normalizeErrorMessage(data) {
     return "";
   }
 
-  return data.message || data.detail || data.error || "";
+  const value = data.message || data.detail || data.error || "";
+  return typeof value === "object" ? value.message || "Request could not be completed." : value;
 }
 
 export async function apiRequest(path, options = {}) {
-  const { method = "GET", body, auth = false, headers = {} } = options;
+  const { method = "GET", body, auth = false, headers = {}, signal, cache = "default" } = options;
   const requestHeaders = { ...headers };
 
   if (body !== undefined) {
@@ -280,6 +544,8 @@ export async function apiRequest(path, options = {}) {
     method,
     headers: requestHeaders,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
+    cache,
   });
 
   const contentType = response.headers.get("content-type") || "";
@@ -292,8 +558,11 @@ export async function apiRequest(path, options = {}) {
     throw error;
   }
 
+  if (auth && method !== "GET") window.dispatchEvent(new CustomEvent("emora:operation-complete", { detail: { path, method } }));
   return data;
 }
+
+export function postAuthPath() { return getStoredUser()?.onboardingRequired ? "/onboarding" : "/dashboard"; }
 
 export async function ensureSession({ redirectTo = "/login" } = {}) {
   const token = getToken();
@@ -308,11 +577,27 @@ export async function ensureSession({ redirectTo = "/login" } = {}) {
     const response = await apiRequest("/api/auth/verify", { auth: true });
     setStoredUser(response.user);
     syncChrome();
+    if (response.user?.onboardingRequired && !["/onboarding", "/profile", "/login", "/register"].includes(location.pathname)) redirect("/onboarding");
     return response;
-  } catch {
-    clearSession();
-    if (redirectTo) {
-      redirect(redirectTo);
+  } catch (error) {
+    // Only an authentication rejection invalidates a saved session. Interrupted
+    // navigation, offline requests and temporary server errors do not sign out.
+    if (error.status === 401 || error.status === 403) {
+      clearSession();
+      if (redirectTo) redirect(redirectTo);
+    } else if (redirectTo && !document.querySelector("#session-retry-notice")) {
+      const notice = document.createElement("div");
+      notice.id = "session-retry-notice";
+      notice.className = "session-retry-notice";
+      notice.setAttribute("role", "alert");
+      const message = document.createElement("span");
+      message.textContent = "We couldn’t reconnect to your account. Your sign-in is still saved.";
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "Try again";
+      retry.addEventListener("click", () => window.location.reload());
+      notice.append(message, retry);
+      document.body.append(notice);
     }
     return null;
   }
@@ -333,6 +618,7 @@ export function showStatus(element, message, tone = "error") {
   element.hidden = false;
   element.textContent = message;
   element.dataset.tone = tone;
+  if (tone === "success" || tone === "error") window.dispatchEvent(new CustomEvent("emora:sensory-cue", { detail: { cue: tone === "success" ? "saved" : "error" } }));
 }
 
 export function escapeHtml(value) {
@@ -342,6 +628,15 @@ export function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+export function safeExternalUrl(value, fallback = "#") {
+  try {
+    const parsed = new URL(String(value || ""), window.location.origin);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.href : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function formatSidebarTime(isoTime) {
@@ -409,7 +704,8 @@ export async function copyText(text) {
 }
 
 export function openExternal(url) {
-  window.open(url, "_blank", "noopener,noreferrer");
+  const destination = safeExternalUrl(url, "");
+  if (destination) window.open(destination, "_blank", "noopener,noreferrer");
 }
 
 export function getConversationDraftKey(user) {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -7,6 +8,9 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
+    starting_mood: Literal["calm", "hopeful", "tired", "anxious", "low", "unsure"] | None = Field(default=None, alias="startingMood")
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class LoginRequest(BaseModel):
